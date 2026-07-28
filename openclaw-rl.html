@@ -1,0 +1,1378 @@
+<meta charset="utf-8">
+<title>OpenClaw-RL — Two Signals From One Conversation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root {
+  --ground:        #F1F3F7;
+  --ground-2:      #E6EAF1;
+  --surface:       #FBFCFE;
+  --surface-2:     #FFFFFF;
+  --line:          #C9D1DE;
+  --line-soft:     #DCE2EC;
+  --ink:           #131922;
+  --ink-2:         #414D60;
+  --ink-3:         #6B7789;
+
+  /* The two signals the whole framework is built around. */
+  --eval:          #10788A;   /* dense scalar PRM vote  */
+  --eval-wash:     #DCEDF0;
+  --direct:        #B4681A;   /* sparse directive hint  */
+  --direct-wash:   #F6E7D5;
+
+  --pos:           #2F7D51;
+  --neg:           #B04A34;
+  --zero:          #7C8798;
+
+  --shadow:        0 1px 2px rgba(19,25,34,.05), 0 8px 24px -12px rgba(19,25,34,.18);
+
+  --serif: ui-serif, "New York", "Iowan Old Style", Palatino, Georgia, serif;
+  --sans:  system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:  ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+  --wide: 1120px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ground:      #0C1016;
+    --ground-2:    #12171F;
+    --surface:     #151B24;
+    --surface-2:   #1B2230;
+    --line:        #2C3542;
+    --line-soft:   #222A36;
+    --ink:         #E4E9F1;
+    --ink-2:       #A9B4C4;
+    --ink-3:       #75818F;
+    --eval:        #4BC4D8;
+    --eval-wash:   #10303A;
+    --direct:      #E9A659;
+    --direct-wash: #3A2A14;
+    --pos:         #5FBF87;
+    --neg:         #E27C63;
+    --zero:        #8A94A3;
+    --shadow:      0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"] {
+  --ground:#0C1016; --ground-2:#12171F; --surface:#151B24; --surface-2:#1B2230;
+  --line:#2C3542; --line-soft:#222A36; --ink:#E4E9F1; --ink-2:#A9B4C4; --ink-3:#75818F;
+  --eval:#4BC4D8; --eval-wash:#10303A; --direct:#E9A659; --direct-wash:#3A2A14;
+  --pos:#5FBF87; --neg:#E27C63; --zero:#8A94A3;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 12px 32px -16px rgba(0,0,0,.8);
+}
+:root[data-theme="light"] {
+  --ground:#F1F3F7; --ground-2:#E6EAF1; --surface:#FBFCFE; --surface-2:#FFFFFF;
+  --line:#C9D1DE; --line-soft:#DCE2EC; --ink:#131922; --ink-2:#414D60; --ink-3:#6B7789;
+  --eval:#10788A; --eval-wash:#DCEDF0; --direct:#B4681A; --direct-wash:#F6E7D5;
+  --pos:#2F7D51; --neg:#B04A34; --zero:#7C8798;
+  --shadow:0 1px 2px rgba(19,25,34,.05), 0 8px 24px -12px rgba(19,25,34,.18);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--ground);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 17px;
+  line-height: 1.65;
+  overflow-x: hidden;
+}
+a { color: var(--eval); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+a:hover { color: var(--ink); }
+:focus-visible { outline: 2px solid var(--eval); outline-offset: 3px; border-radius: 2px; }
+code { font-family: var(--mono); font-size: .88em; }
+
+/* ---------- layout scaffolding ---------- */
+.wrap { max-width: var(--wide); margin: 0 auto; padding: 0 24px; }
+.col  { max-width: var(--measure); }
+section { padding: 0 0 8px; }
+.rule { border: 0; border-top: 1px solid var(--line-soft); margin: 72px 0 0; }
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  display: flex; align-items: center; gap: 10px;
+  margin: 0 0 14px;
+}
+.eyebrow::before {
+  content: ""; width: 22px; height: 2px; background: currentColor; flex: none; opacity: .5;
+}
+.eyebrow.is-eval   { color: var(--eval); }
+.eyebrow.is-direct { color: var(--direct); }
+
+h2 {
+  font-family: var(--serif);
+  font-size: clamp(28px, 4vw, 40px);
+  line-height: 1.12;
+  font-weight: 600;
+  letter-spacing: -.015em;
+  text-wrap: balance;
+  margin: 0 0 16px;
+}
+h3 {
+  font-family: var(--serif);
+  font-size: 22px; font-weight: 600; line-height: 1.25;
+  text-wrap: balance;
+  margin: 0 0 10px;
+}
+h4 {
+  font-family: var(--mono);
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600; margin: 0 0 10px;
+}
+p { margin: 0 0 18px; }
+.lede { font-size: 19px; color: var(--ink-2); }
+.small { font-size: 14.5px; color: var(--ink-2); }
+.stack { display: flex; flex-direction: column; }
+
+/* ---------- header ---------- */
+.topbar {
+  position: sticky; top: 0; z-index: 40;
+  background: color-mix(in srgb, var(--ground) 86%, transparent);
+  backdrop-filter: blur(12px) saturate(1.4);
+  border-bottom: 1px solid var(--line-soft);
+}
+.topbar-in {
+  max-width: var(--wide); margin: 0 auto; padding: 10px 24px;
+  display: flex; align-items: center; gap: 16px;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .06em;
+}
+.mark { display: flex; align-items: center; gap: 8px; color: var(--ink); font-weight: 600; }
+.mark svg { display: block; }
+.topbar nav { margin-left: auto; display: flex; gap: 18px; }
+.topbar nav a { color: var(--ink-3); text-decoration: none; }
+.topbar nav a:hover { color: var(--ink); }
+.tgl {
+  font: inherit; font-family: var(--mono); cursor: pointer;
+  background: transparent; border: 1px solid var(--line); color: var(--ink-2);
+  border-radius: 999px; padding: 4px 11px; letter-spacing: .06em;
+}
+.tgl:hover { border-color: var(--eval); color: var(--eval); }
+@media (max-width: 720px) { .topbar nav { display: none; } }
+
+/* ---------- hero ---------- */
+.hero { padding: 64px 0 8px; }
+.hero h1 {
+  font-family: var(--serif);
+  font-size: clamp(40px, 7vw, 74px);
+  line-height: .98; letter-spacing: -.028em; font-weight: 600;
+  margin: 0 0 22px; text-wrap: balance;
+}
+.hero h1 em { font-style: italic; color: var(--direct); }
+.hero .lede { font-size: clamp(18px, 2.2vw, 21px); max-width: 60ch; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 26px 0 0; }
+.chip {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em;
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 4px 11px; color: var(--ink-2); background: var(--surface);
+}
+.chip.hot { border-color: var(--direct); color: var(--direct); background: var(--direct-wash); }
+.chip.cool { border-color: var(--eval); color: var(--eval); background: var(--eval-wash); }
+
+/* ---------- generic panel ---------- */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--line-soft);
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+}
+.panel-hd {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
+  padding: 14px 18px; border-bottom: 1px solid var(--line-soft);
+  font-family: var(--mono); font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--ink-3);
+}
+.panel-bd { padding: 18px; }
+
+/* ---------- canvas loop ---------- */
+.loopwrap { margin: 40px 0 0; }
+#loop { display: block; width: 100%; height: 260px; }
+.loop-legend {
+  display: flex; flex-wrap: wrap; gap: 4px 26px;
+  padding: 12px 18px; border-top: 1px solid var(--line-soft);
+  font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
+}
+.loop-legend b { color: var(--ink-2); font-weight: 600; }
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: 1px; }
+
+/* ---------- method switch ---------- */
+.seg {
+  display: inline-flex; border: 1px solid var(--line); border-radius: 3px;
+  overflow: hidden; background: var(--surface);
+}
+.seg button {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .07em;
+  padding: 8px 16px; border: 0; background: transparent; color: var(--ink-2);
+  cursor: pointer; border-right: 1px solid var(--line-soft);
+}
+.seg button:last-child { border-right: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--ground); }
+.seg button:hover:not([aria-pressed="true"]) { background: var(--ground-2); color: var(--ink); }
+
+.tokenstrip {
+  display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0 18px;
+  font-family: var(--mono); font-size: 13px;
+}
+.tok {
+  padding: 5px 7px; border-radius: 2px; border: 1px solid transparent;
+  background: var(--ground-2); color: var(--ink-2); cursor: default;
+  position: relative; transition: transform .12s ease;
+}
+.tok .adv {
+  display: block; font-size: 9.5px; letter-spacing: .04em; text-align: center;
+  color: var(--ink-3); margin-top: 2px;
+}
+.formula {
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.9;
+  background: var(--ground-2); border-left: 2px solid var(--line);
+  padding: 12px 16px; overflow-x: auto; color: var(--ink-2);
+}
+.formula.is-eval { border-left-color: var(--eval); }
+.formula.is-direct { border-left-color: var(--direct); }
+.formula b { color: var(--ink); font-weight: 600; }
+
+/* ---------- lifecycle stepper ---------- */
+.steps { display: grid; grid-template-columns: 190px 1fr; gap: 0; }
+@media (max-width: 700px) { .steps { grid-template-columns: 1fr; } }
+.steprail { border-right: 1px solid var(--line-soft); }
+@media (max-width: 700px) {
+  .steprail { border-right: 0; border-bottom: 1px solid var(--line-soft); display: flex; overflow-x: auto; }
+}
+.steprail button {
+  display: block; width: 100%; text-align: left; white-space: nowrap;
+  font-family: var(--mono); font-size: 12px; letter-spacing: .04em;
+  padding: 11px 16px; border: 0; border-left: 2px solid transparent;
+  background: transparent; color: var(--ink-3); cursor: pointer;
+}
+.steprail button:hover { color: var(--ink); background: var(--ground-2); }
+.steprail button[aria-selected="true"] { color: var(--ink); border-left-color: var(--eval); background: var(--ground-2); }
+.steprail button .n { color: var(--ink-3); margin-right: 10px; }
+.stepbody { padding: 20px 22px; min-height: 210px; }
+.stepbody h3 { margin-bottom: 8px; }
+.stepbody .tag {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  border-radius: 999px; padding: 3px 9px; border: 1px solid currentColor;
+}
+.tag.eval { color: var(--eval); background: var(--eval-wash); }
+.tag.direct { color: var(--direct); background: var(--direct-wash); }
+.tag.both { color: var(--ink-2); background: var(--ground-2); }
+
+/* ---------- gpu allocator ---------- */
+.alloc { display: grid; grid-template-columns: 1fr 300px; gap: 24px; }
+@media (max-width: 820px) { .alloc { grid-template-columns: 1fr; } }
+.sl { display: grid; grid-template-columns: 130px 1fr 44px; align-items: center; gap: 12px; margin-bottom: 14px; }
+.sl label { font-family: var(--mono); font-size: 12px; color: var(--ink-2); letter-spacing: .04em; }
+.sl output { font-family: var(--mono); font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { width: 100%; accent-color: var(--eval); }
+.gpubar { display: flex; height: 34px; border-radius: 3px; overflow: hidden; border: 1px solid var(--line); }
+.gpubar div {
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10.5px; color: #fff; overflow: hidden;
+  transition: flex-grow .25s ease;
+}
+.verdict {
+  margin-top: 14px; font-family: var(--mono); font-size: 12.5px;
+  padding: 10px 12px; border-radius: 3px; border: 1px solid;
+}
+.verdict.ok  { color: var(--pos); border-color: var(--pos); background: color-mix(in srgb, var(--pos) 10%, transparent); }
+.verdict.bad { color: var(--neg); border-color: var(--neg); background: color-mix(in srgb, var(--neg) 10%, transparent); }
+
+/* ---------- cards / filters ---------- */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.filters button {
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em;
+  padding: 6px 13px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+}
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--ground); border-color: var(--ink); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.card {
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: 4px;
+  padding: 16px 16px 14px; box-shadow: var(--shadow);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.card h3 { font-size: 19px; margin: 0; }
+.card dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-size: 13.5px; }
+.card dt { font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); padding-top: 3px; }
+.card dd { margin: 0; color: var(--ink-2); }
+.card .cmd {
+  font-family: var(--mono); font-size: 11.5px; background: var(--ground-2);
+  padding: 8px 10px; border-radius: 3px; color: var(--ink-2);
+  overflow-x: auto; white-space: pre; margin-top: auto;
+}
+
+/* ---------- table ---------- */
+.tablewrap { overflow-x: auto; border: 1px solid var(--line-soft); border-radius: 4px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+th, td { text-align: left; padding: 9px 14px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+th {
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--ink-3); font-weight: 600; background: var(--ground-2); position: sticky; top: 0;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td code { color: var(--ink); background: var(--ground-2); padding: 1px 5px; border-radius: 2px; }
+td.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- accordion ---------- */
+details.acc {
+  border: 1px solid var(--line-soft); border-radius: 4px; background: var(--surface);
+  margin-bottom: 10px; overflow: hidden;
+}
+details.acc > summary {
+  cursor: pointer; padding: 13px 16px; list-style: none;
+  font-family: var(--mono); font-size: 12.5px; letter-spacing: .05em;
+  display: flex; align-items: center; gap: 12px; color: var(--ink);
+}
+details.acc > summary::-webkit-details-marker { display: none; }
+details.acc > summary::after {
+  content: "+"; margin-left: auto; color: var(--ink-3); font-size: 15px;
+}
+details.acc[open] > summary::after { content: "\2212"; }
+details.acc[open] > summary { border-bottom: 1px solid var(--line-soft); }
+.acc-bd { padding: 16px; }
+.acc-bd p:last-child { margin-bottom: 0; }
+
+pre.code {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.65;
+  background: var(--ground-2); border: 1px solid var(--line-soft); border-radius: 4px;
+  padding: 14px 16px; overflow-x: auto; margin: 0 0 18px; color: var(--ink-2);
+}
+pre.code b { color: var(--ink); font-weight: 600; }
+pre.code i { color: var(--ink-3); font-style: normal; }
+
+/* ---------- signal callouts ---------- */
+.twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 780px) { .twocol { grid-template-columns: 1fr; } }
+.sigbox { border: 1px solid var(--line-soft); border-top-width: 3px; border-radius: 4px; padding: 16px; background: var(--surface); }
+.sigbox.eval { border-top-color: var(--eval); }
+.sigbox.direct { border-top-color: var(--direct); }
+.sigbox h3 { font-family: var(--sans); font-size: 16px; letter-spacing: -.005em; }
+.sigbox p { margin-bottom: 0; font-size: 14.5px; color: var(--ink-2); }
+
+.meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); letter-spacing: .04em; }
+
+footer { padding: 56px 0 80px; color: var(--ink-3); font-size: 14px; }
+footer a { color: var(--ink-2); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: .001ms !important; transition-duration: .001ms !important; }
+}
+</style>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <span class="mark">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="6.4" stroke="currentColor" stroke-width="1.3"/>
+        <path d="M8 1.6v12.8M1.6 8h12.8" stroke="currentColor" stroke-width="1.3" opacity=".35"/>
+        <circle cx="8" cy="8" r="2.1" fill="currentColor"/>
+      </svg>
+      OpenClaw-RL
+    </span>
+    <nav>
+      <a href="#loop-sec">Loop</a>
+      <a href="#methods">Methods</a>
+      <a href="#turn">Turn</a>
+      <a href="#topk">Hints</a>
+      <a href="#track2">Agents</a>
+      <a href="#run">Run it</a>
+    </nav>
+    <button class="tgl" id="themeBtn" type="button">Dark</button>
+  </div>
+</header>
+
+<main>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">Gen-Verse · arXiv 2603.10165 · Apache 2.0</p>
+      <h1>Every reply you send back is <em>already</em> a label.</h1>
+      <p class="lede">
+        OpenClaw-RL wraps a self-hosted model in an OpenAI-compatible proxy, watches your ordinary
+        multi-turn conversations go by, and turns whatever happens <em>next</em> — your follow-up,
+        a test verdict, a stack trace — into the training signal for the turn that came before.
+        Nothing is labeled by hand. Nothing blocks. The model keeps serving while it learns.
+      </p>
+      <div class="chips">
+        <span class="chip">Fully async</span>
+        <span class="chip cool">Binary RL (GRPO)</span>
+        <span class="chip hot">On-policy distillation</span>
+        <span class="chip">Hybrid</span>
+        <span class="chip">Self-hosted</span>
+        <span class="chip">Terminal · GUI · SWE · Tool-call</span>
+      </div>
+    </div>
+
+    <div class="panel loopwrap" id="loop-sec">
+      <div class="panel-hd">
+        <span>Four loops, no barriers</span>
+        <span style="margin-left:auto;text-transform:none;letter-spacing:0" class="meta" id="loopClock">t = 0.0s</span>
+      </div>
+      <canvas id="loop" width="1080" height="260" aria-label="Animated diagram: four independent asynchronous loops — serving, rollout collection, judging, and training — each running at its own pace without blocking the others."></canvas>
+      <div class="loop-legend">
+        <span><span class="dot" style="background:var(--ink-2)"></span><b>Serve</b> policy answers the live request</span>
+        <span><span class="dot" style="background:var(--eval)"></span><b>Rollout</b> turn + log-probs buffered</span>
+        <span><span class="dot" style="background:var(--direct)"></span><b>Judge</b> PRM votes, hint extracted</span>
+        <span><span class="dot" style="background:var(--pos)"></span><b>Train</b> sample lands, weights update</span>
+      </div>
+    </div>
+
+    <div class="col" style="margin-top:22px">
+      <p class="small">
+        Conventional RLHF stacks collect a dataset, stop, train, then redeploy. OpenClaw-RL decouples
+        agent serving, rollout collection, PRM/judge evaluation, and policy training into four independent
+        async loops. A slow judge never stalls the model you are talking to; a training step never
+        drops a request on the floor.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ THE TWO SIGNALS ============ -->
+<section id="signals" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">The central idea</p>
+      <h2>One next state, two different kinds of supervision</h2>
+      <p>
+        When you reply to an agent, your message carries two separable things. It carries a
+        <strong>verdict</strong> — that answer was good, or it wasn't — and sometimes it carries a
+        <strong>correction</strong>: the specific thing the agent should have known. OpenClaw-RL
+        extracts both, and they have opposite statistical shapes.
+      </p>
+    </div>
+    <div class="twocol" style="margin-top:8px">
+      <div class="sigbox eval">
+        <h4 style="color:var(--eval)">Evaluative · dense · scalar</h4>
+        <h3>The PRM vote</h3>
+        <p>
+          A process reward model reads <code>(response, next_state)</code> and returns
+          <code>+1</code>, <code>-1</code>, or <code>0</code>, majority-voted over
+          <code>PRM_M</code> independent samples. Almost every scored turn produces one — even
+          when the feedback is implicit, like you re-asking the question or a test simply passing.
+          One number for the whole response.
+        </p>
+      </div>
+      <div class="sigbox direct">
+        <h4 style="color:var(--direct)">Directive · sparse · per-token</h4>
+        <h3>The hindsight hint</h3>
+        <p>
+          When the next state actually contains a correction, the judge extracts it as a hint wrapped
+          in <code>[HINT_START]…[HINT_END]</code>. Replaying the same response through a
+          <em>hint-conditioned teacher</em> yields a log-probability gap at every single token —
+          far richer than a scalar, but only available on the minority of turns that teach something.
+        </p>
+      </div>
+    </div>
+    <div class="col" style="margin-top:20px">
+      <p class="small">
+        Binary RL uses only the left column. OPD uses only the right. The hybrid recipe — the one the
+        repo's headline command runs — sums both losses per token, and reports stronger, more stable
+        optimization than either alone. Everything below is a consequence of this split.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ METHODS ============ -->
+<section id="methods" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">Three learning paradigms</p>
+      <h2>Where the advantage number comes from</h2>
+      <p>
+        All three methods produce the same object — a per-token advantage <code>A<sub>t</sub></code>
+        fed into a PPO-style clipped surrogate. They differ entirely in how that number is derived.
+        Switch between them and watch the strip below.
+      </p>
+    </div>
+
+    <div class="seg" role="group" aria-label="Optimization method" style="margin-bottom:16px">
+      <button type="button" data-m="rl"      aria-pressed="true">Binary RL</button>
+      <button type="button" data-m="opd"     aria-pressed="false">OPD</button>
+      <button type="button" data-m="combine" aria-pressed="false">Hybrid</button>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><span id="mTitle">Binary RL — GRPO</span><span class="meta" style="margin-left:auto;text-transform:none;letter-spacing:0" id="mDir">openclaw-rl/</span></div>
+      <div class="panel-bd">
+        <h4>Advantage on the response tokens</h4>
+        <div class="tokenstrip" id="strip" aria-live="polite"></div>
+        <p class="small" id="mExplain" style="max-width:70ch"></p>
+        <div class="formula" id="mFormula"></div>
+        <div style="margin-top:16px">
+          <h4>Launch</h4>
+          <pre class="code" id="mCmd" style="margin:0"></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="col" style="margin-top:26px">
+      <h3>Shared loss shape</h3>
+      <p class="small">
+        Every method lands in the same PPO-style clipped objective with asymmetric clipping —
+        <code>eps-clip 0.2</code> on the low side, <code>eps-clip-high 0.28</code> on the high side,
+        which lets the policy move up faster than it moves down. Rewards are deliberately
+        <em>not</em> normalized (<code>--disable-rewards-normalization</code>), because a
+        <code>±1</code> PRM vote is already on a meaningful scale. A KL term against the reference
+        policy keeps it from drifting: <code>β<sub>KL</sub> = 0.02</code> in Binary RL,
+        <code>0.0</code> in the default OPD launcher. Entropy bonus is off everywhere.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ TURN LIFECYCLE ============ -->
+<section id="turn" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow is-direct">Anatomy of one trainable turn</p>
+      <h2>From your reply to a gradient, step by step</h2>
+      <p>
+        This is the OPD path, which is the more involved of the two. Each stage happens on its own
+        async loop — by the time step 5 runs for one turn, step 1 has already run several times for
+        later turns in the same session.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="steps">
+        <div class="steprail" role="tablist" aria-label="Turn lifecycle stages" id="rail"></div>
+        <div class="stepbody" id="stepbody"></div>
+      </div>
+    </div>
+
+    <div class="col" style="margin-top:26px">
+      <h3>Which turns are even eligible</h3>
+      <p class="small">
+        Not every API call is training data, and the framework is careful about this. The OpenClaw
+        extension stamps two headers on every outgoing request:
+        <code>X-Session-Id</code> groups turns into a session, and <code>X-Turn-Type</code> marks a
+        turn <code>main</code> (you actually asked for something) or <code>side</code>
+        (a heartbeat, memory flush, or cron job). Only main-line turns train.
+      </p>
+      <p class="small">
+        A turn also needs a next state to be scored against — so the final turn of a session normally
+        gets <code>loss_mask = 0</code> and is dropped. The exception is the
+        <strong>at-least-one guarantee</strong>: if every turn in a session scores <code>≤ 0</code>,
+        the best turn is promoted to reward <code>+1</code> so the session still contributes a
+        positive example rather than pure negative gradient.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ TOP-K HINT SELECTION ============ -->
+<section id="topk" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow is-direct">The refinement that matters most</p>
+      <h2>A good hint is one the student could plausibly have followed</h2>
+      <p>
+        Naive OPD has a failure mode: the hint-conditioned teacher may produce a distribution the
+        student policy has essentially zero mass on. Distilling toward it is a large, noisy update
+        that teaches nothing transferable. The <code>topk_select</code> path fixes this by generating
+        <em>several</em> candidate hints and picking the one whose teacher distribution the student
+        already overlaps with.
+      </p>
+      <p class="small">
+        For each candidate hint <code>h</code> and each response position <code>i</code>, it compares
+        the student's top-k vocabulary against the hint-conditioned teacher's top-k, and counts the
+        intersection. Drag the slider to see how overlap separates candidates.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><span>Overlap-guided hint selection</span>
+        <span class="meta" style="margin-left:auto;text-transform:none;letter-spacing:0">OPENCLAW_TOPK_K = <span id="kOut">4</span></span>
+      </div>
+      <div class="panel-bd">
+        <div class="sl" style="max-width:420px">
+          <label for="kSlide">top-k width</label>
+          <input type="range" id="kSlide" min="2" max="8" value="4" step="1">
+          <output for="kSlide" id="kVal">4</output>
+        </div>
+        <div id="hintCands" class="stack" style="gap:10px"></div>
+        <p class="small" id="hintVerdict" style="margin:16px 0 0"></p>
+      </div>
+    </div>
+
+    <div class="twocol" style="margin-top:20px">
+      <div>
+        <h4>Selection rule · <code>OPENCLAW_TOPK_HINT_SELECTION</code></h4>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td><code>sequence_optimal</code></td><td>One hint per sample, maximizing summed overlap across all response tokens. <strong>Default</strong>, and the more stable choice for agentic RL.</td></tr>
+              <tr><td><code>token_optimal</code></td><td>Best hint chosen independently at every token position. Higher ceiling, noisier.</td></tr>
+              <tr><td><code>shortest</code></td><td>First candidate after the server sorts by hint length. A cheap baseline.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <h4>Vocabulary subset · <code>OPENCLAW_TOPK_SUBSET_MODE</code></h4>
+        <div class="tablewrap">
+          <table>
+            <tbody>
+              <tr><td><code>student</code></td><td>Distill only over <code>top-k(π<sub>old</sub>)</code>. <strong>Default</strong> — keeps the update inside what the policy already considers.</td></tr>
+              <tr><td><code>teacher</code></td><td>Use <code>top-k(π<sub>T</sub>)</code> from the selected teacher instead.</td></tr>
+              <tr><td><code>overlap</code></td><td>Intersection of both sets. Most conservative, smallest effective update.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col" style="margin-top:24px">
+      <details class="acc">
+        <summary>Option B — top-K logits distillation (SDFT / SDPO lineage)</summary>
+        <div class="acc-bd">
+          <p class="small">
+            A parallel branch in <code>openclaw-opd/</code>, contributed alongside the authors of
+            <a href="https://arxiv.org/abs/2601.19897">SDFT</a> and
+            <a href="https://arxiv.org/abs/2601.20802">SDPO</a>. Instead of a single teacher target per
+            token, it distills the teacher's full top-K distribution per position, with a reverse-KL loss
+            over <code>K+1</code> bins — the K explicit tokens plus one tail bin absorbing the remaining
+            mass, computed as <code>log(1 − exp(logsumexp(log p₁…log p_K)))</code>.
+          </p>
+          <p class="small">
+            Note the deviation the README flags explicitly: this implementation uses the
+            <em>teacher's</em> top-K rather than the student's, unlike the original papers. That's an open
+            comparison, tracked in issue #7.
+          </p>
+          <p class="small">
+            It is deliberately built as a strictly additive extension — the legacy token-level path is
+            untouched, <code>teacher_log_probs [T]</code> keeps its original meaning, top-K lives in
+            separate <code>teacher_topk_log_probs</code> / <code>teacher_topk_indices</code> fields, the
+            loss is external rather than a core switch, and the whole thing is off by default at
+            <code>--distill-topk 0</code>.
+          </p>
+          <pre class="code">cd slime
+bash ../openclaw-opd/run_qwen3_4b_openclaw_opd_topk.sh
+
+<i># equivalent key args</i>
+--loss-type custom_loss \
+--custom-loss-function-path topk_distillation_loss.topk_distillation_loss_function \
+--distill-topk 50 \
+--disable-compute-advantages-and-returns \
+--entropy-coef 0.00</pre>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ GPU ALLOCATOR ============ -->
+<section id="gpus" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">Deployment shape</p>
+      <h2>One node has to hold four different models at once</h2>
+      <p>
+        This is the part that surprises people. A single OpenClaw-RL run is not just a policy — it is
+        a policy being trained, the same policy being served, a PRM judge, and (in the hybrid path) a
+        teacher. Every launcher partitions the node explicitly, and asserts the split fits before it
+        starts Ray.
+      </p>
+    </div>
+
+    <div class="panel">
+      <div class="panel-hd"><span>GPU partition planner</span><span class="meta" style="margin-left:auto;text-transform:none;letter-spacing:0">mirrors the guard in each <code>run_*.sh</code></span></div>
+      <div class="panel-bd">
+        <div class="alloc">
+          <div>
+            <div class="sl"><label for="gTotal">NUM_GPUS</label><input type="range" id="gTotal" min="4" max="16" step="1" value="8"><output id="oTotal">8</output></div>
+            <div class="sl"><label for="gActor">ACTOR_GPUS</label><input type="range" id="gActor" min="1" max="12" step="1" value="4"><output id="oActor">4</output></div>
+            <div class="sl"><label for="gRoll">ROLLOUT_GPUS</label><input type="range" id="gRoll" min="1" max="8" step="1" value="2"><output id="oRoll">2</output></div>
+            <div class="sl"><label for="gPrm">PRM_GPUS</label><input type="range" id="gPrm" min="0" max="6" step="1" value="1"><output id="oPrm">1</output></div>
+            <div class="sl"><label for="gTeach">PRM_TEACHER_GPUS</label><input type="range" id="gTeach" min="0" max="6" step="1" value="1"><output id="oTeach">1</output></div>
+            <div class="verdict ok" id="gVerdict" role="status"></div>
+          </div>
+          <div>
+            <h4>Allocation</h4>
+            <div class="gpubar" id="gBar"></div>
+            <div class="stack" style="gap:6px;margin-top:14px;font-size:13.5px;color:var(--ink-2)" id="gLegend"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col" style="margin-top:24px">
+      <p class="small">
+        The stock <code>run_qwen3_4b_openclaw_topk_select.sh</code> defaults are
+        <code>8 / 4 / 2 / 1 / 1</code>. The hybrid top-k path additionally forces
+        <code>OPENCLAW_COMBINE_OPD_TEACHER_SOURCE=megatron</code>, because per-candidate teacher
+        top-k distributions can only come from the training-side teacher — the inference-side path
+        only ever returns single-candidate log-probs.
+      </p>
+      <p class="small">
+        No GPUs at all? Two remote backends run the identical algorithms:
+        <strong>Tinker</strong> (LoRA-only, cheap, one <code>run.py</code> entry point for all three
+        methods) and <strong>Fireworks</strong> (full-parameter or LoRA, private-preview SDK). In both
+        cases only a local FastAPI proxy runs on your machine.
+      </p>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ TRACK 2 ============ -->
+<section id="track2" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow is-eval">Track 2 — general agents</p>
+      <h2>The same backbone, pointed at environments instead of people</h2>
+      <p>
+        The insight generalizes past chat. "Next state" doesn't have to be a human reply — it can be
+        stderr, a screenshot diff, or a failing test. Track 2 swaps the human for a real environment
+        and parallelizes it hard. Filter by how long the agent's horizon is:
+      </p>
+    </div>
+
+    <div class="filters" role="group" aria-label="Filter environments" id="envFilters">
+      <button type="button" data-f="all"  aria-pressed="true">All four</button>
+      <button type="button" data-f="long" aria-pressed="false">Long horizon</button>
+      <button type="button" data-f="med"  aria-pressed="false">Medium horizon</button>
+      <button type="button" data-f="vlm"  aria-pressed="false">Needs vision</button>
+    </div>
+    <div class="grid" id="envGrid"></div>
+
+    <div class="col" style="margin-top:28px">
+      <details class="acc">
+        <summary>The evaluation nobody expected — everyone in the loop is using AI</summary>
+        <div class="acc-bd">
+          <p class="small">
+            <code>openclaw-test/</code> is a three-phase end-to-end eval built on GSM8K, and the setup is
+            a small joke with a serious point. A <strong>student</strong> LLM asks the agent to do its
+            homework — and if the answer looks too AI-generated (bold text, numbered lists), tells it to
+            rewrite in a more natural voice. A <strong>TA</strong> LLM then grades those same submissions,
+            pushing back when comments are too brief. Finally a <strong>teacher</strong> LLM reviews the
+            graded work and demands friendlier, more patient feedback.
+          </p>
+          <p class="small">
+            Each phase exercises a different bundle of skills — file I/O and style adaptation, then
+            evaluation accuracy and feedback specificity, then tone control — and each is driven entirely
+            by natural rejections rather than a rubric. Run order matters:
+            <code>student_chat.py</code> → <code>TA_chat.py</code> → <code>teacher_chat.py</code>, since
+            each phase consumes the files the previous one wrote.
+          </p>
+          <p class="small">
+            The point is that a single personalized model has to satisfy three users with directly
+            conflicting preferences, all discovered from conversation alone.
+          </p>
+        </div>
+      </details>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ RUN IT ============ -->
+<section id="run" style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">Getting it running</p>
+      <h2>What it actually takes</h2>
+      <p class="small">
+        Baseline for the local path: <strong>8 GPUs</strong>, <strong>CUDA 12.9</strong>,
+        <strong>Python 3.12</strong>, on top of the
+        <a href="https://github.com/THUDM/slime">slime</a> framework with Megatron-LM. The
+        environment is the hard part — DeepEP, apex, flash-attn, flashinfer and TransformerEngine all
+        build from source against your CUDA toolkit.
+      </p>
+    </div>
+
+    <details class="acc">
+      <summary>1 — Environment (the long pole)</summary>
+      <div class="acc-bd">
+<pre class="code" style="margin:0">conda create --name openclaw-rl python=3.12 -y
+conda activate openclaw-rl
+
+pip install torch==2.9.1+cu129 torchvision==0.24.1+cu129 torchaudio==2.9.1+cu129 \
+  --index-url https://download.pytorch.org/whl/cu129
+pip install -r requirements.txt
+
+<i># built from source against your CUDA toolkit</i>
+git clone https://github.com/deepseek-ai/DeepEP.git && pip install -e DeepEP --no-build-isolation
+git clone https://github.com/NVIDIA/apex.git
+APEX_CPP_EXT=1 APEX_CUDA_EXT=1 pip install -v --no-build-isolation ./apex
+MAX_JOBS=8 pip install --no-build-isolation -v flash-attn==2.7.4.post1
+pip install "flashinfer-jit-cache==0.6.3" --index-url https://flashinfer.ai/whl/cu129
+NVTE_FRAMEWORK=pytorch pip install --no-build-isolation "transformer_engine[pytorch,core_cu12]==2.10.0"</pre>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>2 — Convert the checkpoint, then launch</summary>
+      <div class="acc-bd">
+        <p class="small">
+          Megatron loads a torch-dist checkpoint, not raw HuggingFace weights. The combine README is
+          blunt about this: you <em>must</em> convert before optimizing.
+        </p>
+<pre class="code" style="margin:0 0 14px">cd slime
+source scripts/models/qwen3-4B.sh
+PYTHONPATH=/path/to/Megatron-LM python tools/convert_hf_to_torch_dist.py \
+    ${MODEL_ARGS[@]} --hf-checkpoint /path/to/Qwen3-4B-Thinking-2507 \
+    --rotary-base 5000000 --save /path/to/Qwen3-4B_torch_dist</pre>
+<pre class="code" style="margin:0"><i># headline path: hybrid GRPO + top-k OPD</i>
+cd slime
+bash ../openclaw-combine/run_qwen3_4b_openclaw_topk_select.sh</pre>
+      </div>
+    </details>
+
+    <details class="acc">
+      <summary>3 — Point OpenClaw at your RL server</summary>
+      <div class="acc-bd">
+        <p class="small">
+          The server exposes an OpenAI-compatible endpoint at
+          <code>http://&lt;HOST_IP&gt;:30000/v1</code>. Install the
+          <code>rl-training-headers</code> extension so every request carries
+          <code>X-Session-Id</code> and <code>X-Turn-Type</code>, then register a provider in
+          <code>openclaw.json</code>:
+        </p>
+<pre class="code" style="margin:0 0 14px">corepack pnpm start -- plugins enable rl-training-headers
+corepack pnpm start -- gateway restart</pre>
+<pre class="code" style="margin:0">{ "models": { "providers": { "qwen": {
+    "baseUrl": "http://&lt;HOST_IP&gt;:30000/v1",
+    "apiKey": "&lt;matches SGLANG_API_KEY&gt;",
+    "api": "openai-completions",
+    "models": [{ "id": "qwen3-4b", "name": "Qwen3 4B", "reasoning": true,
+                 "contextWindow": 32768, "maxTokens": 8192 }]
+}}}}</pre>
+        <p class="small" style="margin-top:14px">
+          That's the whole setup. Start chatting; trajectories, rewards and gradients happen behind you.
+        </p>
+      </div>
+    </details>
+
+    <div class="col" style="margin-top:34px">
+      <h3>Key environment variables</h3>
+      <p class="small">Filter the ones you're likely to touch:</p>
+    </div>
+    <div class="filters" role="group" aria-label="Filter variables" id="envVarFilters">
+      <button type="button" data-f="all" aria-pressed="true">All</button>
+      <button type="button" data-f="alg" aria-pressed="false">Algorithm</button>
+      <button type="button" data-f="path" aria-pressed="false">Paths</button>
+      <button type="button" data-f="serve" aria-pressed="false">Serving</button>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Variable</th><th>Default</th><th>What it controls</th></tr></thead>
+        <tbody id="varBody"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<!-- ============ CAVEATS ============ -->
+<section style="padding-top:56px">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow">Before you point this at your real work</p>
+      <h2>Honest edges</h2>
+      <p class="small">
+        <strong>Your conversations are training data.</strong> The repo's own reminder is the right
+        one: don't feed sensitive personal information into a model that is recording every turn to
+        disk, and keep API keys out of prompts and logs. Records land in
+        <code>&lt;method&gt;/results/*.jsonl</code> whenever <code>OPENCLAW_RECORD_ENABLED=1</code>,
+        which is the default in the shipped launchers.
+      </p>
+      <p class="small">
+        <strong>The judge is the same class of model as the policy.</strong> The PRM defaults to the
+        same checkpoint family being trained. Majority voting over <code>PRM_M</code> samples
+        mitigates variance, not shared bias — a mistake the policy is prone to is one the judge may
+        well endorse.
+      </p>
+      <p class="small">
+        <strong>Some knobs are open questions, not settled defaults.</strong> Teacher top-K versus
+        student top-K is explicitly unresolved (issue #7). The at-least-one guarantee is a pragmatic
+        floor against all-negative sessions, not a principled estimator. Treat the defaults as the
+        authors' current best guess.
+      </p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap"><div class="col">
+    <p class="meta" style="margin-bottom:14px">Sources</p>
+    <p class="small" style="margin-bottom:8px">
+      Built from the <a href="https://github.com/Gen-Verse/OpenClaw-RL">Gen-Verse/OpenClaw-RL</a>
+      repository — root README plus the per-method READMEs and launch scripts under
+      <code>openclaw-rl/</code>, <code>openclaw-opd/</code>, <code>openclaw-combine/</code>,
+      <code>openclaw-tinker/</code>, <code>openclaw-fireworks/</code>, <code>openclaw-test/</code>,
+      <code>terminal-rl/</code>, <code>gui-rl/</code>, <code>swe-rl/</code>,
+      <code>toolcall-rl/</code>, <code>extensions/rl-training-headers/</code> and
+      <code>instructions/</code>.
+    </p>
+    <p class="small">
+      Technical report: <a href="https://arxiv.org/abs/2603.10165">arXiv:2603.10165</a> ·
+      Apache 2.0 · Built on <a href="https://github.com/THUDM/slime">slime</a>.
+      Numbers and defaults reflect the repository at the time of reading; check the source before
+      relying on any of them.
+    </p>
+  </div></div>
+</footer>
+
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var root = document.documentElement;
+
+  /* ---------- theme ---------- */
+  var btn = document.getElementById("themeBtn");
+  function currentDark() {
+    var t = root.getAttribute("data-theme");
+    if (t) return t === "dark";
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function syncBtn() { btn.textContent = currentDark() ? "Light" : "Dark"; }
+  btn.addEventListener("click", function () {
+    root.setAttribute("data-theme", currentDark() ? "light" : "dark");
+    syncBtn(); drawLoop(lastT);
+  });
+  syncBtn();
+
+  function cssv(n) { return getComputedStyle(root).getPropertyValue(n).trim(); }
+
+  /* ---------- hero canvas: four async lanes ---------- */
+  var cv = document.getElementById("loop");
+  var ctx = cv.getContext("2d");
+  var clock = document.getElementById("loopClock");
+
+  var LANES = [
+    { name: "SERVE",   color: "--ink-2",  period: 1.10, label: "policy → response" },
+    { name: "ROLLOUT", color: "--eval",   period: 1.75, label: "buffer turn + logprobs" },
+    { name: "JUDGE",   color: "--direct", period: 2.90, label: "PRM votes · hint" },
+    { name: "TRAIN",   color: "--pos",    period: 4.30, label: "fwd/bwd · optim step" }
+  ];
+
+  function fitCanvas() {
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var r = cv.getBoundingClientRect();
+    cv.width = Math.max(320, r.width) * dpr;
+    cv.height = 260 * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w: Math.max(320, r.width), h: 260 };
+  }
+
+  var lastT = 0;
+  function drawLoop(t) {
+    lastT = t;
+    var d = fitCanvas();
+    var W = d.w, H = d.h;
+    ctx.clearRect(0, 0, W, H);
+
+    var padL = Math.min(104, W * 0.19), padR = 22, padT = 30;
+    var laneH = (H - padT - 22) / LANES.length;
+    var trackW = W - padL - padR;
+
+    ctx.font = '600 10px ' + cssv("--mono");
+    ctx.textBaseline = "middle";
+
+    for (var i = 0; i < LANES.length; i++) {
+      var L = LANES[i];
+      var y = padT + laneH * i + laneH / 2;
+      var col = cssv(L.color);
+
+      /* rail */
+      ctx.strokeStyle = cssv("--line-soft");
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(padL, y + 0.5); ctx.lineTo(W - padR, y + 0.5); ctx.stroke();
+
+      /* lane name */
+      ctx.fillStyle = col;
+      ctx.textAlign = "right";
+      ctx.fillText(L.name, padL - 14, y - 6);
+      ctx.fillStyle = cssv("--ink-3");
+      ctx.font = '400 9.5px ' + cssv("--mono");
+      ctx.fillText(L.label, padL - 14, y + 7);
+      ctx.font = '600 10px ' + cssv("--mono");
+
+      /* period ticks */
+      var n = Math.floor(trackW / 46);
+      ctx.fillStyle = cssv("--line");
+      for (var k = 0; k <= n; k++) {
+        ctx.fillRect(padL + (trackW / n) * k, y - 2.5, 1, 5);
+      }
+
+      /* travelling packets, offset per lane so nothing is in phase */
+      for (var p = 0; p < 3; p++) {
+        var phase = ((t / L.period) + p / 3 + i * 0.17) % 1;
+        var x = padL + phase * trackW;
+        var fade = Math.min(1, Math.min(phase, 1 - phase) * 8);
+
+        ctx.globalAlpha = 0.16 * fade;
+        ctx.fillStyle = col;
+        ctx.fillRect(padL, y - 3, x - padL, 6);
+
+        ctx.globalAlpha = fade;
+        ctx.beginPath();
+        ctx.arc(x, y, 5.2, 0, Math.PI * 2);
+        ctx.fillStyle = col; ctx.fill();
+
+        ctx.globalAlpha = fade * 0.28;
+        ctx.beginPath(); ctx.arc(x, y, 10.5, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+
+      /* handoff arrow into the next lane, fired at this lane's completion */
+      if (i < LANES.length - 1) {
+        var hp = ((t / L.period) + i * 0.17) % 1;
+        if (hp > 0.93) {
+          ctx.globalAlpha = (hp - 0.93) / 0.07;
+          ctx.strokeStyle = col; ctx.lineWidth = 1.4;
+          ctx.beginPath();
+          ctx.moveTo(W - padR - 8, y + 8);
+          ctx.lineTo(W - padR - 8, y + laneH - 8);
+          ctx.stroke();
+          ctx.globalAlpha = 1;
+        }
+      }
+    }
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = cssv("--ink-3");
+    ctx.font = '400 9.5px ' + cssv("--mono");
+    ctx.fillText("each lane advances on its own clock — no lane waits for another", padL, 14);
+  }
+
+  var t0 = null;
+  function frame(ts) {
+    if (t0 === null) t0 = ts;
+    var t = (ts - t0) / 1000;
+    drawLoop(t);
+    clock.textContent = "t = " + t.toFixed(1) + "s";
+    requestAnimationFrame(frame);
+  }
+  if (reduce) { drawLoop(2.4); clock.textContent = "animation paused"; }
+  else { requestAnimationFrame(frame); }
+  window.addEventListener("resize", function () { drawLoop(lastT); });
+
+  /* ---------- method switcher ---------- */
+  var TOKENS = ["The", " total", " is", " 18", " apples", ",", " so", " each", " child", " gets", " 3", "."];
+  var METHODS = {
+    rl: {
+      title: "Binary RL — GRPO",
+      dir: "openclaw-rl/",
+      explain: "One scalar PRM vote is broadcast unchanged to every response token. Cheap, dense, and available on nearly every scored turn — but it cannot tell the model which part of the answer was wrong, only that the answer was.",
+      formula: '<b>A<sub>t</sub> = r</b>   for all response tokens,  r ∈ {+1, −1, 0}<br>ρ<sub>t</sub> = π<sub>θ</sub>(a<sub>t</sub>|s<sub>t</sub>) / π<sub>old</sub>(a<sub>t</sub>|s<sub>t</sub>)<br>L<sub>pg</sub> = −E<sub>t</sub>[ min( ρ<sub>t</sub>A<sub>t</sub>, clip(ρ<sub>t</sub>, 1−ε, 1+ε<sub>high</sub>)·A<sub>t</sub> ) ]<br>L = L<sub>pg</sub> + 0.02 · L<sub>KL</sub>',
+      cls: "is-eval",
+      cmd: "cd slime\nbash ../openclaw-rl/run_qwen3_4b_openclaw_rl.sh",
+      adv: function () { return TOKENS.map(function () { return 1; }); }
+    },
+    opd: {
+      title: "OPD — on-policy distillation",
+      dir: "openclaw-opd/",
+      explain: "The hint-conditioned teacher re-scores the student's own tokens. The per-token log-probability gap becomes a directional advantage: positive where the teacher was more confident than the student, negative where it was less. Notice it varies token by token — that is the whole point.",
+      formula: '<b>A<sub>t</sub> = log π<sub>teacher</sub>(a<sub>t</sub> | s + hint) − log π<sub>θ</sub>(a<sub>t</sub> | s)</b><br>L = L<sub>pg</sub> + β<sub>KL</sub> · L<sub>KL</sub>   (β<sub>KL</sub> = 0.0 by default here)<br><i>samples with no usable hint are dropped entirely</i>',
+      cls: "is-direct",
+      cmd: "cd slime\nbash ../openclaw-opd/run_qwen3_4b_openclaw_opd.sh",
+      adv: function () { return [0.1, 0.2, 0.05, 1.4, 0.9, 0.0, 0.1, 0.3, 0.2, 0.4, 1.7, 0.0]; }
+    },
+    combine: {
+      title: "Hybrid — GRPO + top-k OPD",
+      dir: "openclaw-combine/",
+      explain: "Both losses summed per token, each behind its own weight. The dense scalar keeps every scored turn contributing; the sparse directive term sharpens the turns that actually taught something. This is what the repo's headline command runs.",
+      formula: '<b>L<sub>i</sub> = w<sub>RL</sub> · L<sub>i</sub><sup>GRPO</sup> + w<sub>OPD</sub> · L<sub>i</sub><sup>OPD</sup></b>   (both 1.0 by default)<br>OPENCLAW_TOPK_W_RL=0  → OPD only<br>OPENCLAW_TOPK_W_OPD=0 → GRPO only',
+      cls: "",
+      cmd: "cd slime\nbash ../openclaw-combine/run_qwen3_4b_openclaw_topk_select.sh",
+      adv: function () {
+        var o = METHODS.opd.adv();
+        return o.map(function (v) { return v + 1; });
+      }
+    }
+  };
+
+  var strip = document.getElementById("strip");
+  function renderMethod(key) {
+    var M = METHODS[key];
+    document.getElementById("mTitle").textContent = M.title;
+    document.getElementById("mDir").textContent = M.dir;
+    document.getElementById("mExplain").textContent = M.explain;
+    var f = document.getElementById("mFormula");
+    f.className = "formula " + M.cls;
+    f.innerHTML = M.formula;
+    document.getElementById("mCmd").textContent = M.cmd;
+
+    var advs = M.adv();
+    var max = Math.max.apply(null, advs.map(Math.abs)) || 1;
+    strip.innerHTML = "";
+    advs.forEach(function (a, i) {
+      var el = document.createElement("span");
+      el.className = "tok";
+      var mag = Math.abs(a) / max;
+      var hue = key === "rl" ? cssv("--eval") : cssv("--direct");
+      el.style.background = "color-mix(in srgb, " + hue + " " + (10 + mag * 46).toFixed(0) + "%, var(--ground-2))";
+      el.style.borderColor = mag > 0.75 ? hue : "transparent";
+      el.style.color = mag > 0.6 ? "var(--ink)" : "var(--ink-2)";
+      el.innerHTML = TOKENS[i].replace(/ /g, "&nbsp;") +
+        '<span class="adv">' + (a >= 0 ? "+" : "") + a.toFixed(key === "rl" ? 0 : 2) + '</span>';
+      strip.appendChild(el);
+    });
+  }
+  var segBtns = document.querySelectorAll(".seg button");
+  segBtns.forEach(function (b) {
+    b.addEventListener("click", function () {
+      segBtns.forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+      renderMethod(b.dataset.m);
+    });
+  });
+  renderMethod("rl");
+
+  /* ---------- turn lifecycle stepper ---------- */
+  var STEPS = [
+    { k: "Serve",   tag: "both",   t: "Answer with the current policy — and keep the receipts",
+      b: "The request arrives at the FastAPI proxy, is forwarded to the SGLang-served policy, and streams back to OpenClaw as if it were any OpenAI endpoint. Crucially, the server retains the per-token rollout log-probabilities alongside the text. Those old-policy log-probs are what makes every downstream step possible — without them there is no importance ratio and no distillation gap." },
+    { k: "Observe", tag: "both",   t: "Wait for the next state to arrive",
+      b: "Nothing is scored yet. The turn sits in a session buffer until the next message on the same X-Session-Id shows up — your follow-up, a tool return, an env observation. That message is the next state s<sub>t+1</sub>. If the session ends first, the turn normally has no supervision and is masked out." },
+    { k: "Judge",   tag: "eval",   t: "PRM votes m times on (response, next state)",
+      b: "The PRM is asked, PRM_M independent times at temperature 0.6, whether the previous response was good given what happened next. Each vote returns +1, −1 or 0, parsed out of a \\boxed{} answer. Majority vote becomes the scalar reward. PRM_M defaults to 3 in the hybrid path and 1 in the plain OPD launcher." },
+    { k: "Extract", tag: "direct", t: "Pull a hindsight hint — or drop the sample",
+      b: "In the same pass, the judge may emit one or more candidate corrections wrapped in [HINT_START]…[HINT_END]. The plain OPD path keeps the longest non-trivial positive hint; the top-k path keeps up to OPENCLAW_TOPK_MAX_CAND=3 candidates for later selection. If no usable hint exists, the OPD branch discards the sample entirely rather than distilling toward noise." },
+    { k: "Teacher", tag: "direct", t: "Re-score the same tokens under a hint-augmented prompt",
+      b: "The hint is appended to the original prompt to form s<sub>t</sub><sup>h</sup>, and the teacher is queried for log-probs on the student's own response tokens — not on new generations. That distinction matters: this stays on-policy. The teacher is a base (non-LoRA) model, and in the top-k path it must be the Megatron-side teacher, since only that path returns per-candidate top-k distributions." },
+    { k: "Submit",  tag: "both",   t: "Hand the finished sample to the trainer",
+      b: "The rollout bridge assembles tokens, loss mask, reward and any teacher tensors into a slime Sample and pushes it onto the trainer's queue. The trainer consumes whatever is ready — it never waits for a specific turn. Records are appended to <code>results/*.jsonl</code> when OPENCLAW_RECORD_ENABLED=1." }
+  ];
+  var rail = document.getElementById("rail"), sb = document.getElementById("stepbody");
+  STEPS.forEach(function (s, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.setAttribute("role", "tab");
+    b.setAttribute("aria-selected", String(i === 0));
+    b.innerHTML = '<span class="n">' + (i + 1) + '</span>' + s.k;
+    b.addEventListener("click", function () {
+      rail.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-selected", String(x === b)); });
+      showStep(i);
+    });
+    rail.appendChild(b);
+  });
+  function showStep(i) {
+    var s = STEPS[i];
+    var tagText = s.tag === "eval" ? "evaluative signal" : s.tag === "direct" ? "directive signal" : "both paths";
+    sb.innerHTML = '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">' +
+      '<span class="meta">STEP ' + (i + 1) + ' / ' + STEPS.length + '</span>' +
+      '<span class="tag ' + s.tag + '">' + tagText + '</span></div>' +
+      '<h3>' + s.t + '</h3><p class="small" style="margin:0">' + s.b + '</p>';
+  }
+  showStep(0);
+
+  /* ---------- top-k hint selection ---------- */
+  var CANDS = [
+    { text: "The child count is 6, not 5 — recheck the divisor.", base: 0.86, len: 47 },
+    { text: "Show the division step explicitly before the answer.", base: 0.54, len: 51 },
+    { text: "Consider the ring-theoretic formulation of the quotient.", base: 0.11, len: 55 }
+  ];
+  var kS = document.getElementById("kSlide"), kV = document.getElementById("kVal"),
+      kO = document.getElementById("kOut"), hc = document.getElementById("hintCands"),
+      hv = document.getElementById("hintVerdict");
+  function renderHints() {
+    var k = +kS.value;
+    kV.textContent = k; kO.textContent = k;
+    hc.innerHTML = "";
+    var best = -1, bestI = 0;
+    var scored = CANDS.map(function (c, i) {
+      var ov = Math.min(k, Math.max(0, Math.round(c.base * k + (i === 2 ? 0 : 0.35))));
+      if (ov > best) { best = ov; bestI = i; }
+      return { c: c, ov: ov, i: i };
+    });
+    scored.forEach(function (s) {
+      var win = s.i === bestI;
+      var row = document.createElement("div");
+      row.style.cssText = "border:1px solid " + (win ? cssv("--direct") : cssv("--line-soft")) +
+        ";background:" + (win ? "var(--direct-wash)" : "var(--surface-2)") +
+        ";border-radius:3px;padding:11px 13px;display:grid;grid-template-columns:1fr auto;gap:14px;align-items:center";
+      var pct = (s.ov / +kS.value) * 100;
+      row.innerHTML =
+        '<div><div style="font-size:14.5px;color:var(--ink)">' + s.c.text + '</div>' +
+        '<div style="height:5px;border-radius:3px;background:var(--ground-2);margin-top:8px;overflow:hidden">' +
+        '<div style="height:100%;width:' + pct + '%;background:' + (win ? cssv("--direct") : cssv("--zero")) + '"></div></div></div>' +
+        '<div style="font-family:var(--mono);font-size:12px;text-align:right;color:' + (win ? cssv("--direct") : cssv("--ink-3")) + '">' +
+        '|S<sub>i</sub><sup>q</sup> ∩ S<sub>i,h</sub><sup>p</sup>| = ' + s.ov + '/' + kS.value +
+        (win ? '<div style="margin-top:3px;letter-spacing:.08em">SELECTED</div>' : '') + '</div>';
+      hc.appendChild(row);
+    });
+    hv.innerHTML = "The third candidate is fluent, plausible, and completely off-topic for this turn. " +
+      "It scores near-zero overlap because the student policy never had mass on those tokens — so " +
+      "distilling toward it would be a large update carrying no usable direction. Overlap catches that " +
+      "without anyone having to label the hint as bad.";
+  }
+  kS.addEventListener("input", renderHints);
+  renderHints();
+
+  /* ---------- gpu allocator ---------- */
+  var G = {
+    total: document.getElementById("gTotal"), actor: document.getElementById("gActor"),
+    roll: document.getElementById("gRoll"), prm: document.getElementById("gPrm"),
+    teach: document.getElementById("gTeach")
+  };
+  var GO = {
+    total: document.getElementById("oTotal"), actor: document.getElementById("oActor"),
+    roll: document.getElementById("oRoll"), prm: document.getElementById("oPrm"),
+    teach: document.getElementById("oTeach")
+  };
+  var bar = document.getElementById("gBar"), leg = document.getElementById("gLegend"),
+      ver = document.getElementById("gVerdict");
+  var PARTS = [
+    { k: "actor", n: "Actor / trainer", c: "--eval",   d: "Megatron holds optimizer state + gradients — the heaviest slice." },
+    { k: "roll",  n: "Rollout (SGLang)", c: "--ink-2", d: "Serves the live OpenAI-compatible endpoint." },
+    { k: "prm",   n: "PRM judge",       c: "--direct", d: "Scores turns and extracts hints, concurrently." },
+    { k: "teach", n: "PRM teacher",     c: "--pos",    d: "Hint-conditioned teacher log-probs. Hybrid path only." }
+  ];
+  function renderGPU() {
+    var vals = {}, used = 0;
+    Object.keys(G).forEach(function (k) { vals[k] = +G[k].value; GO[k].textContent = G[k].value; });
+    PARTS.forEach(function (p) { used += vals[p.k]; });
+    var total = vals.total, free = total - used;
+
+    bar.innerHTML = "";
+    PARTS.forEach(function (p) {
+      if (!vals[p.k]) return;
+      var d = document.createElement("div");
+      d.style.flexGrow = vals[p.k];
+      d.style.background = cssv(p.c);
+      d.style.color = (p.c === "--ink-2") ? cssv("--ground") : "#0C1016";
+      d.textContent = vals[p.k];
+      d.title = p.n + ": " + vals[p.k] + " GPU";
+      bar.appendChild(d);
+    });
+    if (free > 0) {
+      var d2 = document.createElement("div");
+      d2.style.flexGrow = free;
+      d2.style.background = cssv("--ground-2");
+      d2.style.color = cssv("--ink-3");
+      d2.textContent = free + " idle";
+      bar.appendChild(d2);
+    }
+
+    leg.innerHTML = PARTS.map(function (p) {
+      return '<span><span class="dot" style="background:' + cssv(p.c) + '"></span>' +
+        '<b style="font-family:var(--mono);font-size:12px">' + vals[p.k] + '×</b> ' + p.n +
+        '<br><span class="small" style="margin-left:15px;font-size:12.5px">' + p.d + '</span></span>';
+    }).join("");
+
+    if (used > total) {
+      ver.className = "verdict bad";
+      ver.textContent = "✕ " + used + " > NUM_GPUS=" + total + " — the launcher exits before starting Ray.";
+    } else if (free > 0) {
+      ver.className = "verdict ok";
+      ver.textContent = "✓ fits, with " + free + " GPU" + (free > 1 ? "s" : "") + " unallocated.";
+    } else {
+      ver.className = "verdict ok";
+      ver.textContent = "✓ fits exactly — every GPU assigned.";
+    }
+  }
+  Object.keys(G).forEach(function (k) { G[k].addEventListener("input", renderGPU); });
+  renderGPU();
+
+  /* ---------- track 2 cards ---------- */
+  var ENVS = [
+    { n: "Terminal", tags: ["long"], env: "Docker shell sandbox on remote workers",
+      sig: "stdout / stderr, exit code", hz: "Long",
+      note: "A task router plus remote pool servers on port 18081 execute inside Docker; built on SETA's dataset and agent framework.",
+      cmd: "cd slime\nbash ../terminal-rl/terminal_qwen3_8b_rl.sh" },
+    { n: "GUI", tags: ["long", "vlm"], env: "Cloud VM desktops, screenshots + pyautogui",
+      sig: "visual state diff, task progress", hz: "Long",
+      note: "Qwen3-VL drives real Ubuntu desktops via a Flask pool server that pre-warms VMs; OSWorld evaluators supply the final reward.",
+      cmd: "cd slime\nbash ../gui-rl/gui_qwen3vl_8b_rl.sh" },
+    { n: "SWE", tags: ["long"], env: "Real repos in isolated Docker containers",
+      sig: "test verdicts, diff, lint output", hz: "Long",
+      note: "SWE-Bench / SWE-Gym issues. The agent writes bash, submits a patch, and a fresh eval container runs git apply plus the official suite.",
+      cmd: "cd slime\nbash ../swe-rl/run_swe_rl_32b_remote_8nodes.sh" },
+    { n: "Tool-call", tags: ["med"], env: "Sandboxed Python interpreter",
+      sig: "return values, error traces", hz: "Medium",
+      note: "ReTool-style math-with-code. The model learns when to write code, not just how — SFT warm-start optional, then GRPO or PRM+RL.",
+      cmd: "cd slime\nbash ../toolcall-rl/retool_qwen3_4b_rl.sh" }
+  ];
+  var grid = document.getElementById("envGrid");
+  function renderEnvs(f) {
+    grid.innerHTML = "";
+    ENVS.filter(function (e) { return f === "all" || e.tags.indexOf(f) > -1; }).forEach(function (e) {
+      var c = document.createElement("article");
+      c.className = "card";
+      c.innerHTML = '<h3>' + e.n + '</h3>' +
+        '<dl><dt>Env</dt><dd>' + e.env + '</dd>' +
+        '<dt>Next state</dt><dd>' + e.sig + '</dd>' +
+        '<dt>Horizon</dt><dd>' + e.hz + '</dd></dl>' +
+        '<p class="small" style="margin:2px 0 12px">' + e.note + '</p>' +
+        '<div class="cmd">' + e.cmd + '</div>';
+      grid.appendChild(c);
+    });
+  }
+  var ef = document.getElementById("envFilters");
+  ef.addEventListener("click", function (ev) {
+    var b = ev.target.closest("button"); if (!b) return;
+    ef.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    renderEnvs(b.dataset.f);
+  });
+  renderEnvs("all");
+
+  /* ---------- env var table ---------- */
+  var VARS = [
+    { v: "PRM_M", d: "3 (hybrid) / 1 (OPD)", g: "alg", t: "Judge votes per turn. Majority-voted into the scalar reward. More votes = less variance, more judge GPU time." },
+    { v: "PRM_TEMPERATURE", d: "0.6", g: "alg", t: "Sampling temperature for the PRM. Non-zero on purpose — identical votes would defeat majority voting." },
+    { v: "OPENCLAW_TOPK_W_RL", d: "1.0", g: "alg", t: "Weight on the GRPO branch of the hybrid loss. Set to 0 for OPD-only." },
+    { v: "OPENCLAW_TOPK_W_OPD", d: "1.0", g: "alg", t: "Weight on the top-k OPD branch. Set to 0 for GRPO-only." },
+    { v: "OPENCLAW_TOPK_K", d: "4", g: "alg", t: "Top-k width for the student and teacher vocabulary sets used in overlap scoring." },
+    { v: "OPENCLAW_TOPK_MAX_CAND", d: "3", g: "alg", t: "Maximum accepted hint candidates retained per turn before selection." },
+    { v: "OPENCLAW_TOPK_HINT_SELECTION", d: "sequence_optimal", g: "alg", t: "How the winning hint is chosen: sequence_optimal, token_optimal, or shortest." },
+    { v: "OPENCLAW_TOPK_SUBSET_MODE", d: "student", g: "alg", t: "Which top-k vocabulary the OPD term is applied over: student, teacher, or overlap." },
+    { v: "OPENCLAW_TOPK_ADV_DIFF_CLIP", d: "1.0", g: "alg", t: "Caps |log π_T − log π_old| so one confident teacher token cannot dominate the update." },
+    { v: "OPENCLAW_EVAL_MODE", d: "1", g: "alg", t: "Also compute PRM eval scores alongside OPD, for monitoring rather than training." },
+    { v: "HF_CKPT", d: "—", g: "path", t: "HuggingFace checkpoint used by the tokenizer and SGLang." },
+    { v: "REF_LOAD", d: "= HF_CKPT", g: "path", t: "Student torch-dist checkpoint Megatron loads. Must be converted first." },
+    { v: "SAVE_CKPT", d: "—", g: "path", t: "Output checkpoint directory; --save-interval defaults to 100 steps." },
+    { v: "PRM_MODEL_PATH", d: "—", g: "path", t: "PRM model served by SGLang. Often the same family as the policy." },
+    { v: "PRM_TEACHER_LOAD", d: "—", g: "path", t: "Teacher torch-dist checkpoint loaded by Megatron for the hybrid path." },
+    { v: "OPENCLAW_RECORD_FILE", d: "results/*.jsonl", g: "path", t: "Where conversation and scoring records are appended when recording is on." },
+    { v: "PORT", d: "30000", g: "serve", t: "Port for the OpenAI-compatible endpoint OpenClaw connects to." },
+    { v: "SGLANG_API_KEY", d: "—", g: "serve", t: "Must match the apiKey in your openclaw.json provider entry." },
+    { v: "SERVED_MODEL_NAME", d: "qwen3-4b", g: "serve", t: "Model id reported in API responses; must match the model id in openclaw.json." },
+    { v: "CONTEXT_LENGTH", d: "32768", g: "serve", t: "SGLang context window. Agentic sessions get long fast." },
+    { v: "TOOL_CALL_PARSER", d: "qwen25", g: "serve", t: "Parser for tool-call syntax; must match your model family's convention." },
+    { v: "OPENCLAW_RECORD_ENABLED", d: "1", g: "serve", t: "Writes every turn and score to disk. On by default — worth knowing before you chat." }
+  ];
+  var vb = document.getElementById("varBody");
+  function renderVars(f) {
+    vb.innerHTML = "";
+    VARS.filter(function (r) { return f === "all" || r.g === f; }).forEach(function (r) {
+      var tr = document.createElement("tr");
+      tr.innerHTML = '<td><code>' + r.v + '</code></td><td class="num" style="color:var(--ink-2);font-family:var(--mono);font-size:12.5px">' +
+        r.d + '</td><td style="color:var(--ink-2)">' + r.t + '</td>';
+      vb.appendChild(tr);
+    });
+  }
+  var vf = document.getElementById("envVarFilters");
+  vf.addEventListener("click", function (ev) {
+    var b = ev.target.closest("button"); if (!b) return;
+    vf.querySelectorAll("button").forEach(function (x) { x.setAttribute("aria-pressed", String(x === b)); });
+    renderVars(b.dataset.f);
+  });
+  renderVars("all");
+})();
+</script>
