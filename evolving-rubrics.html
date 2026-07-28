@@ -1,0 +1,603 @@
+<meta charset="utf-8">
+<title>Rubrics that move — DR Tulu's RLER and Kimi K3's agentic judge</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground:      #F1F3F7;
+    --surface:     #FFFFFF;
+    --rule:        #DDE1EA;
+    --grid:        rgba(23, 48, 122, 0.055);
+    --text:        #171B26;
+    --muted:       #5E6779;
+    --faint:       #929BAC;
+    --ink:         #17307A;
+    --ink-soft:    rgba(23, 48, 122, 0.09);
+    --ink-2:       #176146;
+    --ink-2-soft:  rgba(23, 97, 70, 0.10);
+    --mark:        #A8281F;
+    --mark-soft:   rgba(168, 40, 31, 0.09);
+    --shadow:      0 1px 2px rgba(20,28,54,.05), 0 8px 24px -14px rgba(20,28,54,.22);
+
+    --serif: ui-serif, "New York", Palatino, "Palatino Linotype", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:     #0C0F16;
+      --surface:    #141924;
+      --rule:       #262D3D;
+      --grid:       rgba(140, 168, 255, 0.05);
+      --text:       #E5E8F0;
+      --muted:      #9AA4B8;
+      --faint:      #6B7488;
+      --ink:        #8CA8FF;
+      --ink-soft:   rgba(140, 168, 255, 0.13);
+      --ink-2:      #4FBE8E;
+      --ink-2-soft: rgba(79, 190, 142, 0.13);
+      --mark:       #FF8377;
+      --mark-soft:  rgba(255, 131, 119, 0.13);
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0C0F16; --surface:#141924; --rule:#262D3D; --grid:rgba(140,168,255,.05);
+    --text:#E5E8F0; --muted:#9AA4B8; --faint:#6B7488;
+    --ink:#8CA8FF; --ink-soft:rgba(140,168,255,.13);
+    --ink-2:#4FBE8E; --ink-2-soft:rgba(79,190,142,.13);
+    --mark:#FF8377; --mark-soft:rgba(255,131,119,.13);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+  }
+  :root[data-theme="light"] {
+    --ground:#F1F3F7; --surface:#FFFFFF; --rule:#DDE1EA; --grid:rgba(23,48,122,.055);
+    --text:#171B26; --muted:#5E6779; --faint:#929BAC;
+    --ink:#17307A; --ink-soft:rgba(23,48,122,.09);
+    --ink-2:#176146; --ink-2-soft:rgba(23,97,70,.10);
+    --mark:#A8281F; --mark-soft:rgba(168,40,31,.09);
+    --shadow:0 1px 2px rgba(20,28,54,.05), 0 8px 24px -14px rgba(20,28,54,.22);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--ground);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+  .col { max-width: 65ch; }
+  h1, h2, h3 { font-family: var(--serif); text-wrap: balance; font-weight: 600; }
+  p { margin: 0 0 1.05em; }
+  a { color: var(--ink); text-underline-offset: 3px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--faint); margin: 0 0 14px;
+  }
+
+  /* ---------- masthead ---------- */
+  header { padding: 76px 0 44px; }
+  h1 { font-size: clamp(38px, 6.2vw, 62px); line-height: 1.03; letter-spacing: -.022em; margin: 0 0 22px; }
+  h1 em { font-style: italic; color: var(--ink); }
+  .standfirst { font-size: 20px; line-height: 1.55; color: var(--muted); max-width: 60ch; margin: 0; }
+  .byline {
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+  }
+
+  .theme-btn {
+    position: fixed; top: 18px; right: 18px; z-index: 20;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--muted);
+    font-size: 15px; cursor: pointer; box-shadow: var(--shadow);
+  }
+  .theme-btn:hover { color: var(--ink); border-color: var(--ink); }
+  .theme-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  /* ---------- stat strip ---------- */
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+    border-radius: 3px; overflow: hidden; margin: 40px 0 56px;
+  }
+  .stat { background: var(--surface); padding: 20px 22px; }
+  .stat .n {
+    font-family: var(--serif); font-size: 34px; line-height: 1.05;
+    font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -.02em;
+  }
+  .stat .l { font-size: 13.5px; color: var(--muted); margin-top: 7px; line-height: 1.45; }
+
+  /* ---------- sections ---------- */
+  section { padding: 52px 0 8px; border-top: 1px solid var(--rule); }
+  h2 { font-size: clamp(25px, 3.4vw, 33px); line-height: 1.18; letter-spacing: -.015em; margin: 0 0 20px; }
+  h3 { font-size: 19px; margin: 34px 0 12px; }
+  .lede { font-size: 18.5px; color: var(--muted); }
+
+  .pull {
+    font-family: var(--serif); font-size: 21px; line-height: 1.45; font-style: italic;
+    color: var(--text); border-left: 2px solid var(--ink); padding: 4px 0 4px 22px;
+    margin: 30px 0; max-width: 54ch;
+  }
+
+  /* ---------- rubric buffer module ---------- */
+  .module {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    box-shadow: var(--shadow); margin: 34px 0 12px; overflow: hidden;
+  }
+  .module-head {
+    padding: 18px 24px; border-bottom: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px;
+  }
+  .module-head .t { font-family: var(--serif); font-size: 18px; }
+  .module-head .q {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    flex: 1 1 320px; min-width: 0;
+  }
+  .module-body { padding: 22px 24px 26px; }
+
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 22px; }
+  .btn {
+    font-family: var(--sans); font-size: 14px; font-weight: 550;
+    padding: 8px 17px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--ink); color: var(--surface);
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:disabled { opacity: .38; cursor: not-allowed; filter: none; }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .stepnote { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .stepnote b { color: var(--text); font-weight: 600; }
+
+  .rubric {
+    display: grid; grid-template-columns: 78px 1fr 96px; gap: 14px; align-items: center;
+    padding: 11px 0; border-bottom: 1px dashed var(--rule);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  .rubric:last-child { border-bottom: 0; }
+  .rubric.entering { animation: slidein .4s ease both; }
+  @keyframes slidein { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+  .rubric.pruned { opacity: .38; }
+  .rubric.pruned .txt { text-decoration: line-through; text-decoration-color: var(--mark); text-decoration-thickness: 1.5px; }
+
+  .tag {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .09em; text-transform: uppercase;
+    padding: 3px 0; text-align: center; border-radius: 2px; white-space: nowrap;
+  }
+  .tag.persist  { color: var(--muted); background: var(--rule); }
+  .tag.positive { color: var(--ink);   background: var(--ink-soft); }
+  .tag.negative { color: var(--mark);  background: var(--mark-soft); }
+  .txt { font-family: var(--mono); font-size: 13px; line-height: 1.5; }
+  .var { display: flex; align-items: center; gap: 8px; }
+  .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--rule); overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--ink); transition: width .45s ease; }
+  .rubric.pruned .bar i { background: var(--mark); }
+  .vnum { font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; color: var(--faint); width: 30px; text-align: right; }
+
+  .log {
+    margin-top: 20px; padding: 13px 15px; border-radius: 3px;
+    background: var(--ink-soft); font-size: 13.5px; line-height: 1.5; color: var(--text);
+  }
+  .log b { font-family: var(--mono); font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: var(--ink); display: block; margin-bottom: 3px; }
+
+  /* ---------- chart ---------- */
+  .chartwrap { padding: 24px; }
+  canvas { display: block; width: 100%; height: auto; }
+  .caption { font-size: 13px; color: var(--faint); line-height: 1.5; padding: 0 24px 22px; max-width: 66ch; }
+
+  /* ---------- protocol steps ---------- */
+  ol.protocol { list-style: none; counter-reset: p; padding: 0; margin: 26px 0 30px; max-width: 62ch; }
+  ol.protocol li {
+    counter-increment: p; position: relative; padding: 0 0 18px 46px; margin: 0;
+    border-left: 1px solid var(--rule); margin-left: 13px;
+  }
+  ol.protocol li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.protocol li::before {
+    content: counter(p); position: absolute; left: -13px; top: 0;
+    width: 26px; height: 26px; border-radius: 50%;
+    background: var(--ink-2-soft); color: var(--ink-2);
+    font-family: var(--mono); font-size: 12px; font-weight: 600;
+    display: grid; place-items: center;
+  }
+  ol.protocol .h { font-weight: 600; }
+  ol.protocol .d { color: var(--muted); font-size: 15.5px; }
+
+  /* ---------- comparison ---------- */
+  .cmp { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; margin: 30px 0 10px; }
+  .cmp-row { display: grid; grid-template-columns: 150px 1fr 1fr; gap: 1px; background: var(--rule); }
+  .cmp-row > * { background: var(--surface); padding: 15px 18px; }
+  .cmp-head > * { padding-top: 17px; padding-bottom: 17px; }
+  .cmp-head .a, .cmp-head .b { font-family: var(--serif); font-size: 17px; }
+  .cmp-head .a { color: var(--ink); }
+  .cmp-head .b { color: var(--ink-2); }
+  .cmp .axis { font-family: var(--mono); font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .cmp .a, .cmp .b { font-size: 14.5px; line-height: 1.55; }
+  .cmp .a strong { color: var(--ink); font-weight: 600; }
+  .cmp .b strong { color: var(--ink-2); font-weight: 600; }
+  @media (max-width: 720px) {
+    .cmp-row { grid-template-columns: 1fr; }
+    .cmp .axis { padding-bottom: 4px; }
+  }
+
+  .verdict {
+    background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--ink);
+    border-radius: 3px; padding: 24px 26px; margin: 30px 0 0; box-shadow: var(--shadow);
+  }
+  .verdict h3 { margin-top: 0; }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  footer {
+    margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--rule);
+    font-family: var(--mono); font-size: 12px; color: var(--faint); line-height: 1.8;
+  }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 18px 72px; }
+    .module-head, .module-body, .chartwrap { padding-left: 17px; padding-right: 17px; }
+    .caption { padding-left: 17px; padding-right: 17px; }
+    .rubric { grid-template-columns: 1fr; gap: 8px; padding: 14px 0; }
+    .tag { justify-self: start; padding: 3px 10px; }
+    .var { max-width: 200px; }
+    ol.protocol li { padding-left: 38px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<button class="theme-btn" id="themeBtn" aria-label="Toggle colour theme">◐</button>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Reward design · Post-training · Nov 2025 / Jul 2026</p>
+    <h1>Rubrics that <em>move</em></h1>
+    <p class="standfirst">DR Tulu made the grading criteria a living object that co-evolves with the policy. Kimi K3 made writing them a mandatory step of the judge's job. Two answers to the same problem: on non-verifiable tasks, a fixed rubric goes stale the moment the model gets good at it.</p>
+    <div class="byline">
+      <span>DR Tulu · arXiv:2511.19399 · Ai2 / UW / CMU / MIT</span>
+      <span>Kimi K3 Technical Report · §4.1.2</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="n">65.6</div><div class="l">DR Tulu-8B average across four long-form deep-research benchmarks — the best open system</div></div>
+    <div class="stat"><div class="n">+15.6</div><div class="l">Points over Tongyi DeepResearch-30B, the previous open state of the art</div></div>
+    <div class="stat"><div class="n">$0.0018</div><div class="l">Cost per query, against $1.80 for OpenAI Deep Research — a 1000× gap</div></div>
+  </div>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">The problem</p>
+      <h2>You cannot check a research report against an answer key</h2>
+      <p class="lede">RL with verifiable rewards works because a string match or a unit test is a free, incorruptible grader. Most of what we now want models to do — write a report, produce a deliverable, synthesize a literature — has no such grader.</p>
+      <p>The obvious substitute is a rubric: a written list of criteria an LLM judge scores against. DR Tulu's authors argue that the obvious version of this fails twice over. Desiderata for long-form answers are <em>under-specified</em>, so no fixed list captures them. And a rubric written closed-book, from a judge's parametric knowledge alone, "risks missing evidence, subtle errors, and [is] vulnerable to reward hacking."</p>
+      <p>There is a third failure that only shows up during training. A criterion every rollout satisfies contributes nothing to the gradient. As the policy improves, more and more of a fixed rubric becomes exactly that — a list of things the model already does. The reward signal quietly flattens.</p>
+      <p class="pull">The fix is to give the rubric writer information the policy does not have, and to keep rewriting.</p>
+      <p>RLER — Reinforcement Learning with Evolving Rubrics — supplies two kinds of privileged information. <strong>Retrieved external evidence</strong>, so criteria can be grounded in facts the policy may have missed; and <strong>multiple sampled rollouts seen side by side</strong>, so criteria can be written to discriminate between them. That asymmetry is the generation–verification gap the whole method runs on.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">The rubric buffer</span>
+        <span class="q">prompt: "Current therapeutic options for SMA caused by SMN1 deletion?"</span>
+      </div>
+      <div class="module-body">
+        <div class="controls">
+          <button class="btn" id="stepBtn">Advance one RL step</button>
+          <button class="btn ghost" id="resetBtn">Reset</button>
+          <span class="stepnote">step <b id="stepNum">0</b> · buffer holds <b id="bufCount">3</b> of max 5</span>
+        </div>
+        <div id="rubrics"></div>
+        <div class="log"><b id="logLabel">Initialization</b><span id="logText"></span></div>
+      </div>
+    </div>
+    <p class="caption">Illustrative reconstruction of the mechanism described in §3.1. Before training, a search over the prompt seeds persistent, evidence-grounded criteria. At every GRPO step the rubric LM reads the prompt, all rollouts and the current pool, then writes <span style="color:var(--ink)">positive</span> criteria for knowledge the policy just discovered and <span style="color:var(--mark)">negative</span> ones for hacks it just attempted. Criteria with zero score variance across rollouts are struck out and dropped; the rest are ranked by standard deviation and truncated to the top K.</p>
+
+    <div class="col">
+      <p>The two rubric types do different work. Positive rubrics chase the frontier — they encode things the policy has started finding but has not yet made habitual. Negative rubrics chase the exploits: the paper's own example is a model copying retrieved text verbatim to drive citation precision to 1.0, which becomes a criterion you lose points for.</p>
+      <p>Variance-based pruning is what keeps the buffer honest. A rubric all eight rollouts satisfy has standard deviation zero and is deleted — not because it stopped being true, but because it stopped being <em>informative</em>. The buffer converges on whatever the model is currently bad at.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Does it hold up</p>
+      <h2>Grounding matters more than evolution, but both are real</h2>
+      <p>The cleanest ablation isolates the rubric source. Starting from the same intermediate SFT checkpoint, the team ran 500 RL steps against three kinds of <em>static</em> rubric and measured the four-benchmark average.</p>
+    </div>
+
+    <div class="module">
+      <div class="chartwrap"><canvas id="chart" width="900" height="300"></canvas></div>
+      <p class="caption" style="padding-top:0">Table 3. Four-benchmark average after 500 RL steps from the SFT v0.1 checkpoint. Search-grounded rubrics beat both a generic rubric and a closed-book LLM-written one — the retrieval, not the rubric format, carries the gain.</p>
+    </div>
+
+    <div class="col">
+      <p>Adding evolution on top is worth roughly <strong>two more points</strong>, with the gap widening the longer training runs — consistent with the claim that evolving rubrics capture knowledge the policy discovers along the way. Both beat a random-reward control, which rules out the spurious-reward effect that has embarrassed other Qwen-based RL results.</p>
+      <p>One result matters for anyone thinking about adopting this: swapping GPT-4.1 for <strong>Qwen3-8B — the policy's own base model</strong> — as both rubric generator and judge still yields +4.4 points over SFT, against +5.7 with the GPT judge. The gains are not distilled from a stronger proprietary grader. The generation–verification gap comes from the privileged information, not from the judge being smarter than the student.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">The other implementation</p>
+      <h2>Kimi K3 puts rubric-writing inside the judge's protocol</h2>
+      <p>K3 reserves its Agentic Generative Reward Model for the non-verifiable remainder of post-training — most of its RL runs in verifiable agentic environments with real checkers. The GRM keeps K2.5's tournament-style group reward over binary comparisons, but the judge is now an agent bound to a four-step procedure it must follow for every comparison:</p>
+      <ol class="protocol">
+        <li><span class="h">Read the outcome, product, or text output.</span> <span class="d">The judge is agentic because the artifact under review may be a spreadsheet, a web app, or a multi-day deliverable — not a paragraph.</span></li>
+        <li><span class="h">Generate a rubric.</span> <span class="d">Written fresh, conditioned on what the candidates actually produced, rather than retrieved from a fixed bank.</span></li>
+        <li><span class="h">Score each candidate against it.</span></li>
+        <li><span class="h">Record the rubric-assigned scores in a scorepad.</span> <span class="d">An auditable trace of why one candidate beat the other.</span></li>
+      </ol>
+      <p>K3 hardens against the same failure mode from the other direction. Instead of a negative rubric penalizing verbosity, there is a hard budget: given a baseline output length ℓ₀ from the cold-start model and a multiplier σ, any candidate exceeding σ·ℓ₀ <strong>automatically loses the comparison</strong>. It is the reward-hacking patch expressed as a rule rather than a learned criterion.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Side by side</p>
+      <h2>Same diagnosis, different point in the pipeline</h2>
+      <p>Both systems refuse to fix criteria in advance and both make the reward model author them at judgment time. Where they part ways is whether the rubric is a <em>persistent training artifact</em> or a <em>transient inference step</em>.</p>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-row cmp-head">
+        <div class="axis">Axis</div>
+        <div class="a">DR Tulu · RLER</div>
+        <div class="b">Kimi K3 · Agentic GRM</div>
+      </div>
+      <div class="cmp-row">
+        <div class="axis">State</div>
+        <div class="a"><strong>Persistent.</strong> A per-prompt buffer that survives across RL steps, accumulating and pruning as the policy changes.</div>
+        <div class="b"><strong>Transient.</strong> Written inside a single comparison and discarded; the report describes no rubric memory between judgments.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="axis">Reward shape</div>
+        <div class="a">Absolute rubric scores feeding GRPO advantages across a rollout group.</div>
+        <div class="b">Pairwise binary wins, aggregated tournament-style into a group reward.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="axis">Grounding</div>
+        <div class="a">Explicit web retrieval before and during training; fact-checking is the point.</div>
+        <div class="b">Agentic inspection of the artifact itself — reading a deliverable rather than retrieving evidence about it.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="axis">Anti-hacking</div>
+        <div class="a">Learned negative rubrics, written from hacks observed in the rollouts.</div>
+        <div class="b">A hard verbosity budget: exceed σ·ℓ₀ and the candidate loses outright.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="axis">Scope</div>
+        <div class="a">The entire paper. An 8B model, one domain, fully open stack.</div>
+        <div class="b">One component of a 2.8T-parameter post-training stack, covering the non-verifiable slice.</div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="verdict">
+        <h3>So is the claim right?</h3>
+        <p>Yes, with one correction of emphasis. Both papers respond to the same insight — predefined rubrics cannot keep up with an improving model on tasks nobody can verify — and both hand rubric authorship to the grader.</p>
+        <p>But "generates its own rubrics on the fly" describes K3 precisely and DR Tulu only partially. DR Tulu's contribution is not that rubrics are generated; it is that they are <em>kept, scored for discriminative power, and pruned</em>. Evolution is a property of the training loop, not of any single judgment. K3's judge is dynamic; DR Tulu's rubric buffer is adaptive. The distinction is exactly the two points that ablation is worth.</p>
+        <p style="margin-bottom:0;color:var(--muted);font-size:15px">A footnote worth noticing: K3 reports state of the art on <strong>ResearchRubrics</strong> (76.2), a benchmark built entirely out of prompts and rubrics for grading deep research agents. The evaluation regime and the training regime have converged on the same instrument.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    Shao, Asai, Shen, Ivison et al. · DR Tulu: Reinforcement Learning with Evolving Rubrics for Deep Research · arXiv:2511.19399 · ICML 2026<br>
+    Kimi Team · Kimi K3: Open Frontier Intelligence · Technical Report §4.1.2, Agentic Generative Reward Model<br>
+    Rubric text in the interactive module is illustrative; all quoted figures are from the papers.
+  </footer>
+</div>
+
+<script>
+(function () {
+  /* ---------- theme ---------- */
+  var btn = document.getElementById('themeBtn');
+  btn.addEventListener('click', function () {
+    var cur = document.documentElement.getAttribute('data-theme');
+    if (!cur) {
+      cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+    drawChart();
+  });
+
+  /* ---------- rubric buffer simulation ---------- */
+  var INIT = [
+    { id:'a', type:'persist', txt:'Names nusinersen, onasemnogene abeparvovec and risdiplam as approved therapies', v:0.42 },
+    { id:'b', type:'persist', txt:'States that expected benefit depends on SMN2 copy number', v:0.31 },
+    { id:'c', type:'persist', txt:'Every therapeutic claim carries a snippet-level citation', v:0.55 }
+  ];
+
+  var STEPS = [
+    {
+      label: 'Step 1 · rubric LM reads 8 rollouts',
+      text: 'Two rollouts surfaced newborn-screening evidence the initial search missed — that becomes a positive rubric. Three padded their citation lists with sources that do not support the claim, so a negative rubric is written against it. Every rollout now names the three approved drugs, so that criterion has zero variance and is dropped.',
+      add: [
+        { id:'d', type:'positive', txt:'Notes that pre-symptomatic treatment following newborn screening yields the best motor outcomes', v:0.48 },
+        { id:'e', type:'negative', txt:'Penalize citation padding: several sources attached to a claim only one of them supports', v:0.44 }
+      ],
+      set: { a:0.00, b:0.26, c:0.39 }
+    },
+    {
+      label: 'Step 2 · reward hacking detected',
+      text: 'Verbatim reproduction of retrieved abstracts has appeared in half the rollouts — a cheap way to maximize citation precision without synthesizing. A negative rubric suppresses it. The SMN2 copy-number criterion has now been mastered and is pruned.',
+      add: [
+        { id:'f', type:'negative', txt:'Penalize verbatim reproduction of retrieved abstracts in place of synthesis', v:0.51 },
+        { id:'g', type:'positive', txt:'Distinguishes intrathecal, intravenous and oral routes and their access implications', v:0.29 }
+      ],
+      set: { b:0.00, c:0.33, d:0.35 }
+    },
+    {
+      label: 'Step 3 · buffer at capacity, truncating to top K',
+      text: 'A rollout found 2026 combination-therapy trial data nobody had cited. The buffer is full, so criteria are ranked by standard deviation and the weakest is cut — the route-of-administration rubric, now satisfied almost everywhere, loses its slot.',
+      add: [
+        { id:'h', type:'positive', txt:'Reports combination-therapy trial evidence and states its remaining uncertainty', v:0.53 },
+        { id:'j', type:'positive', txt:'Flags that gene therapy is weight- and age-restricted in most jurisdictions', v:0.36 }
+      ],
+      set: { d:0.00, g:0.11, c:0.30, e:0.38 }
+    },
+    {
+      label: 'Step 4 · the buffer has fully turned over',
+      text: 'Nothing from the initial search-based rubric survives except the citation requirement, whose variance keeps it useful. The criteria the policy is graded on are now entirely things it discovered or exploited during training — this is what "co-evolving with the policy" means in practice.',
+      add: [
+        { id:'i', type:'negative', txt:'Penalize hedging that omits a recommendation the cited evidence supports', v:0.40 }
+      ],
+      set: { j:0.00, h:0.47, f:0.44 }
+    }
+  ];
+
+  var MAXK = 5;
+  var buffer, step;
+  var host = document.getElementById('rubrics');
+  var stepNum = document.getElementById('stepNum');
+  var bufCount = document.getElementById('bufCount');
+  var logLabel = document.getElementById('logLabel');
+  var logText = document.getElementById('logText');
+  var stepBtn = document.getElementById('stepBtn');
+
+  function render(fresh) {
+    fresh = fresh || [];
+    host.innerHTML = '';
+    buffer.forEach(function (r) {
+      var row = document.createElement('div');
+      row.className = 'rubric' + (r.v === 0 ? ' pruned' : '') + (fresh.indexOf(r.id) > -1 ? ' entering' : '');
+      var tag = r.type === 'persist' ? 'seeded' : r.type === 'positive' ? '+ rubric' : '− rubric';
+      row.innerHTML =
+        '<span class="tag ' + r.type + '">' + tag + '</span>' +
+        '<span class="txt">' + r.txt + '</span>' +
+        '<span class="var"><span class="bar"><i style="width:' + Math.round(r.v * 160) + '%"></i></span>' +
+        '<span class="vnum">' + r.v.toFixed(2) + '</span></span>';
+      host.appendChild(row);
+    });
+    bufCount.textContent = buffer.filter(function (r) { return r.v > 0; }).length;
+    stepNum.textContent = step;
+  }
+
+  function reset() {
+    buffer = INIT.map(function (r) { return Object.assign({}, r); });
+    step = 0;
+    logLabel.textContent = 'Initialization';
+    logText.textContent = 'A web search over the prompt seeds three persistent, evidence-grounded criteria. The bar shows each rubric’s score standard deviation across the rollout group — its discriminative power.';
+    stepBtn.disabled = false;
+    render();
+  }
+
+  stepBtn.addEventListener('click', function () {
+    if (step >= STEPS.length) return;
+    // drop anything pruned on the previous step
+    buffer = buffer.filter(function (r) { return r.v > 0; });
+    var s = STEPS[step];
+    Object.keys(s.set).forEach(function (id) {
+      buffer.forEach(function (r) { if (r.id === id) r.v = s.set[id]; });
+    });
+    s.add.forEach(function (r) { buffer.push(Object.assign({}, r)); });
+    // rank by discriminative power, keep top K live entries plus this step's prunes
+    var live = buffer.filter(function (r) { return r.v > 0; }).sort(function (a, b) { return b.v - a.v; });
+    var dead = buffer.filter(function (r) { return r.v === 0; });
+    var cut = live.slice(MAXK);
+    cut.forEach(function (r) { r.v = 0; });
+    buffer = live.slice(0, MAXK).concat(dead, cut);
+    step++;
+    logLabel.textContent = s.label;
+    logText.textContent = s.text;
+    render(s.add.map(function (r) { return r.id; }));
+    if (step >= STEPS.length) stepBtn.disabled = true;
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', reset);
+  reset();
+
+  /* ---------- ablation chart ---------- */
+  var DATA = [
+    { l: 'SFT checkpoint, no RL',   s: 'SFT, no RL',     v: 54.7, hi: false },
+    { l: 'Generic rubrics',         s: 'Generic',        v: 54.8, hi: false },
+    { l: 'Closed-book LLM rubrics', s: 'Closed-book',    v: 55.6, hi: false },
+    { l: 'Search-grounded rubrics', s: 'Search-grounded', v: 56.7, hi: true  }
+  ];
+  var cv = document.getElementById('chart');
+  var progress = 0;
+
+  function css(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+
+  function drawChart() {
+    var dpr = window.devicePixelRatio || 1;
+    var w = cv.clientWidth || 900;
+    var h = w < 620 ? 232 : 300;
+    cv.style.height = h + 'px';
+    cv.width = w * dpr; cv.height = h * dpr;
+    var g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w, h);
+
+    var narrow = w < 620;
+    var padL = narrow ? 138 : 210, padR = narrow ? 56 : 74, padT = 14, padB = 22;
+    var labelPx = narrow ? 11 : 13;
+    var lo = 54.0, hiV = 57.2;
+    var rowH = (h - padT - padB) / DATA.length;
+    var trackW = w - padL - padR;
+
+    DATA.forEach(function (d, i) {
+      var y = padT + i * rowH + rowH / 2;
+      g.fillStyle = css('--muted');
+      g.font = labelPx + 'px ' + css('--sans').replace(/"/g, '"');
+      g.textAlign = 'right'; g.textBaseline = 'middle';
+      g.fillText(narrow ? d.s : d.l, padL - 14, y);
+
+      g.fillStyle = css('--rule');
+      g.fillRect(padL, y - 9, trackW, 18);
+
+      var frac = (d.v - lo) / (hiV - lo);
+      var bw = trackW * frac * progress;
+      g.fillStyle = d.hi ? css('--ink') : css('--ink-soft');
+      g.fillRect(padL, y - 9, bw, 18);
+      if (!d.hi) {
+        g.fillStyle = css('--ink');
+        g.globalAlpha = 0.45;
+        g.fillRect(padL, y - 9, bw, 18);
+        g.globalAlpha = 1;
+      }
+
+      g.fillStyle = d.hi ? css('--ink') : css('--muted');
+      g.font = '600 14px ' + css('--mono').replace(/"/g, '"');
+      g.textAlign = 'left';
+      g.fillText(d.v.toFixed(1), padL + bw + 12, y);
+    });
+    g.strokeStyle = css('--rule');
+    g.beginPath(); g.moveTo(padL, padT); g.lineTo(padL, h - padB); g.stroke();
+  }
+
+  function animate() {
+    var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) { progress = 1; drawChart(); return; }
+    var start = null;
+    function frame(ts) {
+      if (!start) start = ts;
+      var t = Math.min((ts - start) / 900, 1);
+      progress = 1 - Math.pow(1 - t, 3);
+      drawChart();
+      if (t < 1) requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  drawChart();
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { animate(); io.disconnect(); } });
+    }, { threshold: 0.35 });
+    io.observe(cv);
+  } else { animate(); }
+  window.addEventListener('resize', drawChart);
+})();
+</script>
