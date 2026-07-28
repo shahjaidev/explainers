@@ -1,0 +1,849 @@
+<meta charset="utf-8">
+<title>Olmo 3 &amp; open-instruct — inside a fully open post-training stack</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#FBF8F9; --surface:#FFFFFF; --surface2:#F4EDF1; --ink:#23191F; --muted:#6E5F6A;
+  --accent:#D63871; --accent-ink:#fff; --line:#E8DEE4; --code-bg:#F6F0F3; --shadow:0 1px 3px rgba(35,25,31,.07),0 8px 24px rgba(35,25,31,.05);
+  --st-pre:#7A6FF0; --st-mid:#4E9AF0; --st-lc:#21A99C; --st-sft:#DB9430; --st-dpo:#D63871; --st-rl:#D6512B;
+  --good:#1E8E5A; --warn:#B77816; --bad:#C24034;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#17131B; --surface:#201A26; --surface2:#291F30; --ink:#EDE6EC; --muted:#A293A4;
+  --accent:#F06A9B; --accent-ink:#1c0e15; --line:#352B3C; --code-bg:#251D2C; --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  --st-pre:#978EF5; --st-mid:#6FB0F5; --st-lc:#3DBFB2; --st-sft:#E5A94E; --st-dpo:#F06A9B; --st-rl:#E8734E;
+  --good:#4CBB84; --warn:#D89A3C; --bad:#DE6A5E;
+}}
+:root[data-theme="light"]{
+  --bg:#FBF8F9; --surface:#FFFFFF; --surface2:#F4EDF1; --ink:#23191F; --muted:#6E5F6A;
+  --accent:#D63871; --accent-ink:#fff; --line:#E8DEE4; --code-bg:#F6F0F3; --shadow:0 1px 3px rgba(35,25,31,.07),0 8px 24px rgba(35,25,31,.05);
+  --st-pre:#7A6FF0; --st-mid:#4E9AF0; --st-lc:#21A99C; --st-sft:#DB9430; --st-dpo:#D63871; --st-rl:#D6512B;
+  --good:#1E8E5A; --warn:#B77816; --bad:#C24034;
+}
+:root[data-theme="dark"]{
+  --bg:#17131B; --surface:#201A26; --surface2:#291F30; --ink:#EDE6EC; --muted:#A293A4;
+  --accent:#F06A9B; --accent-ink:#1c0e15; --line:#352B3C; --code-bg:#251D2C; --shadow:0 1px 3px rgba(0,0,0,.4),0 8px 24px rgba(0,0,0,.3);
+  --st-pre:#978EF5; --st-mid:#6FB0F5; --st-lc:#3DBFB2; --st-sft:#E5A94E; --st-dpo:#F06A9B; --st-rl:#E8734E;
+  --good:#4CBB84; --warn:#D89A3C; --bad:#DE6A5E;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation-duration:.001s!important;transition-duration:.001s!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.serif{font-family:ui-serif,"New York",Palatino,Georgia,serif}
+code,pre,.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+main{max-width:1060px;margin:0 auto;padding:0 20px 80px}
+.prose{max-width:70ch;margin-left:auto;margin-right:auto}
+h1,h2,h3{font-family:ui-serif,"New York",Palatino,Georgia,serif;line-height:1.15;text-wrap:balance}
+h2{font-size:2rem;margin:0 0 .4em}
+h3{font-size:1.3rem;margin:2em 0 .5em}
+p{margin:.9em 0}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+section{padding:64px 0 8px;border-top:1px solid var(--line);margin-top:56px}
+.eyebrow{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:0 0 10px;font-weight:600}
+.lede{font-size:1.14rem;color:var(--muted)}
+code{background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:.08em .35em;font-size:.85em}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:14px 16px;overflow-x:auto;font-size:.8rem;line-height:1.55}
+pre code{background:none;border:0;padding:0;font-size:1em}
+table{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
+th{text-align:left;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 12px;border-bottom:2px solid var(--line)}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:4px 8px;box-shadow:var(--shadow)}
+.full{max-width:1020px;margin:28px auto}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}
+.badge{display:inline-block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);font-weight:600}
+.kbdnote{font-size:.8rem;color:var(--muted)}
+button{font:inherit;cursor:pointer}
+.pill{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:5px 14px;font-size:.8rem}
+.pill[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pill:focus-visible,.stage:focus-visible,.acc-h:focus-visible,.lterm:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* header */
+header{padding:40px 0 8px}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1060px;margin:0 auto;padding:14px 20px 0}
+.brand{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+#themeBtn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 12px;font-size:.78rem;color:var(--ink)}
+.hero{max-width:1060px;margin:0 auto;padding:36px 20px 0}
+.hero h1{font-size:clamp(2.1rem,5.4vw,3.4rem);margin:.1em 0 .25em;font-weight:600}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero .lede{max-width:64ch}
+.statrow{display:flex;flex-wrap:wrap;gap:12px;margin:26px 0 8px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 16px;box-shadow:var(--shadow);min-width:130px}
+.stat b{display:block;font-family:ui-serif,"New York",Palatino,Georgia,serif;font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+.stat span{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* pipeline hero */
+.flow{margin:34px auto 8px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;box-shadow:var(--shadow)}
+.flowrow{display:flex;align-items:stretch;gap:6px;flex-wrap:wrap}
+.flowlabel{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:14px 0 8px}
+.stage{flex:1 1 100px;min-width:96px;border:1.5px solid var(--line);border-radius:9px;padding:9px 10px;background:var(--surface2);text-align:left;position:relative;transition:transform .12s, border-color .12s}
+.stage:hover{transform:translateY(-2px)}
+.stage .sname{font-weight:650;font-size:.86rem;display:block}
+.stage .ssub{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.64rem;color:var(--muted);display:block;margin-top:2px}
+.stage::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:9px 0 0 9px;background:var(--sc,var(--accent))}
+.stage[aria-pressed="true"]{border-color:var(--sc,var(--accent));background:var(--surface)}
+.arrow{align-self:center;color:var(--muted);font-size:.9rem;flex:0 0 auto}
+.stagedetail{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;min-height:120px}
+.stagedetail h4{margin:0 0 6px;font-size:1.02rem;font-family:ui-serif,"New York",Palatino,Georgia,serif}
+.stagedetail p{margin:.4em 0;font-size:.92rem}
+.stagedetail .facts{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.fact{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.7rem;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:3px 8px}
+
+/* arch layers */
+.archwrap{display:grid;grid-template-columns:minmax(200px,260px) 1fr;gap:24px;align-items:start}
+@media (max-width:760px){.archwrap{grid-template-columns:1fr}}
+.layers{display:flex;flex-direction:column-reverse;gap:3px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+.layer{height:13px;border-radius:3px;background:var(--surface2);border:1px solid var(--line);position:relative;display:flex;align-items:center}
+.layer.swa{background:color-mix(in srgb,var(--st-lc) 26%,var(--surface));border-color:color-mix(in srgb,var(--st-lc) 55%,var(--line))}
+.layer.fullattn{background:color-mix(in srgb,var(--st-dpo) 30%,var(--surface));border-color:color-mix(in srgb,var(--st-dpo) 60%,var(--line))}
+.layer .ltag{position:absolute;right:6px;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.55rem;color:var(--muted);line-height:1}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.78rem;color:var(--muted)}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+.toggle{display:inline-flex;border:1px solid var(--line);border-radius:99px;overflow:hidden;margin:0 0 14px}
+.toggle button{border:0;background:var(--surface);padding:6px 16px;font-size:.82rem;color:var(--muted)}
+.toggle button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+
+/* verifier explorer */
+.vfilters{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 18px}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(235px,1fr));gap:12px}
+.vcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--vc,var(--accent));border-radius:10px;padding:12px 14px;box-shadow:var(--shadow)}
+.vcard h4{margin:0;font-size:.9rem;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+.vcard .vtype{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.vcard p{font-size:.8rem;margin:.5em 0 0;color:var(--muted)}
+.vcard .sig{margin-top:8px;font-size:.68rem;font-family:ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink);background:var(--code-bg);border-radius:5px;padding:3px 7px;display:inline-block}
+.vcount{font-size:.78rem;color:var(--muted);margin-left:auto;align-self:center}
+
+/* loss anatomy */
+.lossbox{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;box-shadow:var(--shadow)}
+.eq{font-family:ui-serif,"New York",Palatino,Georgia,serif;font-size:1.25rem;text-align:center;margin:10px 0 20px;line-height:2}
+.eq .t{padding:3px 8px;border-radius:7px;border:1.5px dashed transparent;transition:background .15s,border-color .15s;white-space:nowrap}
+.eq .t.on{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 14%,transparent)}
+.lterms{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:10px}
+.lterm{text-align:left;background:var(--surface2);border:1.5px solid var(--line);border-radius:10px;padding:11px 13px;color:var(--ink)}
+.lterm[aria-pressed="true"]{border-color:var(--tc);background:color-mix(in srgb,var(--tc) 10%,var(--surface))}
+.lterm b{display:block;font-size:.86rem}
+.lterm span{font-size:.76rem;color:var(--muted);display:block;margin-top:3px}
+.lossdetail{margin-top:16px;border-top:1px dashed var(--line);padding-top:14px;font-size:.92rem;min-height:96px}
+.lossdetail h4{margin:0 0 6px;font-family:ui-serif,"New York",Palatino,Georgia,serif;font-size:1rem}
+
+/* async system */
+.sys{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px;box-shadow:var(--shadow)}
+.syscanvas{width:100%;height:auto;display:block;border-radius:8px}
+.syscap{font-size:.8rem;color:var(--muted);margin-top:10px}
+
+/* charts */
+.chartcard{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 18px 10px;box-shadow:var(--shadow)}
+.chartcard h4{margin:0 0 4px;font-family:ui-serif,"New York",Palatino,Georgia,serif;font-size:1.05rem}
+.chartcard .sub{font-size:.8rem;color:var(--muted);margin:0 0 8px}
+canvas.chart{width:100%;height:auto;display:block}
+
+/* accordions */
+.acc{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:10px 0;box-shadow:var(--shadow);overflow:hidden}
+.acc-h{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:none;border:0;padding:13px 16px;color:var(--ink)}
+.acc-h .n{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.72rem;color:var(--accent);font-weight:700;min-width:22px}
+.acc-h b{font-size:.95rem}
+.acc-h .chev{margin-left:auto;color:var(--muted);transition:transform .18s}
+.acc[data-open="true"] .chev{transform:rotate(90deg)}
+.acc-b{display:none;padding:0 16px 15px 50px;font-size:.92rem;color:var(--muted)}
+.acc[data-open="true"] .acc-b{display:block}
+.acc-b code{color:var(--ink)}
+
+/* repo tree */
+.tree{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.78rem;line-height:1.85}
+.tree .d{color:var(--accent);font-weight:700}
+.tree .c{color:var(--muted)}
+.schemarow{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px;margin:20px 0}
+.schema{border-top:4px solid var(--sc);border-radius:10px;background:var(--surface);border-left:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line);padding:14px 16px;box-shadow:var(--shadow)}
+.schema h4{margin:0 0 2px;font-size:.95rem}
+.schema .use{font-size:.72rem;font-family:ui-monospace,"SF Mono",Menlo,monospace;color:var(--muted)}
+.schema pre{margin:10px 0 6px;font-size:.72rem}
+.schema p{font-size:.8rem;color:var(--muted);margin:.4em 0 0}
+.callout{border-left:4px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;padding:14px 18px;margin:22px 0;box-shadow:var(--shadow)}
+.callout.warn{border-left-color:var(--warn)}
+.callout p{margin:.4em 0;font-size:.94rem}
+.callout .ct{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;font-weight:700;color:var(--accent)}
+.callout.warn .ct{color:var(--warn)}
+footer{border-top:1px solid var(--line);margin-top:70px;padding:30px 20px 60px;font-size:.85rem;color:var(--muted)}
+footer .prose{max-width:70ch;margin:0 auto}
+.toc{position:sticky;top:0;z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:8px 20px;display:flex;gap:4px;overflow-x:auto;font-size:.78rem}
+.toc a{color:var(--muted);text-decoration:none;padding:4px 10px;border-radius:99px;white-space:nowrap}
+.toc a:hover{color:var(--accent);background:var(--surface2)}
+</style>
+
+<div class="topbar">
+  <span class="brand">Deep dive · Ai2 open stack · July 2026</span>
+  <button id="themeBtn" aria-label="Toggle color theme">◐ theme</button>
+</div>
+
+<header class="hero">
+  <p class="eyebrow">Olmo 3 · open-instruct · OLMo-core · Tülu 3</p>
+  <h1 class="serif">The only frontier-grade LLM you can <em>read end&nbsp;to&nbsp;end</em></h1>
+  <p class="lede">DeepSeek, Qwen, and Kimi ship weights and a tech report. Ai2 ships the <b>model flow</b>: every dataset, checkpoint, config, and line of training code from raw web crawl to a 32B reasoning model — including the RL infrastructure. This page is a guided tour of how that stack actually works, focused on the four things a post-training engineer must understand: <b>data</b>, <b>environments &amp; rewards</b>, <b>the RL loop</b>, and <b>the model itself</b>.</p>
+  <div class="statrow">
+    <div class="stat"><b>5.93T</b><span>pretrain tokens (Dolma 3)</span></div>
+    <div class="stat"><b>~$2.75M</b><span>full 32B flow @ $2/H100·hr</span></div>
+    <div class="stat"><b>56 days</b><span>on 1024×H100 · post-train ≈ 9</span></div>
+    <div class="stat"><b>4×</b><span>RL speedup from infra alone</span></div>
+    <div class="stat"><b>β = 0</b><span>KL penalty in every Olmo 3 RL run</span></div>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Sections">
+  <a href="#flow">Model flow</a><a href="#repos">Two repos</a><a href="#arch">Architecture</a><a href="#data">Data pipeline</a><a href="#rewards">Rewards &amp; envs</a><a href="#rl">The RL loop</a><a href="#recipe">Recipe &amp; results</a><a href="#lessons">Lessons</a>
+</nav>
+
+<main>
+
+<!-- ============ MODEL FLOW ============ -->
+<section id="flow" style="border-top:none;margin-top:8px">
+  <div class="prose">
+    <p class="eyebrow">The thesis</p>
+    <h2>One base model, three deliberate paths</h2>
+    <p>Olmo 3 is organized as a <b>flow</b>: a base-training spine (pretrain → midtrain → long-context) and three post-training tracks that branch off it. <b>Think</b> is the flagship reasoning model (32K-token thinking budget). <b>Instruct</b> trades thinking for latency and function calling — and is warm-started <i>from the Think SFT checkpoint</i> (+3.3 avg). <b>RL-Zero</b> runs RL directly on the base model as a decontaminated science benchmark. Every box below is a released checkpoint plus released data. Click any stage.</p>
+  </div>
+  <div class="flow full">
+    <p class="flowlabel">Base training — repo: OLMo-core</p>
+    <div class="flowrow" id="rowBase"></div>
+    <p class="flowlabel">Post-training — repo: open-instruct (SFT runs on OLMo-core for 8× throughput)</p>
+    <div class="flowrow" id="rowPost"></div>
+    <div class="stagedetail" id="stageDetail" aria-live="polite"></div>
+  </div>
+</section>
+
+<!-- ============ TWO REPOS ============ -->
+<section id="repos">
+  <div class="prose">
+    <p class="eyebrow">Orientation</p>
+    <h2>Two repos, one seam</h2>
+    <p><b>OLMo-core</b> defines the model and owns pretraining: a config-driven <code>Transformer</code>, FSDP2/HSDP + context parallelism, float8, and a callback-based <code>Trainer</code> that reads pre-tokenized memory-mapped <code>.npy</code> token streams. <b>open-instruct</b> owns post-training: SFT, DPO, and GRPO-style RL over HuggingFace-format models, with vLLM for rollouts and Ray for orchestration. The seam between them is a checkpoint converter (<code>olmo_core.nn.hf.convert</code>) plus a numpy exporter, so a model can round-trip: OLMo-core pretrain → HF for RL in open-instruct → back if needed.</p>
+  </div>
+  <div class="full grid2">
+    <div class="card">
+      <span class="badge" style="border-color:var(--st-pre);color:var(--st-pre)">allenai/OLMo-core</span>
+      <div class="tree" style="margin-top:10px">
+<span class="d">src/olmo_core/</span><br>
+├─ nn/transformer/ <span class="c">— Transformer, blocks, TransformerConfig (olmo3_7B @ config.py:972)</span><br>
+├─ nn/attention/ <span class="c">— GQA, QK-norm, sliding window, ring attention</span><br>
+├─ nn/rope.py <span class="c">— RoPE + YaRN scaling configs</span><br>
+├─ nn/moe/ <span class="c">— dropless MoE (OLMoE lineage)</span><br>
+├─ train/ <span class="c">— Trainer, train modules, 20+ callbacks</span><br>
+├─ distributed/ <span class="c">— FSDP2/HSDP/TP/CP/EP wiring</span><br>
+├─ data/ <span class="c">— memmapped .npy datasets, DataMix manifests</span><br>
+└─ <span class="d">src/scripts/official/OLMo3/</span> <span class="c">— the exact released recipes</span>
+      </div>
+    </div>
+    <div class="card">
+      <span class="badge" style="border-color:var(--st-dpo);color:var(--st-dpo)">allenai/open-instruct</span>
+      <div class="tree" style="margin-top:10px">
+<span class="d">open_instruct/</span><br>
+├─ dataset_transformation.py <span class="c">— all data loading/mixing/caching (§data)</span><br>
+├─ finetune.py · dpo_tune_cache.py <span class="c">— SFT and DPO trainers</span><br>
+├─ grpo_fast.py · grpo_utils.py <span class="c">— the async RL trainer (§RL)</span><br>
+├─ data_loader.py <span class="c">— streaming RL data, advantages, packing</span><br>
+├─ vllm_utils.py <span class="c">— vLLM Ray actors, NCCL weight sync</span><br>
+├─ ground_truth_utils.py <span class="c">— 17 verifier classes (§rewards)</span><br>
+├─ environments/ <span class="c">— tools, sandboxes, RL environments</span><br>
+└─ code_utils/ <span class="c">— the code-execution reward microservice</span>
+      </div>
+    </div>
+  </div>
+  <div class="prose">
+    <p class="kbdnote">Companion papers: <b>Tülu 3</b> (arXiv 2411.15124) is the book-length manual for the recipe; the <b>Olmo 3 report</b> (118 pp) documents the full flow; <b>2 OLMo 2 Furious</b> covers the architecture's stability story.</p>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE ============ -->
+<section id="arch">
+  <div class="prose">
+    <p class="eyebrow">Model architecture</p>
+    <h2>A Llama that traded mystery for stability</h2>
+    <p>Olmo 3 is a dense decoder-only transformer that is <i>deliberately boring</i> in shape and distinctive in the details that matter for training stability. Two signatures inherited from OLMo 2: <b>reordered norm</b> — RMSNorm is applied to each sublayer's <i>output inside the residual</i> (<code>h = x + norm(attn(x))</code>) instead of Llama's pre-norm — and <b>QK-norm</b>, an RMSNorm on the full Q and K projections before RoPE. Both exist to kill loss spikes at trillion-token scale, alongside z-loss (1e-5), fp32 norms with eps 1e-6, and a spike-skipping optimizer (<code>SkipStepAdamW</code>).</p>
+    <p>What Olmo 3 adds is the attention pattern: <b>sliding-window attention (window 4096) on 3 of every 4 layers</b>, full attention on every 4th and always on the last. Long context comes almost free: YaRN (×8) is applied <i>only to the full-attention layers</i> — the sliding-window layers never see positions beyond their window, so their RoPE is left untouched. 8K context becomes 65K with a 50–100B-token extension stage.</p>
+  </div>
+  <div class="full">
+    <div class="toggle" role="group" aria-label="Model size">
+      <button id="sz7" aria-pressed="true">Olmo 3 · 7B</button>
+      <button id="sz32" aria-pressed="false">Olmo 3 · 32B</button>
+    </div>
+    <div class="archwrap">
+      <div>
+        <div class="layers" id="layerStack" aria-label="Layer-by-layer attention pattern"></div>
+        <div class="legend">
+          <span><span class="sw" style="background:color-mix(in srgb,var(--st-lc) 26%,var(--surface));border:1px solid var(--st-lc)"></span>sliding window 4096</span>
+          <span><span class="sw" style="background:color-mix(in srgb,var(--st-dpo) 30%,var(--surface));border:1px solid var(--st-dpo)"></span>full attention (+YaRN)</span>
+        </div>
+      </div>
+      <div>
+        <div class="tablewrap"><table id="specTable">
+          <thead><tr><th>Spec</th><th id="specCol">7B</th></tr></thead>
+          <tbody></tbody>
+        </table></div>
+        <p class="kbdnote" style="margin-top:10px">Defined at <code>TransformerConfig.olmo3_7B / olmo3_32B</code> (<code>OLMo-core/src/olmo_core/nn/transformer/config.py</code>). Each is literally the OLMo 2 config plus <code>SlidingWindowAttentionConfig(pattern=[4096,4096,4096,-1], force_full_attention_on_last_layer=True)</code> — the comment in <code>nn/hf/config.py</code> says the families are otherwise identical.</p>
+      </div>
+    </div>
+  </div>
+  <div class="prose">
+    <h3>What to steal from the training recipes</h3>
+    <p>The official scripts (<code>src/scripts/official/OLMo3/</code>) read like a staged curriculum: pretrain 5.9T tokens with cosine LR (3e-4 at 7B, 6e-4 at 32B, batch 4–8M tokens); <b>midtrain</b> 100B tokens of high-quality/synthetic data starting from wherever the cosine left the LR, decaying linearly to zero; <b>long-context</b> at seq 65,536 with 8-way context parallelism and best-fit document packing. The 32B midtrain is a <b>soup</b> — two 100B runs with different data-order seeds, parameter-averaged (+2.9 on math cluster). Souping recurs everywhere in this stack: SFT merges two learning rates, long-context merges the last three checkpoints.</p>
+  </div>
+</section>
+
+<!-- ============ DATA ============ -->
+<section id="data">
+  <div class="prose">
+    <p class="eyebrow">The data pipeline</p>
+    <h2>One module, three schemas, aggressive caching</h2>
+    <p>Everything in open-instruct's data path funnels through a single 2,300-line module: <code>dataset_transformation.py</code>. Its design goals, per its own header: handle <b>mixing</b>, handle <b>multiple tokenization schemes</b>, and <b>never tokenize twice</b> — the motivating war story is 32 nodes idling for 21 hours re-tokenizing a dataset. A mix is a list of <code>(dataset, weight)</code> pairs; each dataset flows through a registry of named transform functions; and the result is cached under a content hash that covers the dataset commit, the transform args, the tokenizer files, and the rendered chat template. Change any of them and the cache key changes.</p>
+  </div>
+
+  <div class="full schemarow">
+    <div class="schema" style="--sc:var(--st-sft)">
+      <h4>SFT</h4><span class="use">finetune.py · sft_tulu_tokenize_and_truncate_v1</span>
+<pre>{ "messages": [
+  {"role":"user", ...},
+  {"role":"assistant", ...} ] }
+→ input_ids · attention_mask · labels</pre>
+      <p>Loss masking is <b>character-offset based</b>: render the whole conversation, then unmask only tokens overlapping assistant-content spans. All assistant turns train; headers don't. Requires prefix-stable templates.</p>
+    </div>
+    <div class="schema" style="--sc:var(--st-dpo)">
+      <h4>DPO</h4><span class="use">dpo_tune_cache.py · preference_tulu_tokenize…</span>
+<pre>{ "chosen":   [ …full conversation… ],
+  "rejected": [ …same prompt, worse reply… ] }
+→ chosen_/rejected_ input_ids · labels</pre>
+      <p>Reuses the SFT tokenizer on each side (<code>last_turn_only=True</code>). Reference-model logprobs are computed <b>once, up front, and cached</b> — so DPO training holds a single model in memory.</p>
+    </div>
+    <div class="schema" style="--sc:var(--st-rl)">
+      <h4>RLVR</h4><span class="use">grpo_fast.py · rlvr_tokenize_v1 (→ v3)</span>
+<pre>{ "messages": [ …prompt… ],
+  "ground_truth": "72"  |  [tests…]  |  {constraints},
+  "dataset": "gsm8k" }
+→ input_ids_prompt · ground_truth · dataset</pre>
+      <p><b>No labels at all</b> — the model generates its own. <code>ground_truth</code> is polymorphic, and <code>dataset</code> is not provenance: it's the <b>verifier-routing key</b> (provenance lives in <code>dataset_source</code>).</p>
+    </div>
+  </div>
+
+  <div class="prose">
+    <div class="callout warn">
+      <p class="ct">The classic footgun</p>
+      <p>Mix weights are parsed by decimal point: <code>"1.0"</code> means <i>100% of the dataset</i>, <code>"3.0"</code> means 3× upsampled — but <code>"1"</code> means <b>exactly one sample</b>. <code>--dataset_mixer_eval_list gsm8k 16</code> = 16 eval examples. The docstring warns you; production YAMLs use both conventions deliberately (Olmo 3's instruct DPO mixes by absolute counts: <code>125000</code>).</p>
+    </div>
+    <h3>Masking is where SFT bugs live</h3>
+    <p>The masker (<code>_tokenize_tulu_sft_with_assistant_labels</code>) renders each prefix of the conversation twice — once with the assistant header, once through the end of the turn — and unmasks tokens whose character offsets <i>overlap</i> the content span (overlap, not containment, so a boundary token like a leading-space-merged <code>" ok"</code> still trains). One production consequence documented in <code>docs/olmo3.md</code>: Think SFT data is deliberately tokenized with the <i>Instruct</i> chat template, because the Think template puts <code>&lt;think&gt;</code> inside the generation prompt where it would be masked — and the model would never learn to emit it. Every trainer prints a color-coded token visualization (<code>visualize_token_role</code>) on startup precisely so humans can catch this class of bug.</p>
+    <h3>Decontamination is a search problem</h3>
+    <p>The <code>decontamination/</code> tool indexes every training set in Elasticsearch (user turns only) and sweeps the whole eval suite against it three ways: exact phrase, n-gram coverage (score = fraction of eval tokens covered by one training doc), and embedding kNN (NV-Embed-v2). Tülu 3's rule: a training set is contaminated if &gt;2% of any eval overlaps at &gt;50% token coverage. This is why dataset names carry scars — <code>evol_codealpaca_<b>heval_decontaminated</b></code> (the original overlapped 70.7% of HumanEval), and why ShareGPT and LMSYS-Chat-1M were rejected outright (90.3% overlap with a safety eval).</p>
+  </div>
+</section>
+
+<!-- ============ REWARDS & ENVS ============ -->
+<section id="rewards">
+  <div class="prose">
+    <p class="eyebrow">Environments &amp; rewards</p>
+    <h2>RLVR: the reward model is a function</h2>
+    <p>The heart of RLVR is a one-file abstraction, <code>ground_truth_utils.py</code>: a <code>VerifierFunction</code> takes <code>(prediction, ground_truth, query)</code> and returns a score in [0,1] (plus a dollar cost, because some verifiers are LLM judges). A registry is built <b>by reflection</b> over <code>VerifierFunction.__subclasses__()</code>, keyed by name — and each RL prompt's <code>dataset</code> column selects its verifier. One prompt can carry several <code>(ground_truth, verifier)</code> pairs; their weighted scores sum. The final reward is <code>10 × score</code> by default, with an optional R1-style format gate (off in production — it destabilized response length) and a −10 overwrite for rollouts that never emitted EOS.</p>
+    <p>Explore the full roster — this is what "reward engineering" concretely means:</p>
+  </div>
+  <div class="full">
+    <div class="vfilters" id="vFilters" role="group" aria-label="Filter verifiers"></div>
+    <div class="vgrid" id="vGrid"></div>
+  </div>
+  <div class="prose">
+    <h3>Code rewards are a microservice</h3>
+    <p>The <code>CodeVerifier</code> doesn't run code — it POSTs <code>{program, tests}</code> to a FastAPI service (<code>code_utils/api.py</code>) that executes <b>each test in its own OS process</b> with a hard join-timeout and kill. In-process guards (an import denylist plus OpenAI's <code>reliability_guard</code>) are explicitly labeled "NOT a security sandbox" — real isolation is the container, and the production Olmo 3 runs pointed this at <b>AWS Lambda</b>. Scoring is a pass-rate with a cliff: below <code>code_pass_rate_reward_threshold</code> (0.99 in production, i.e. effectively all-tests-pass) the reward is zero.</p>
+    <h3>Environments: three ways to be stateful</h3>
+    <p>The <code>environments/</code> package generalizes single-turn RLVR to tool use and multi-turn tasks. Three subclassing strategies: a stateless <b><code>Tool</code></b> (Python execution, Serper web search, Jina browsing, any MCP server — auto-discovered schemas included); a stateful <b><code>RLEnvironment</code></b> the model drives via function calls (a Docker sandbox exposing <code>execute_bash</code>); and a <b><code>TextRLEnvironment</code></b> where the model's <i>entire generation</i> is the action (Wordle is the reference implementation). Each concurrent rollout gets its own environment instance from a Ray actor pool, per-turn env rewards are folded into the final verifier score (last-turn or sum aggregation), and — crucially — <b>tool-output tokens are masked out of the loss</b> (<code>mask_tool_use=True</code>): the model shouldn't be trained to imitate the observation it received.</p>
+    <div class="callout">
+      <p class="ct">Frontier-relevant detail</p>
+      <p>Rewards can be <i>rubrics that evolve during training</i>: a <code>RubricManager</code> watches good-vs-bad rollouts for each prompt and asks a judge model to invent new discriminative criteria mid-run, which then override that prompt's ground truth. Reward engineering as an online process, not a fixed dataset property.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ RL LOOP ============ -->
+<section id="rl">
+  <div class="prose">
+    <p class="eyebrow">The RL training loop</p>
+    <h2>OlmoRL: an inference system with a learner attached</h2>
+    <p>The single most important systems fact: at 32K-token responses, <b>generation dominates</b>. Olmo 3's 7B Think RL runs 16 learner GPUs against 16–56 vLLM GPUs, the 32B run 96 against 48 — and the learner still idles ~75% waiting for data. So <code>grpo_fast.py</code> is architected as a <b>fully asynchronous</b> actor/learner system: disjoint GPU pools connected by Ray queues, rewards computed <i>inside</i> the inference actors, and weights broadcast over NCCL from a dedicated thread — updating vLLM engines <b>mid-generation without dropping the KV cache</b> ("inflight updates"). A rollout can be half-written by step-<i>k</i> weights and half by step-<i>k</i>+1.</p>
+  </div>
+  <div class="full sys">
+    <canvas id="sysCanvas" class="syscanvas" width="960" height="380" role="img" aria-label="Animated diagram of the asynchronous RL system: prompts flow through a Ray queue to vLLM actors, rewarded results flow back to the data-prep actor and learners, and weight sync flows from learners to actors"></canvas>
+    <p class="syscap">Live sketch of one training step. Prompts (grey) queue into vLLM actors; each prompt fans out into a <i>group</i> of 8 samples, scored by verifiers inside the actor (pink = rewarded result). The data-prep actor filters zero-variance groups, computes centered advantages, packs sequences, and feeds learners. Weight sync (dashed) interrupts nothing.</p>
+  </div>
+
+  <div class="prose">
+    <h3>The algorithm: GRPO, aggressively modernized</h3>
+    <p>Start from GRPO — sample a group of G completions per prompt, use the group mean as the baseline — then apply four years of RL folklore in one config. Toggle each modification to see what it does and why it's there:</p>
+  </div>
+  <div class="full lossbox">
+    <div class="eq" id="lossEq">
+      L = − <span class="t" data-t="rho" style="--tc:var(--st-lc)">ρ̂<sub>clip≤2</sub></span> · <span class="t" data-t="adv" style="--tc:var(--st-dpo)">(r − mean<sub>group</sub>)</span> · <span class="t" data-t="clip" style="--tc:var(--st-sft)">min(ratio·Â, clip<sub>0.8</sub><sup>1.272</sup>(ratio)·Â)</span> <span class="t" data-t="kl" style="--tc:var(--st-pre)">+ β·KL</span> , summed / <span class="t" data-t="denom" style="--tc:var(--st-mid)">Σ tokens<sub>global</sub></span>
+    </div>
+    <div class="lterms" id="lossTerms"></div>
+    <div class="lossdetail" id="lossDetail"></div>
+  </div>
+
+  <div class="prose">
+    <h3>What the infra work bought</h3>
+    <p>The Olmo 3 report ablates its own infrastructure on the 7B Think RL setting. Continuous batching (don't wait for the batch's slowest 32K generation), better threading/prefetch, and inflight weight updates compound to <b>3.3×</b> tokens/sec — turning a 15-day RL run into 6. This chart is the strongest single argument that post-training performance is an <i>engineering</i> problem:</p>
+  </div>
+  <div class="full grid2">
+    <div class="chartcard">
+      <h4>RL throughput ablation (7B Think)</h4>
+      <p class="sub">tokens / second, Olmo 3 report Table 23</p>
+      <canvas class="chart" id="thruChart" width="460" height="300"></canvas>
+    </div>
+    <div class="chartcard">
+      <h4>Where the GPUs actually go</h4>
+      <p class="sub">learner vs inference GPUs, production runs (scripts/train/olmo3/)</p>
+      <canvas class="chart" id="gpuChart" width="460" height="300"></canvas>
+    </div>
+  </div>
+
+  <div class="prose">
+    <h3>Production hyperparameters</h3>
+  </div>
+  <div class="full tablewrap"><table>
+    <thead><tr><th></th><th>7B Think RL</th><th>32B Think RL</th><th>7B Instruct RL</th><th>7B RL-Zero (math)</th><th>Tülu 3 8B (2024)</th></tr></thead>
+    <tbody>
+      <tr><td>starts from</td><td>Think DPO</td><td>merged SFT</td><td>Instruct DPO</td><td><b>base model</b></td><td>Tülu 3 DPO</td></tr>
+      <tr><td>KL β</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.0</td><td>0.01–0.05</td></tr>
+      <tr><td>LR (constant)</td><td>1e-6</td><td>2e-6</td><td>1e-6</td><td>1e-6</td><td>5e-7</td></tr>
+      <tr><td>prompts × samples</td><td>64 × 8</td><td>128 × 8</td><td>64 × 8</td><td>32 × 8</td><td>48 × 16</td></tr>
+      <tr><td>max response</td><td>32,768</td><td>32,768</td><td>8,192</td><td>16,384</td><td>2,048</td></tr>
+      <tr><td>learner / vLLM GPUs</td><td>16 / 16</td><td>96 / 48 (TP8)</td><td>8 / 56</td><td>16 / 56</td><td>6 / 10</td></tr>
+      <tr><td>active sampling</td><td>–</td><td>✓</td><td>✓ + retire@.875</td><td>✓ + retire@.875</td><td>–</td></tr>
+      <tr><td>algorithm era</td><td colspan="4">GRPO + DAPO clip-higher + Dr.GRPO centering + ρ correction, async_steps 8, inflight updates</td><td>PPO + value model</td></tr>
+    </tbody>
+  </table></div>
+  <div class="prose">
+    <p class="kbdnote">The 2024→2025 column diff <i>is</i> the field's recent history: PPO with a learned value model and KL tether became critic-free GRPO with β=0, difficulty-filtered data, and off-policy corrections — while response budgets grew 16×.</p>
+  </div>
+</section>
+
+<!-- ============ RECIPE & RESULTS ============ -->
+<section id="recipe">
+  <div class="prose">
+    <p class="eyebrow">The recipe</p>
+    <h2>Why SFT → DPO → RLVR, in numbers</h2>
+    <p>Each stage has a distinct job. <b>SFT</b> (~2.3M prompts for Think, from the Dolci suite: OpenThoughts3 math, QwQ-verified instruction-following, R1-trace chat) installs formats and skills. <b>DPO</b> sharpens with contrast — Olmo 3's twist is <b>delta learning</b>: pairs of Qwen3-32B (chosen) vs Qwen3-0.6B (rejected) outputs. Continued SFT on the <i>same</i> chosen data made the model <i>worse</i> (70.3→64.5 avg); DPO on the pairs made it better (72.9). The gap between responses teaches what absolute quality can't. <b>RLVR</b> then optimizes directly against verifiers — and starting it from DPO rather than SFT is worth +2.2 avg after RL.</p>
+  </div>
+  <div class="full grid2">
+    <div class="chartcard">
+      <h4>Tülu 3 8B — gain per stage</h4>
+      <p class="sub">benchmark score after SFT → +DPO → +RLVR</p>
+      <canvas class="chart" id="stageChart" width="460" height="310"></canvas>
+    </div>
+    <div class="card">
+      <h4 class="serif" style="margin:0 0 8px;font-size:1.05rem">Olmo 3.1 Think 32B — where fully-open stands</h4>
+      <table>
+        <thead><tr><th>benchmark</th><th>Olmo 3.1 32B</th><th>Qwen 3 32B</th></tr></thead>
+        <tbody>
+          <tr><td>AIME 2025</td><td><b>78.1</b></td><td>72.9</td></tr>
+          <tr><td>IFEval / IFBench</td><td><b>93.8 / 68.1</b></td><td>86.5 / 37.3</td></tr>
+          <tr><td>LiveCodeBench v3</td><td>83.3</td><td><b>90.0</b></td></tr>
+          <tr><td>MMLU</td><td>86.4</td><td><b>88.8</b></td></tr>
+          <tr><td>GPQA</td><td>57.5</td><td><b>67.3</b></td></tr>
+        </tbody>
+      </table>
+      <p class="kbdnote" style="margin-top:10px">Trained on ~6× fewer tokens than Qwen 3. Wins where post-training quality dominates (precise IF, math); trails where pretraining knowledge dominates (GPQA, MMLU). That asymmetry is the honest picture of what a $2.75M fully-open flow buys.</p>
+    </div>
+  </div>
+  <div class="prose">
+    <h3>RL-Zero: the control experiment the field needed</h3>
+    <p>Every "RL on base models" paper before this ran on Qwen or Llama bases with <i>unknown pretraining data</i> — so nobody could rule out that "RL gains" were contamination sharpening. Olmo 3 RL-Zero runs RLVR directly on the fully documented base across four domains (math, code, precise IF, general chat), decontaminated against pretraining <i>and</i> midtraining. Both pass@1 and pass@32 rise on AIME — genuine frontier expansion, not distribution sharpening — and the spurious-reward negative control (random rewards) produces <b>no gain</b>, which is exactly what you want your benchmark to show.</p>
+  </div>
+</section>
+
+<!-- ============ LESSONS ============ -->
+<section id="lessons">
+  <div class="prose">
+    <p class="eyebrow">For the interview loop</p>
+    <h2>Eight lessons this stack teaches</h2>
+    <p>If the goal is a frontier post-training team, these are the transferable ideas — each one is a war story in the code or the papers, not a platitude.</p>
+  </div>
+  <div class="full" id="lessonAcc"></div>
+  <div class="prose">
+    <h3>A reading order that works</h3>
+    <p>① <code>ground_truth_utils.py</code> top-to-bottom — <code>VerifierFunction</code>, two math verifiers, <code>apply_verifiable_reward</code>, <code>RewardConfig.build</code>; that's 80% of RLVR in one file. ② <code>grpo_utils.py</code> — every loss trick with its citation in a docstring. ③ <code>data_loader.py:1290–1650</code> — the <code>DataPreparationActor</code>: advantages, packing, the async pipeline. ④ <code>vllm_utils.py</code> — <code>LLMRayActor</code> and <code>broadcast_weights_to_vllm</code>. ⑤ Then the Tülu 3 paper for the recipe logic and the Olmo 3 report §Think for how it scaled. Run the debug script (<code>scripts/train/debug/single_gpu_on_beaker.sh</code> equivalent locally) and watch the dashboard the <code>ActorManager</code> serves — queue depths make the async design click.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="prose">
+    <p><b>Sources.</b> allenai/open-instruct and allenai/OLMo-core (cloned July 2026); Tülu 3 (arXiv:2411.15124); Olmo 3 technical report (Ai2, Nov 2025); 2 OLMo 2 Furious (arXiv:2501.00656). All file paths and line numbers refer to the repos at time of writing. Capitalization follows Ai2 convention: "OLMo 2", "Olmo 3", repo "OLMo-core".</p>
+    <p>Built as a study companion — read it next to the code, not instead of it.</p>
+  </div>
+</footer>
+
+<script>
+(function(){
+"use strict";
+/* ---------- theme ---------- */
+var root=document.documentElement, btn=document.getElementById('themeBtn');
+function curTheme(){ return root.dataset.theme || (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'); }
+btn.addEventListener('click',function(){ root.dataset.theme = curTheme()==='dark'?'light':'dark'; drawAll(); });
+
+var css=getComputedStyle(root);
+function v(name){ return getComputedStyle(root).getPropertyValue(name).trim(); }
+
+/* ---------- model flow ---------- */
+var stages=[
+ {id:'pre', row:'base', c:'--st-pre', name:'Pretrain', sub:'Dolma 3 · 5.93T tok', h:'Dolma 3 Mix — 5.93T tokens from a 9.3T pool',
+  body:'76% web (Common Crawl), 13.6% olmOCR-extracted science PDFs, 6.9% Stack-Edu code. Trillion-scale dedup with a new Rust tool (Duplodocus, −75% of web docs), mixing weights chosen by a swarm of 30M-param proxy models + constrained optimization, top-quality buckets upsampled up to 7×. 7B: LR 3e-4, batch 4M tokens, seq 8192, ~43% MFU.',
+  facts:['OLMo-core','512–1024×H100','~47 days (32B)','CosWithWarmup']},
+ {id:'mid', row:'base', c:'--st-mid', name:'Midtrain', sub:'Dolmino · 100B tok', h:'Dolmino — 100B tokens of concentrated quality',
+  body:'Math, code (fill-in-middle), synthetic QA, flashcards, and ~8B tokens of thinking traces — validated by "microanneals" (5B-token A/B runs) plus a post-trainability check: SFT the candidate base and see what survives. Two findings worth memorizing: thinking data in midtraining lifts base evals broadly, and leaking chat special tokens into midtraining zeroed GSM8K (49.4 → 0). The 32B midtrain is a soup of two seeds.',
+  facts:['LR: resume cosine value','linear decay → 0','32B = 2-run soup']},
+ {id:'lc', row:'base', c:'--st-lc', name:'Long context', sub:'Longmino · 8K → 65K', h:'Longmino — YaRN on the global layers only',
+  body:'34% long documents (olmOCR science PDFs — 640B tokens of >8K docs) + 66% midtrain replay. YaRN ×8 applied only to full-attention layers; sliding-window layers never see far positions so they are left alone. Best-fit packing, intra-document masking, 8-way context parallelism. 50B tokens (7B) / 100B (32B); final 32B = soup of last 3 checkpoints.',
+  facts:['seq 65,536','CP degree 8','float8 on (7B)']},
+ {id:'sft', row:'post', c:'--st-sft', name:'SFT', sub:'Dolci · ~2.3M prompts', h:'Dolci SFT — install skills and format',
+  body:'Think SFT: ~2.27M prompts — OpenThoughts3 math/STEM, 466K new Python-algorithm traces (QwQ-32B completions filtered by GPT-4.1-generated tests), QwQ-verified precise-IF, R1-trace chat/safety. Runs on OLMo-core for 8× throughput (data exported to numpy memmaps, verified byte-identical). 2 epochs, seq 32K, batch 1M tokens, final checkpoint = soup of LR 1e-4 and 5e-5 runs. Instruct SFT warm-starts from Think SFT (+3.3 avg) and adds 227K tool-use trajectories.',
+  facts:['open-instruct data → OLMo-core trainer','char-offset masking','soup of 2 LRs']},
+ {id:'dpo', row:'post', c:'--st-dpo', name:'DPO', sub:'delta learning · β=5', h:'Length-normalized DPO with engineered contrast',
+  body:'150–260K pairs. The delta-learning result: chosen = Qwen3-32B, rejected = Qwen3-0.6B on the same prompts — continued SFT on the chosen data alone HURT (70.3→64.5) while DPO on the pairs helped (72.9). Length-normalized DPO (logprobs ÷ length, hence β=5 not 0.1), LR 8e-8, one epoch, reference logprobs precomputed and cached. Instruct DPO adds length control: |chosen − rejected| capped at 100 tokens — shorter outputs AND better post-RL results.',
+  facts:['dpo_norm loss','ref logprobs cached','raises pass@K, not just pass@1']},
+ {id:'rl', row:'post', c:'--st-rl', name:'RLVR', sub:'OlmoRL · async GRPO', h:'RL with verifiable rewards at 32K-token responses',
+  body:'~105K difficulty-filtered prompts (drop those the start checkpoint solves >62.5% of the time) across math (SymPy equivalence), code (test execution on AWS Lambda), precise IF (constraint checkers), and chat (Qwen3-32B judge). Modified GRPO: centered advantages, no KL, clip-higher, active sampling, ρ correction for the vLLM/trainer logprob gap. 7B: 1,400 steps at 64×8; Olmo 3.1 32B continued to 2,300 steps (+21 days on 224 GPUs) — RL kept paying past the original budget.',
+  facts:['β = 0','LR 1e-6 constant','fully async, inflight updates']}
+];
+var rowBase=document.getElementById('rowBase'), rowPost=document.getElementById('rowPost'), sdet=document.getElementById('stageDetail');
+stages.forEach(function(s,i){
+  var b=document.createElement('button'); b.className='stage'; b.style.setProperty('--sc','var('+s.c+')');
+  b.setAttribute('aria-pressed','false');
+  b.innerHTML='<span class="sname">'+s.name+'</span><span class="ssub">'+s.sub+'</span>';
+  b.addEventListener('click',function(){ selectStage(s.id); });
+  var row = s.row==='base'?rowBase:rowPost;
+  if(row.children.length){ var a=document.createElement('span'); a.className='arrow'; a.textContent='→'; row.appendChild(a); }
+  row.appendChild(b); s._btn=b;
+});
+function selectStage(id){
+  stages.forEach(function(s){ s._btn.setAttribute('aria-pressed', String(s.id===id)); });
+  var s=stages.find(function(x){return x.id===id;});
+  sdet.innerHTML='<h4 style="color:var('+s.c+')">'+s.h+'</h4><p>'+s.body+'</p>'+
+    '<div class="facts">'+s.facts.map(function(f){return '<span class="fact">'+f+'</span>';}).join('')+'</div>';
+}
+selectStage('rl');
+
+/* ---------- architecture ---------- */
+var specs={
+ '7B':{col:'7B',rows:[['parameters','7B (dense)'],['layers','32'],['d_model','4096'],['heads Q / KV','32 / 32 — MHA'],['head dim','128'],['FFN (SwiGLU)','11,008'],['attention','3× SWA-4096 : 1× full'],['context','8,192 → 65,536 (YaRN ×8)'],['RoPE θ','500,000'],['norms','RMSNorm on outputs + QK-norm · eps 1e-6'],['tokenizer','dolma2 (cl100k-derived) · vocab 100,278'],['pretrain LR / batch','3e-4 / 4M tokens']]},
+ '32B':{col:'32B',rows:[['parameters','32B (dense)'],['layers','64'],['d_model','5120'],['heads Q / KV','40 / 8 — GQA'],['head dim','128'],['FFN (SwiGLU)','27,648'],['attention','3× SWA-4096 : 1× full'],['context','8,192 → 65,536 (YaRN ×8)'],['RoPE θ','500,000'],['norms','RMSNorm on outputs + QK-norm · eps 1e-6'],['tokenizer','dolma2 (cl100k-derived) · vocab 100,278'],['pretrain LR / batch','6e-4 / 8M tokens']]}
+};
+var stack=document.getElementById('layerStack');
+function buildLayers(n){
+  stack.innerHTML='';
+  for(var i=0;i<n;i++){
+    var d=document.createElement('div');
+    var full = ((i+1)%4===0) || (i===n-1);
+    d.className='layer '+(full?'fullattn':'swa');
+    if(i===0||i===n-1||((i+1)%8===0)){ var t=document.createElement('span'); t.className='ltag'; t.textContent='L'+(i+1); d.appendChild(t); }
+    stack.appendChild(d);
+  }
+}
+function setSize(sz){
+  document.getElementById('sz7').setAttribute('aria-pressed',String(sz==='7B'));
+  document.getElementById('sz32').setAttribute('aria-pressed',String(sz==='32B'));
+  buildLayers(sz==='7B'?32:64);
+  document.getElementById('specCol').textContent=sz;
+  var tb=document.querySelector('#specTable tbody'); tb.innerHTML='';
+  specs[sz].rows.forEach(function(r){ var tr=document.createElement('tr'); tr.innerHTML='<td>'+r[0]+'</td><td>'+r[1]+'</td>'; tb.appendChild(tr); });
+}
+document.getElementById('sz7').addEventListener('click',function(){setSize('7B');});
+document.getElementById('sz32').addEventListener('click',function(){setSize('32B');});
+setSize('7B');
+
+/* ---------- verifier explorer ---------- */
+var verifiers=[
+ {n:'gsm8k',cls:'GSM8KVerifier',cat:'math',s:'binary',d:'Regex the last number in the output, string-compare to the label. The simplest verifier that works.'},
+ {n:'math',cls:'MathVerifier',cat:'math',s:'binary',d:'Tries \\boxed{}, Minerva format, $…$, then whole-output; accepts if ANY candidate passes SymPy/Hendrycks equivalence. Generous extraction ≈ +10 pts vs strict.'},
+ {n:'strict_math',cls:'StrictMathVerifier',cat:'math',s:'binary',d:'Minerva-format extraction only. The ablation twin of math.'},
+ {n:'code',cls:'CodeVerifier',cat:'code',s:'pass-rate + cliff',d:'Extracts the last ```python block, POSTs to the execution service, gets per-test pass/fail. Score = pass rate, zeroed below threshold (0.99 in prod).'},
+ {n:'code_stdio',cls:'CodeVerifier (clone)',cat:'code',s:'pass-rate + cliff',d:'Same verifier, /test_program_stdio endpoint — competitive-programming style stdin/stdout grading (LiveCodeBench-derived).'},
+ {n:'ifeval',cls:'IFEvalVerifier',cat:'constraint',s:'fractional',d:'Label = list of constraint IDs + kwargs from the IFEval registry (~70 checkers: keywords, length, format…). Score = fraction satisfied.'},
+ {n:'ifeval_old',cls:'IFEvalVerifierOld',cat:'constraint',s:'binary',d:'Legacy path: 25 hand-written predicate functions (verify_bullet_points, validate_json_format…).'},
+ {n:'string_matcher',cls:'StringMatcherVerifier',cat:'match',s:'binary',d:'Requires literal <answer> tags, then normalized exact match. No tags, no reward.'},
+ {n:'string_f1',cls:'F1Verifier',cat:'match',s:'continuous',d:'SQuAD-style token F1 vs the label (max over multiple labels). For extractive QA.'},
+ {n:'puzzle',cls:'PuzzleMatcherVerifier',cat:'match',s:'binary',d:'Normalized exact match on the post-thinking output.'},
+ {n:'flan',cls:'FlanVerifier',cat:'match',s:'binary',d:'Split on "The answer is:", normalize (lowercase, strip punctuation/articles), compare.'},
+ {n:'re_search / re_search_f1',cls:'R1SearchVerifier · ReSearchVerifierF1',cat:'match',s:'binary / F1+bonus',d:'Search-agent rewards: answer inside <finish> tags. The F1 variant pays 0.1 for correct format even at F1=0 — a shaped format bonus baked into the verifier.'},
+ {n:'max_length / up_to_max_length',cls:'MaxLenVerifier',cat:'shaping',s:'continuous',d:'Reward closeness to a target length (two-sided) or penalize only overshoot (one-sided). Length control as a dataset, not a loss term.'},
+ {n:'general-quality (×8 judge types)',cls:'LMJudgeVerifier',cat:'judge',s:'continuous',d:'One instance per judge prompt: quality, quality_ref, factuality, safety, creative_writing, refusal… Calls any LiteLLM provider (prod: Qwen3-32B), tracks $ cost per call, 3 retries then 0.0.'},
+ {n:'rubric',cls:'RubricVerifier',cat:'judge',s:'weighted mean',d:'Label carries per-prompt rubrics {description, weight}. Each judged 0–2 in parallel; final = Σ s·w / Σ|w| — negative weights = penalty rubrics.'},
+ {n:'(evolving rubrics)',cls:'RubricManager',cat:'judge',s:'dynamic',d:'Generates new discriminative rubrics mid-training from good-vs-bad rollout contrast; overrides ride back through the dataloader.'},
+ {n:'passthrough',cls:'PassthroughVerifier',cat:'shaping',s:'always 0',d:'Contributes nothing — exists so pure-environment tasks (reward from env steps) reuse the same plumbing.'}
+];
+var cats=[['all','All'],['math','Math'],['code','Code'],['constraint','Constraints'],['match','String match'],['judge','LLM judge'],['shaping','Shaping']];
+var catColor={math:'--st-mid',code:'--st-rl',constraint:'--st-sft',match:'--st-lc',judge:'--st-dpo',shaping:'--st-pre'};
+var vf=document.getElementById('vFilters'), vg=document.getElementById('vGrid'), vcount=document.createElement('span');
+vcount.className='vcount';
+cats.forEach(function(c,i){
+  var b=document.createElement('button'); b.className='pill'; b.textContent=c[1]; b.dataset.cat=c[0];
+  b.setAttribute('aria-pressed',String(i===0));
+  b.addEventListener('click',function(){ vf.querySelectorAll('.pill').forEach(function(p){p.setAttribute('aria-pressed','false');}); b.setAttribute('aria-pressed','true'); renderV(c[0]); });
+  vf.appendChild(b);
+});
+vf.appendChild(vcount);
+function renderV(cat){
+  vg.innerHTML='';
+  var shown=verifiers.filter(function(x){return cat==='all'||x.cat===cat;});
+  shown.forEach(function(x){
+    var d=document.createElement('div'); d.className='vcard'; d.style.setProperty('--vc','var('+(catColor[x.cat]||'--accent')+')');
+    d.innerHTML='<span class="vtype">'+x.cat+' · '+x.s+'</span><h4>'+x.n+'</h4><p>'+x.d+'</p><span class="sig">'+x.cls+'</span>';
+    vg.appendChild(d);
+  });
+  vcount.textContent=shown.length+' of '+verifiers.length;
+}
+renderV('all');
+
+/* ---------- loss anatomy ---------- */
+var lossTerms=[
+ {t:'adv',c:'--st-dpo',b:'Centered advantages (Dr.GRPO)',s:'advantage_normalization_type="centered"',
+  d:'<h4>Baseline = group mean; no std division</h4>Vanilla GRPO divides by the group std, which secretly upweights easy and hard prompts (tiny std → huge advantages). Olmo 3 subtracts the mean only. Groups where all 8 samples score the same carry zero signal and are filtered out entirely — and <b>active sampling</b> keeps drawing prompts until the batch is full of informative groups (this is DAPO’s resampling done properly, and it visibly stabilizes the loss).'},
+ {t:'clip',c:'--st-sft',b:'Clip-higher (DAPO)',s:'clip_lower=0.2, clip_higher=0.272',
+  d:'<h4>Asymmetric trust region</h4>PPO’s symmetric clip suppresses exploration: raising the probability of a rare good token gets clipped at 1.2× while crushing a token clips at 0.8×. DAPO widens only the upside (1.272×). Subtlety: with num_mini_batches=1 (the Think setting) old ≡ new so the ratio is 1 and clipping is inert — the machinery matters when minibatching makes updates off-policy (Instruct uses 4).'},
+ {t:'rho',c:'--st-lc',b:'ρ correction (truncated IS + IcePop)',s:'rho clamped to ≤ 2.0',
+  d:'<h4>vLLM and the trainer disagree about logprobs</h4>Different kernels, batching, and dtype paths mean the sampler’s probabilities aren’t the trainer’s. ρ = exp(logp_trainer − logp_vllm), clamped at 2 and multiplied in as a stop-gradient weight, unifies truncated importance sampling with IcePop-style masking. With β=0 and no minibatching, <b>this is the only off-policy correction in the whole loss</b> — and it’s correcting for the engine gap, not for stale data.'},
+ {t:'kl',c:'--st-pre',b:'No KL penalty (β = 0)',s:'--beta 0.0 --load_ref_policy False',
+  d:'<h4>The tether is gone</h4>Tülu 3 (2024) needed β=0.01–0.7 to stop reward hacking. Every Olmo 3 run sets β=0 and often skips loading the reference model entirely (saving memory). What replaced the tether: difficulty-filtered data, centered advantages, verifiers that are hard to hack, and short constant-LR runs. The k3 KL estimator code is still there — modern practice just doesn’t need it when rewards are verifiable.'},
+ {t:'denom',c:'--st-mid',b:'Global token-mean denominator',s:'loss_denominator="token" (all-reduced)',
+  d:'<h4>Every token weighs the same, everywhere</h4>The loss is summed over tokens and divided by the <i>total response-token count across all GPUs</i> (an all-reduce), not per-sequence-then-averaged. Per-sequence averaging underweights tokens in long responses — a real bias when responses range from 200 to 32,768 tokens. Same family of bug as the famous SFT sum-vs-mean gradient-accumulation issue, fixed the same way.'}
+];
+var lt=document.getElementById('lossTerms'), ld=document.getElementById('lossDetail');
+lossTerms.forEach(function(x){
+  var b=document.createElement('button'); b.className='lterm'; b.style.setProperty('--tc','var('+x.c+')');
+  b.setAttribute('aria-pressed','false');
+  b.innerHTML='<b>'+x.b+'</b><span class="mono" style="font-size:.68rem">'+x.s+'</span>';
+  b.addEventListener('click',function(){ selectTerm(x.t); });
+  x._btn=b; lt.appendChild(b);
+});
+function selectTerm(t){
+  lossTerms.forEach(function(x){ x._btn.setAttribute('aria-pressed',String(x.t===t)); });
+  document.querySelectorAll('#lossEq .t').forEach(function(el){ el.classList.toggle('on', el.dataset.t===t); });
+  var x=lossTerms.find(function(y){return y.t===t;});
+  ld.innerHTML=x.d+'<p class="kbdnote" style="margin-top:8px">source: <code>open_instruct/grpo_utils.py</code></p>';
+}
+selectTerm('rho');
+
+/* ---------- lessons accordion ---------- */
+var lessons=[
+ ['Sum the loss, don’t mean it','Tülu 3’s most-cited engineering finding: per-microbatch mean loss + gradient accumulation silently reweights samples by length. Sum-loss (weight every token equally, then normalize globally) beat it cleanly. The RL loss denominator and the sequence-parallel SFT renormalization in this codebase are the same principle applied twice more.'],
+ ['Preference tuning won on economics, not elegance','Length-normalized DPO (β=5) was the only variant that beat SFT in Tülu 3’s sweep — and PPO-against-a-reward-model matched it at 7× the compute. Two years later the DPO stage survives in Olmo 3 not as a compromise but because it demonstrably raises pass@K and makes RL start better.'],
+ ['The delta teaches, not the quality','Continued SFT on Qwen3-32B outputs made Olmo 3 worse; DPO with those same outputs as chosen and a 0.6B model’s as rejected made it much better. Contrast is the signal. Corollary: control the length gap between chosen and rejected (≤100 tokens) or DPO learns “longer is better.”'],
+ ['Verifier design is the actual reward engineering','Extraction generosity (math “flex” ≈ +10 pts), pass-rate cliffs (0.99 threshold), fractional constraint scores, format gates that destabilize length, −10 for missing EOS — these small scalar decisions shape behavior more than the RL algorithm does. Read ground_truth_utils.py like a product spec.'],
+ ['RL throughput is an inference problem','Learners idle ~75%; inference GPUs outnumber learners up to 7×. Continuous batching + threading + inflight weight updates tripled tokens/sec — worth more than any algorithm change. If you interview for RL infra, this chart is the job description.'],
+ ['β=0 is earned, not free','Dropping the KL tether works because the data is difficulty-filtered, advantages are centered, zero-variance groups are dropped, and rewards are verifiable. Tülu 3’s appendix shows what happens otherwise: KL burn and degenerate IFEval outputs. Remove the tether only when everything else holds the model in place.'],
+ ['Decontaminate, then distrust your evals anyway','8-gram overlap removal is table stakes (ShareGPT and LMSYS failed it badly). But even clean pipelines overfit: Tülu 3 scores 82.4 on IFEval and 24.3 on unseen IFEval-OOD constraints. Hold out evals you never look at, and build negative controls (RL-Zero’s spurious-reward run) into the science.'],
+ ['Cache by content hash, visualize everything','Datasets are cached under a hash of (data commit, transforms, tokenizer files, chat template) — change anything, get a fresh cache, never train on stale tokens. Every trainer prints color-coded token/mask visualizations at startup, and porting SFT to OLMo-core required byte-identical sha256 verification. Trust nothing you haven’t looked at.']
+];
+var la=document.getElementById('lessonAcc');
+lessons.forEach(function(l,i){
+  var d=document.createElement('div'); d.className='acc'; d.dataset.open=(i===0);
+  var h=document.createElement('button'); h.className='acc-h'; h.setAttribute('aria-expanded',String(i===0));
+  h.innerHTML='<span class="n">'+String(i+1).padStart(2,'0')+'</span><b>'+l[0]+'</b><span class="chev">›</span>';
+  var b=document.createElement('div'); b.className='acc-b'; b.innerHTML='<p style="margin:6px 0 0">'+l[1]+'</p>';
+  h.addEventListener('click',function(){ var open=d.dataset.open==='true'; d.dataset.open=String(!open); h.setAttribute('aria-expanded',String(!open)); });
+  d.appendChild(h); d.appendChild(b); la.appendChild(d);
+});
+
+/* ---------- charts ---------- */
+function setupCanvas(c){
+  var dpr=Math.min(window.devicePixelRatio||1,2);
+  if(!c.dataset.baseH) c.dataset.baseH=c.getAttribute('height');
+  var w=c.clientWidth||c.width, h=+c.dataset.baseH;
+  c.width=w*dpr; c.height=h*dpr; c.style.height=h+'px';
+  var ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {ctx:ctx,w:w,h:h};
+}
+function drawBarChart(id, data, opts){
+  var c=document.getElementById(id); if(!c) return;
+  var s=setupCanvas(c), ctx=s.ctx, W=s.w, H=s.h;
+  var padL=44,padR=10,padT=14,padB=44;
+  var max=opts.max, ink=v('--ink'), muted=v('--muted'), line=v('--line');
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle=line; ctx.lineWidth=1; ctx.font='10px ui-monospace,Menlo,monospace'; ctx.fillStyle=muted;
+  var steps=opts.gridSteps||4;
+  for(var g=0;g<=steps;g++){
+    var val=max*g/steps, y=H-padB-(H-padT-padB)*g/steps;
+    ctx.globalAlpha=.6; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillText(opts.fmt?opts.fmt(val):Math.round(val), 4, y+3);
+  }
+  var n=data.length, bw=(W-padL-padR)/n;
+  data.forEach(function(d,i){
+    var x=padL+bw*i+bw*0.16, wBar=bw*0.68;
+    var hh=(H-padT-padB)*(d.v/max), y=H-padB-hh;
+    ctx.fillStyle=d.c; ctx.beginPath();
+    ctx.roundRect(x,y,wBar,hh,[4,4,0,0]); ctx.fill();
+    ctx.fillStyle=ink; ctx.font='600 11px ui-monospace,Menlo,monospace'; ctx.textAlign='center';
+    ctx.fillText(d.vl!==undefined?d.vl:d.v, x+wBar/2, y-5);
+    ctx.fillStyle=muted; ctx.font='9.5px ui-monospace,Menlo,monospace';
+    var lines=d.l.split('\n');
+    lines.forEach(function(t,li){ ctx.fillText(t, x+wBar/2, H-padB+13+li*11); });
+    ctx.textAlign='left';
+  });
+}
+function drawThru(){
+  drawBarChart('thruChart',[
+    {l:'OLMo 2\ninfra',v:881,c:v('--st-pre')},
+    {l:'+continuous\nbatching',v:975,c:v('--st-mid')},
+    {l:'+threading\n/prefetch',v:1358,c:v('--st-lc')},
+    {l:'+inflight\nupdates',v:2949,c:v('--st-rl')}
+  ],{max:3200,gridSteps:4});
+}
+function drawGpu(){
+  var c=document.getElementById('gpuChart'); if(!c) return;
+  var s=setupCanvas(c), ctx=s.ctx, W=s.w, H=s.h;
+  var rows=[
+    {l:'7B Think',learn:16,inf:16},
+    {l:'7B Instruct',learn:8,inf:56},
+    {l:'7B RL-Zero',learn:16,inf:56},
+    {l:'32B Think',learn:96,inf:48}
+  ];
+  var padL=88,padR=14,padT=16,padB=30,max=150;
+  var ink=v('--ink'),muted=v('--muted'),line=v('--line');
+  ctx.clearRect(0,0,W,H);
+  var rh=(H-padT-padB)/rows.length;
+  rows.forEach(function(r,i){
+    var y=padT+rh*i+rh*0.18, hh=rh*0.5;
+    var x0=padL;
+    var wl=(W-padL-padR)*(r.learn/max), wi=(W-padL-padR)*(r.inf/max);
+    ctx.fillStyle=muted; ctx.font='10px ui-monospace,Menlo,monospace'; ctx.textAlign='right';
+    ctx.fillText(r.l, padL-8, y+hh/2+3); ctx.textAlign='left';
+    ctx.fillStyle=v('--st-dpo'); ctx.beginPath(); ctx.roundRect(x0,y,wl,hh,3); ctx.fill();
+    ctx.fillStyle=v('--st-mid'); ctx.beginPath(); ctx.roundRect(x0+wl+2,y,wi,hh,3); ctx.fill();
+    ctx.fillStyle=ink; ctx.font='600 10px ui-monospace,Menlo,monospace';
+    ctx.fillText(r.learn+' + '+r.inf, x0+wl+wi+8, y+hh/2+3);
+  });
+  ctx.fillStyle=v('--st-dpo'); ctx.fillRect(padL,H-16,10,10); ctx.fillStyle=muted; ctx.font='10px ui-monospace,Menlo,monospace';
+  ctx.fillText('learner GPUs',padL+15,H-7);
+  ctx.fillStyle=v('--st-mid'); ctx.fillRect(padL+110,H-16,10,10);
+  ctx.fillText('vLLM inference GPUs',padL+125,H-7);
+}
+function drawStage(){
+  var c=document.getElementById('stageChart'); if(!c) return;
+  var s=setupCanvas(c), ctx=s.ctx, W=s.w, H=s.h;
+  var benches=[
+    {l:'GSM8K',v:[76.2,84.3,87.6]},
+    {l:'MATH',v:[31.5,42.0,43.7]},
+    {l:'IFEval',v:[72.8,81.1,82.4]},
+    {l:'AlpacaEval2',v:[12.4,33.5,34.5]}
+  ];
+  var cols=[v('--st-sft'),v('--st-dpo'),v('--st-rl')];
+  var padL=36,padR=10,padT=18,padB=44,max=100;
+  var ink=v('--ink'),muted=v('--muted'),line=v('--line');
+  ctx.clearRect(0,0,W,H);
+  ctx.font='10px ui-monospace,Menlo,monospace';
+  for(var g=0;g<=4;g++){
+    var val=max*g/4, y=H-padB-(H-padT-padB)*g/4;
+    ctx.strokeStyle=line; ctx.globalAlpha=.6; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(W-padR,y); ctx.stroke(); ctx.globalAlpha=1;
+    ctx.fillStyle=muted; ctx.fillText(val,6,y+3);
+  }
+  var gw=(W-padL-padR)/benches.length;
+  benches.forEach(function(b,i){
+    var x0=padL+gw*i+gw*0.12, bw=gw*0.76/3;
+    b.v.forEach(function(val,j){
+      var hh=(H-padT-padB)*(val/max), y=H-padB-hh;
+      ctx.fillStyle=cols[j]; ctx.beginPath(); ctx.roundRect(x0+bw*j+1,y,bw-3,hh,[3,3,0,0]); ctx.fill();
+    });
+    ctx.fillStyle=ink; ctx.font='600 10px ui-monospace,Menlo,monospace'; ctx.textAlign='center';
+    ctx.fillText('+'+ (b.v[2]-b.v[0]).toFixed(1), x0+gw*0.38, H-padB-(H-padT-padB)*(Math.max.apply(null,b.v)/max)-6);
+    ctx.fillStyle=muted; ctx.font='9.5px ui-monospace,Menlo,monospace';
+    ctx.fillText(b.l, x0+gw*0.38, H-padB+14);
+    ctx.textAlign='left';
+  });
+  var lx=padL, ly=H-12; var labels=['SFT','+DPO','+RLVR'];
+  labels.forEach(function(t,j){ ctx.fillStyle=cols[j]; ctx.fillRect(lx,ly-9,9,9); ctx.fillStyle=muted; ctx.font='10px ui-monospace,Menlo,monospace'; ctx.fillText(t,lx+13,ly-1); lx+=ctx.measureText(t).width+40; });
+}
+
+/* ---------- async system animation ---------- */
+var sysC=document.getElementById('sysCanvas');
+var reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+var particles=[];
+function sysLayout(w){
+  return {
+    q:{x:w*0.06,y:120,w:w*0.10,h:150,label:'prompt_Q'},
+    vllm:[{x:w*0.26,y:60,w:w*0.17,h:88},{x:w*0.26,y:160,w:w*0.17,h:88},{x:w*0.26,y:260,w:w*0.17,h:88}],
+    prep:{x:w*0.53,y:130,w:w*0.17,h:130,label:'DataPreparationActor'},
+    learn:[{x:w*0.80,y:90,w:w*0.14,h:80},{x:w*0.80,y:210,w:w*0.14,h:80}]
+  };
+}
+function drawSysFrame(t){
+  var s=setupCanvas(sysC), ctx=s.ctx, W=s.w, H=380;
+  var L=sysLayout(W);
+  var ink=v('--ink'),muted=v('--muted'),line=v('--line'),surf2=v('--surface2');
+  ctx.clearRect(0,0,W,H);
+  function box(b,label,sub,color){
+    ctx.fillStyle=surf2; ctx.strokeStyle=color||line; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.roundRect(b.x,b.y,b.w,b.h,8); ctx.fill(); ctx.stroke();
+    ctx.fillStyle=ink; ctx.font='600 12px ui-monospace,Menlo,monospace'; ctx.textAlign='center';
+    ctx.fillText(label,b.x+b.w/2,b.y+20);
+    if(sub){ ctx.fillStyle=muted; ctx.font='9.5px ui-monospace,Menlo,monospace';
+      sub.split('\n').forEach(function(tt,i){ ctx.fillText(tt,b.x+b.w/2,b.y+35+i*12); }); }
+    ctx.textAlign='left';
+  }
+  box(L.q,'prompt_Q','Ray queue\n(async_steps=8\nahead)');
+  L.vllm.forEach(function(b,i){ box(b,'vLLM actor '+(i+1),'rollout 8×/prompt\n+ verify reward',v('--st-rl')); });
+  box(L.prep,'data prep','filter σ=0 groups\ncentered advantages\npack + distribute',v('--st-mid'));
+  L.learn.forEach(function(b,i){ box(b,'learner '+(i+1),'DeepSpeed ZeRO-3\nGRPO step',v('--st-dpo')); });
+  // dashed weight sync arcs learners -> vllm
+  ctx.strokeStyle=v('--accent'); ctx.setLineDash([5,5]); ctx.lineWidth=1.2; ctx.globalAlpha=.65;
+  L.learn.slice(0,1).forEach(function(b){
+    L.vllm.forEach(function(vb){
+      ctx.beginPath();
+      ctx.moveTo(b.x+b.w/2,b.y);
+      ctx.quadraticCurveTo((b.x+vb.x+vb.w)/2, 18, vb.x+vb.w/2, vb.y);
+      ctx.stroke();
+    });
+  });
+  ctx.setLineDash([]); ctx.globalAlpha=1;
+  ctx.fillStyle=v('--accent'); ctx.font='10px ui-monospace,Menlo,monospace'; ctx.textAlign='center';
+  ctx.fillText('NCCL weight broadcast — inflight, KV cache kept', W*0.52, 14);
+  ctx.textAlign='left';
+  // particles
+  if(!reduceMotion){
+    if(particles.length<26 && Math.random()<0.35){
+      var lane=Math.floor(Math.random()*3);
+      particles.push({ph:0,lane:lane,speed:0.004+Math.random()*0.004});
+    }
+    particles.forEach(function(p){ p.ph+=p.speed*(t?1:0); });
+    particles=particles.filter(function(p){return p.ph<1;});
+    particles.forEach(function(p){
+      var vb=L.vllm[p.lane], pt;
+      if(p.ph<0.33){ // queue -> vllm
+        var k=p.ph/0.33;
+        pt={x:L.q.x+L.q.w+(vb.x-L.q.x-L.q.w)*k, y:L.q.y+L.q.h/2+(vb.y+vb.h/2-L.q.y-L.q.h/2)*k};
+        ctx.fillStyle=muted;
+      } else if(p.ph<0.66){ // vllm -> prep
+        var k2=(p.ph-0.33)/0.33;
+        pt={x:vb.x+vb.w+(L.prep.x-vb.x-vb.w)*k2, y:vb.y+vb.h/2+(L.prep.y+L.prep.h/2-vb.y-vb.h/2)*k2};
+        ctx.fillStyle=v('--accent');
+      } else { // prep -> learner
+        var k3=(p.ph-0.66)/0.34, lb=L.learn[p.lane%2];
+        pt={x:L.prep.x+L.prep.w+(lb.x-L.prep.x-L.prep.w)*k3, y:L.prep.y+L.prep.h/2+(lb.y+lb.h/2-L.prep.y-L.prep.h/2)*k3};
+        ctx.fillStyle=v('--st-dpo');
+      }
+      ctx.beginPath(); ctx.arc(pt.x,pt.y,3.2,0,7); ctx.fill();
+    });
+  } else {
+    // static arrows for reduced motion
+    ctx.strokeStyle=muted; ctx.lineWidth=1.5;
+    L.vllm.forEach(function(vb){
+      ctx.beginPath(); ctx.moveTo(L.q.x+L.q.w,L.q.y+L.q.h/2); ctx.lineTo(vb.x,vb.y+vb.h/2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(vb.x+vb.w,vb.y+vb.h/2); ctx.lineTo(L.prep.x,L.prep.y+L.prep.h/2); ctx.stroke();
+    });
+    L.learn.forEach(function(lb){
+      ctx.beginPath(); ctx.moveTo(L.prep.x+L.prep.w,L.prep.y+L.prep.h/2); ctx.lineTo(lb.x,lb.y+lb.h/2); ctx.stroke();
+    });
+  }
+}
+function loop(ts){ drawSysFrame(1); if(!reduceMotion) requestAnimationFrame(loop); }
+
+function drawAll(){ drawThru(); drawGpu(); drawStage(); drawSysFrame(0); }
+window.addEventListener('resize',function(){ drawAll(); });
+drawAll();
+if(!reduceMotion) requestAnimationFrame(loop);
+})();
+</script>
