@@ -1,0 +1,667 @@
+<meta charset="utf-8">
+<title>Kimi K3 — Pre-training</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --accent:#9A6B18; --accent-2:#7C5410; --accent-wash:rgba(154,107,24,.10); --accent-line:rgba(154,107,24,.34);
+  --bg:#F7F5F1; --panel:#FFFFFF; --panel-2:#F0ECE5; --ink:#1A1712; --ink-2:#57503F; --ink-3:#8B8271;
+  --rule:#E3DED4; --rule-2:#CEC6B7;
+  --pos:#4A6B1E; --neg:#A64226; --warn:#8A6516;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:ui-serif,"New York",Palatino,Georgia,serif;
+  --shadow:0 1px 2px rgba(40,30,10,.05),0 8px 28px -18px rgba(50,35,10,.35);
+}
+@media (prefers-color-scheme:dark){:root{
+  --accent:#D9A648; --accent-2:#E8BE６E; --accent-2:#E8BE6E; --accent-wash:rgba(217,166,72,.11); --accent-line:rgba(217,166,72,.33);
+  --bg:#12100C; --panel:#191612; --panel-2:#211D17; --ink:#EFE9DE; --ink-2:#B0A794; --ink-3:#7E7563;
+  --rule:#2C271F; --rule-2:#3C362B;
+  --pos:#8FB05C; --neg:#DE8A72; --warn:#D3A64A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}}
+:root[data-theme="dark"]{
+  --accent:#D9A648; --accent-2:#E8BE6E; --accent-wash:rgba(217,166,72,.11); --accent-line:rgba(217,166,72,.33);
+  --bg:#12100C; --panel:#191612; --panel-2:#211D17; --ink:#EFE9DE; --ink-2:#B0A794; --ink-3:#7E7563;
+  --rule:#2C271F; --rule-2:#3C362B;
+  --pos:#8FB05C; --neg:#DE8A72; --warn:#D3A64A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}
+:root[data-theme="light"]{
+  --accent:#9A6B18; --accent-2:#7C5410; --accent-wash:rgba(154,107,24,.10); --accent-line:rgba(154,107,24,.34);
+  --bg:#F7F5F1; --panel:#FFFFFF; --panel-2:#F0ECE5; --ink:#1A1712; --ink-2:#57503F; --ink-3:#8B8271;
+  --rule:#E3DED4; --rule-2:#CEC6B7;
+  --pos:#4A6B1E; --neg:#A64226; --warn:#8A6516;
+  --shadow:0 1px 2px rgba(40,30,10,.05),0 8px 28px -18px rgba(50,35,10,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+a{color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
+.top{border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px)}
+.top .wrap{display:flex;align-items:center;gap:14px;height:52px}
+.brand{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2)}
+.brand b{color:var(--accent);font-weight:600}
+.top nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);text-decoration:none;padding:5px 8px;border-radius:5px}
+.top nav a:hover{color:var(--accent);background:var(--accent-wash)}
+.tgl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;background:none;border:1px solid var(--rule-2);color:var(--ink-2);border-radius:5px;padding:5px 9px;cursor:pointer}
+.tgl:hover{border-color:var(--accent);color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.hero{padding:64px 0 40px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 18px}
+h1{font-family:var(--mono);font-weight:700;font-size:clamp(30px,5.4vw,58px);line-height:1.04;letter-spacing:-.035em;margin:0 0 22px;text-wrap:balance;max-width:17ch}
+.lede{font-family:var(--serif);font-size:clamp(18px,2.1vw,22px);line-height:1.52;color:var(--ink-2);max-width:60ch;margin:0}
+.specstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:40px;border-radius:8px;overflow:hidden}
+.spec{background:var(--panel);padding:14px 16px}
+.spec dt{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+.spec dd{margin:0;font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.02em}
+.spec dd small{font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:0}
+.shell{display:grid;grid-template-columns:184px minmax(0,1fr);gap:clamp(24px,4vw,56px);padding:44px 0 90px}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.rail{display:none}}
+.rail{position:sticky;top:74px;align-self:start;font-family:var(--mono);font-size:11px;line-height:1.9}
+.rail .rl{letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px;font-size:10px}
+.rail a{display:block;color:var(--ink-3);text-decoration:none;padding:1px 0 1px 11px;border-left:2px solid var(--rule)}
+.rail a:hover{color:var(--accent)}
+.rail a.on{color:var(--ink);border-left-color:var(--accent)}
+section{padding:8px 0 54px;scroll-margin-top:70px}
+h2{font-weight:660;font-size:clamp(24px,3vw,33px);letter-spacing:-.02em;line-height:1.16;margin:0 0 14px;text-wrap:balance}
+h3{font-weight:640;font-size:19px;letter-spacing:-.01em;margin:34px 0 10px}
+h4{font-family:var(--mono);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 9px}
+p{max-width:68ch;margin:0 0 15px}
+.note{font-size:13.5px;color:var(--ink-3);max-width:74ch;font-family:var(--mono);line-height:1.6}
+code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+em.term{font-style:normal;font-weight:620;color:var(--accent)}
+ul{max-width:68ch;padding-left:20px;margin:0 0 15px}li{margin-bottom:7px}
+figure.code{margin:20px 0;border:1px solid var(--rule);border-radius:9px;overflow:hidden;background:var(--panel)}
+figure.code figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:center}
+figure.code figcaption .ref{margin-left:auto;color:var(--accent);letter-spacing:.08em}
+figure.code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.9px;line-height:1.66;color:var(--ink)}
+.k{color:var(--accent);font-weight:620}
+.c{color:var(--ink-3);font-style:italic}
+.s{color:var(--pos)}
+.mod{background:var(--panel);border:1px solid var(--rule);border-radius:10px;margin:26px 0 30px;box-shadow:var(--shadow);overflow:hidden}
+.mod-h{padding:14px 18px;border-bottom:1px solid var(--rule);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;background:var(--panel-2)}
+.mod-h h4{margin:0;color:var(--ink)}
+.mod-h .sub{font-size:12.5px;color:var(--ink-3);margin-left:auto;font-family:var(--mono)}
+.mod-b{padding:18px}
+.ctrls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-family:var(--mono);font-size:12px}
+.ctrls label{color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+input[type=range]{accent-color:var(--accent);width:190px}
+.seg{display:inline-flex;border:1px solid var(--rule-2);border-radius:6px;overflow:hidden}
+.seg button{font-family:var(--mono);font-size:11.5px;padding:6px 11px;background:var(--panel);color:var(--ink-2);border:0;cursor:pointer;border-right:1px solid var(--rule)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{font-family:var(--mono);font-size:11.5px;padding:6px 12px;border:1px solid var(--rule-2);background:var(--panel);color:var(--ink-2);border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+canvas{display:block;width:100%;height:auto}
+.scroller{overflow-x:auto}
+.stats{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;margin-top:12px;color:var(--ink-2)}
+.stats b{color:var(--ink);font-weight:600}
+.readout{background:var(--panel-2);border-radius:8px;padding:13px 15px;font-size:14px;min-height:78px;border:1px solid var(--rule)}
+.readout b{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:5px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-family:var(--mono)}
+th,td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;font-family:var(--sans);font-size:14px;white-space:normal;min-width:180px}
+thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+tbody tr:hover{background:var(--accent-wash)}
+.pull{border-left:3px solid var(--accent);padding:4px 0 4px 18px;margin:26px 0;font-family:var(--serif);font-size:19px;line-height:1.5;max-width:58ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:9px;padding:15px 16px}
+.card h5{margin:0 0 7px;font-size:15px;font-weight:640}
+.card p{font-size:14px;margin:0;color:var(--ink-2)}
+.card .num{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;color:var(--accent);display:block;margin-bottom:3px}
+.card .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px}
+.acc{border:1px solid var(--rule);border-radius:9px;overflow:hidden;margin:18px 0}
+.acc details{border-bottom:1px solid var(--rule);background:var(--panel)}
+.acc details:last-child{border-bottom:0}
+.acc summary{cursor:pointer;padding:13px 16px;display:flex;gap:12px;align-items:baseline;list-style:none;font-weight:600;font-size:15px}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary:hover{background:var(--accent-wash)}
+.acc summary .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent-line);border-radius:4px;padding:2px 6px;flex:none}
+.acc summary .mark{margin-left:auto;font-family:var(--mono);color:var(--ink-3);font-size:13px}
+.acc .body{padding:2px 16px 16px;border-top:1px solid var(--rule)}
+.acc .body p{font-size:15px;margin-bottom:11px}
+/* curriculum */
+.curric{display:grid;grid-template-columns:repeat(4,1fr);gap:2px;margin:6px 0 0}
+@media(max-width:620px){.curric{grid-template-columns:1fr 1fr}}
+.stage{background:var(--panel-2);border:1px solid var(--rule);padding:13px 14px;cursor:pointer}
+.stage.on{background:var(--accent-wash);border-color:var(--accent)}
+.stage .w{font-family:var(--mono);font-size:19px;font-weight:600;color:var(--accent)}
+.stage .p{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin-top:4px}
+footer{border-top:1px solid var(--rule);padding:30px 0 60px;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+footer a{color:var(--accent)}
+.trilogy{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0 0}
+.trilogy a{display:block;padding:13px 15px;border:1px solid var(--rule);border-radius:8px;text-decoration:none;background:var(--panel)}
+.trilogy a:hover{border-color:var(--accent)}
+.trilogy .n{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:4px}
+.trilogy .t{font-weight:620;font-size:14.5px;color:var(--ink)}
+</style>
+
+<header class="top"><div class="wrap">
+  <span class="brand"><b>Kimi K3</b> &nbsp;/&nbsp; 02 Pre-training</span>
+  <nav><a href="#law">Scaling law</a><a href="#data">Data</a><a href="#recipe">Recipe</a><a href="#muon">Muon</a><a href="#long">1M context</a></nav>
+  <button class="tgl" id="tgl">Theme</button>
+</div></header>
+
+<div class="wrap hero">
+  <p class="eyebrow">Moonshot AI · Technical Report · July 2026</p>
+  <h1>The same loss, for 2.5× less compute.</h1>
+  <p class="lede">K3's pre-training claim is a single number on a single chart. Everything else in this section — the data pipeline, the optimizer, the four-stage context curriculum, the choice of learning-rate schedule — exists to justify it, or to make it survivable at 2.8 trillion parameters.</p>
+  <dl class="specstrip">
+    <div class="spec"><dt>Scaling efficiency</dt><dd>2.5<small>× over K2</small></dd></div>
+    <div class="spec"><dt>Text domains</dt><dd>4<small>+ vision corpus</small></dd></div>
+    <div class="spec"><dt>Start context</dt><dd>8<small>K tokens</small></dd></div>
+    <div class="spec"><dt>Final context</dt><dd>1<small>M tokens</small></dd></div>
+    <div class="spec"><dt>LR schedule</dt><dd>cos<small>ine</small></dd></div>
+    <div class="spec"><dt>Weight decay</dt><dd>0.1</dd></div>
+    <div class="spec"><dt>Warmup</dt><dd>1<small>% linear</small></dd></div>
+    <div class="spec"><dt>Positional encoding</dt><dd>none</dd></div>
+  </dl>
+</div>
+
+<div class="wrap shell">
+<aside class="rail">
+  <p class="rl">Contents</p>
+  <a href="#law">The scaling law</a>
+  <a href="#schedule">Cosine vs WSD</a>
+  <a href="#data">Pre-training data</a>
+  <a href="#recipe">Training recipe</a>
+  <a href="#muon">Per-Head Muon</a>
+  <a href="#long">Long-context extension</a>
+  <a href="#vision">Native multimodal</a>
+  <a href="#takeaway">What to take away</a>
+</aside>
+
+<main>
+
+<section id="law">
+  <p class="kicker">The claim</p>
+  <h2>2.5× scaling efficiency</h2>
+  <p>The architectural, data and training changes in K3 don't just make the model better at a fixed budget — they move the whole loss-versus-FLOPs curve. On held-out out-of-distribution validation data, K3's fitted curve sits to the left of K2's by a factor of roughly 2.5 in compute.</p>
+  <p>That framing matters. It isn't "K3 scores higher than K2" — K3 is nearly three times the size, so it had better. It's that <em class="term">a K3-family model reaches any given loss with 2.5× less compute than a K2-family model</em>. The architecture changes earn their complexity budget.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Loss vs compute</h4><span class="sub">schematic reconstruction · both axes log</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <label for="lossS">Target validation loss</label><input type="range" id="lossS" min="0" max="100" value="52">
+        <button class="btn" id="lawGo">Replay</button>
+      </div>
+      <canvas id="lawC" width="920" height="330"></canvas>
+      <div class="stats" id="lawStats"></div>
+      <p class="note" style="margin-top:10px">Drawn schematically to show the <em>shape</em> of the reported result — a constant horizontal offset between two power-law fits. The paper reports the offset (≈2.5×) but not the axis values, so the absolute numbers here are illustrative; the ratio is not.</p>
+    </div>
+  </div>
+
+  <p>Because these changes also move the <em>optimal training regime</em>, Moonshot re-ran dedicated scaling-law studies rather than inheriting K2's hyperparameters. Retuned: batch size, learning rate, tokens-per-parameter ratio (TPP), and model shape.</p>
+</section>
+
+<section id="schedule">
+  <p class="kicker">A methodological aside worth reading</p>
+  <h2>Cosine beat WSD — but only under a fair comparison</h2>
+  <p>Prior work has reported that Warmup-Stable-Decay matches or beats cosine decay. K3's study found the opposite, and the reason it gives is a good piece of experimental hygiene.</p>
+  <p>The two schedules have <em class="term">markedly different optimal hyperparameters</em>. Even at identical model size and token budget, their best peak learning rates and batch sizes differ substantially. So comparing them on a shared hyperparameter grid doesn't compare schedules — it compares how well each schedule happens to suit hyperparameters that were tuned for one of them.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Why a shared grid rigs the result</h4><span class="sub">illustrative — the argument, not the data</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <span class="seg" id="schSeg"><button data-s="shared" class="on">Shared hyperparameters</button><button data-s="own">Each at its own optimum</button></span>
+      </div>
+      <canvas id="schC" width="920" height="280"></canvas>
+      <div class="readout" id="schOut" style="margin-top:14px"></div>
+    </div>
+  </div>
+  <p>Under an independent scaling-law search for each schedule, cosine decay consistently reached lower final loss. K3 therefore uses cosine as default, with a 1% linear warmup.</p>
+</section>
+
+<section id="data">
+  <p class="kicker">Corpus</p>
+  <h2>Pre-training data</h2>
+  <p>Four primary text domains plus a large vision corpus, with pipelines inherited from K2 and refined in K2.5. Each domain gets rule-based heuristics, classifier-based quality scoring and deduplication, with <em class="term">domain sampling rates set by ablation on smaller models</em> rather than by intuition.</p>
+
+  <div class="grid2">
+    <div class="card"><span class="lab">Text domain</span><h5>Web Text</h5><p>The broad base. Filtered by heuristics plus learned quality classifiers, then deduplicated.</p></div>
+    <div class="card"><span class="lab">Text domain</span><h5>Code</h5><p>Feeds directly into the coding-agent capabilities that post-training then scales with RL.</p></div>
+    <div class="card"><span class="lab">Text domain</span><h5>Mathematics</h5><p>Rephrased — see below. One of the two domains that gets the generative treatment.</p></div>
+    <div class="card"><span class="lab">Text domain</span><h5>Knowledge</h5><p>Also rephrased, for the same reason: high-value, finite, and worth presenting more than one way.</p></div>
+  </div>
+
+  <h3>Rephrasing: getting more from a finite corpus</h3>
+  <p>Following K2's recipe, knowledge and mathematics corpora are rephrased with <strong>style- and perspective-diverse prompting</strong>, generated <strong>chunk-wise autoregressively</strong>, and then <strong>verified for fidelity against the source document</strong>. The third step is the one that keeps this from being a hallucination pipeline: a rephrasing that drifts from its source doesn't ship.</p>
+
+  <figure class="code"><figcaption>Data pipeline: filter, rephrase, verify <span class="ref">§3.1</span></figcaption><pre><span class="c"># ---- per-domain filtering; sampling rates come from ABLATIONS, not intuition ----</span>
+<span class="k">for</span> domain <span class="k">in</span> [WEB_TEXT, CODE, MATH, KNOWLEDGE]:
+    docs = rule_based_heuristics(raw[domain])
+    docs = [d <span class="k">for</span> d <span class="k">in</span> docs <span class="k">if</span> quality_classifier(d) &gt; domain.threshold]
+    docs = deduplicate(docs)
+    corpus[domain] = docs
+    rate[domain]   = ablation_study_on_small_models(domain)  <span class="c"># ← tuned, not guessed</span>
+
+<span class="c"># ---- rephrasing (K2's recipe): applied to KNOWLEDGE and MATH only ----</span>
+<span class="k">for</span> doc <span class="k">in</span> corpus[KNOWLEDGE] + corpus[MATH]:
+    <span class="k">for</span> style <span class="k">in</span> sample(STYLES_AND_PERSPECTIVES):   <span class="c"># diverse prompting</span>
+        variant = []
+        <span class="k">for</span> chunk <span class="k">in</span> split(doc):                    <span class="c"># chunk-wise autoregressive</span>
+            variant.append(rephrase(chunk, style, context=variant))
+
+        <span class="k">if</span> fidelity_verified(variant, against=doc):   <span class="c"># ← the step that keeps</span>
+            corpus[domain].append(variant)            <span class="c">#   this from being a</span>
+                                                      <span class="c">#   hallucination pipeline</span>
+
+<span class="c"># ---- vision: coordinates supervised in BOTH formats ----</span>
+<span class="k">for</span> sample <span class="k">in</span> vision_corpus:
+    emit(sample, coords=absolute_pixels(sample))   <span class="c"># precise</span>
+    emit(sample, coords=normalized_0_1(sample))    <span class="c"># resolution-robust</span>
+
+<span class="c"># ---- and the strategic bet: programmatic multimodal data, scaled up ----</span>
+<span class="k">for</span> fmt <span class="k">in</span> [SVG, ASSETS_3D, WEBPAGE, GAME, CAD]:
+    <span class="k">for</span> snippet <span class="k">in</span> code_corpus[fmt]:
+        emit(pair(code=snippet, visual=render(snippet)))
+        <span class="c"># This is the pre-training substrate for write-code → look-at-render →</span>
+        <span class="c"># fix-it. You cannot RL a model into vision-in-the-loop coding if it has</span>
+        <span class="c"># never seen code paired with its own output.</span></pre></figure>
+
+  <h3>The vision corpus, and one deliberate bet</h3>
+  <p>The taxonomy follows K2.5: captions, interleaved image–text documents, OCR, perception, video, and visual coding data, combining open collections with in-house filtering, synthesis and deduplication.</p>
+  <p>Two choices stand out. First, <strong>coordinate supervision is provided in both absolute and normalized [0,1] formats</strong> — so localization is both precise and robust to resolution, which is exactly what a model that clicks around GUIs and reads charts needs.</p>
+  <p>Second, and more consequential: K3 <em class="term">substantially scales up programmatic multimodal data</em>, pairing code snippets with their rendered visuals across <strong>SVG, 3D assets, webpages, games and CAD schematics</strong>. This is the pre-training substrate for the write-code → look-at-the-render → fix-it loop. It is also, almost certainly, why K3 tops the WebDev Arena and wins 3D/WebGL/Shader tasks by a +59-point margin in blind expert judging.</p>
+  <div class="pull">The programmatic multimodal corpus is the quiet link between a pre-training decision and a post-training result. You cannot RL a model into vision-in-the-loop coding if it never saw code paired with its own output.</div>
+</section>
+
+<section id="recipe">
+  <p class="kicker">Optimization</p>
+  <h2>Training recipe</h2>
+  <p><strong>Native multimodal from step zero.</strong> Language and vision are optimized jointly from the start — no vision encoder grafted on afterwards, no post-hoc alignment stage. Visual and textual tokens interleave inside a single next-token-prediction objective, so the shared backbone learns unified representations from the outset.</p>
+  <div class="grid2">
+    <div class="card"><span class="lab">Optimizer</span><h5>Per-Head Muon</h5><p>Muon for matrix parameters, refined per attention head — detailed below.</p></div>
+    <div class="card"><span class="lab">Stability</span><h5>Weight clipping</h5><p>The mechanism introduced in K2, carried forward unchanged.</p></div>
+    <div class="card"><span class="lab">Routing</span><h5>Quantile Balancing</h5><p>Closed-form per-expert bias from a router-score quantile, replacing fixed-step bias updates.</p></div>
+    <div class="card"><span class="lab">Schedule</span><h5>Cosine · 1% warmup · wd 0.1</h5><p>Chosen after an independent hyperparameter search per schedule.</p></div>
+  </div>
+  <p style="margin-top:18px">Pre-training itself begins at an <strong>8K context</strong> and is extended to <strong>64K</strong> in a later phase. The move to 256K and 1M is deliberately deferred to cooldown.</p>
+</section>
+
+<section id="muon">
+  <p class="kicker">Optimizer detail</p>
+  <h2>Per-Head Muon</h2>
+  <p>Muon orthogonalizes the momentum matrix via Newton–Schulz iterations before applying it. K3 refines this for attention projections: instead of orthogonalizing the whole Q, K, V matrix, it <em class="term">partitions the momentum along the head dimension and orthogonalizes each head's block separately</em>.</p>
+  <p>The reasoning is a scale argument. Full-matrix orthogonalization treats all heads as one coupled block, so heads carrying larger gradient or momentum magnitudes dominate the shared update direction, and quieter heads get updates that were never properly normalized for them. Per-head orthogonalization equalizes update scale across heads.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>One block, or many</h4><span class="sub">12 heads with unequal momentum scale</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <span class="seg" id="muSeg"><button data-m="full" class="on">Full-matrix Muon</button><button data-m="head">Per-head Muon</button></span>
+        <label for="spreadS">Scale spread across heads</label><input type="range" id="spreadS" min="0" max="30" value="16">
+      </div>
+      <canvas id="muC" width="920" height="250"></canvas>
+      <div class="readout" id="muOut" style="margin-top:14px"></div>
+    </div>
+  </div>
+  <figure class="code"><figcaption>Per-Head Muon <span class="ref">§2.5</span></figcaption><pre><span class="c"># Muon: orthogonalise the momentum matrix before applying it.</span>
+
+<span class="k">def</span> muon_step_standard(W, M):              <span class="c"># M = momentum, same shape as W</span>
+    O = newton_schulz(M)                   <span class="c"># orthogonalise the WHOLE matrix</span>
+    <span class="k">return</span> W - lr * O
+<span class="c"># Problem for attention projections: Q, K, V pack all heads into one matrix.</span>
+<span class="c"># One shared orthogonalisation means heads with larger gradient/momentum</span>
+<span class="c"># magnitude dominate the update direction, and quiet heads receive updates</span>
+<span class="c"># normalised for somebody else's scale.</span>
+
+<span class="k">def</span> muon_step_per_head(W, M, n_heads):     <span class="c"># K3, for Q / K / V only</span>
+    blocks = split_along_head_dim(M, n_heads)
+    O = concat([newton_schulz(b) <span class="k">for</span> b <span class="k">in</span> blocks])   <span class="c"># each head on its own</span>
+    <span class="k">return</span> W - lr * O
+<span class="c"># → update scale equalised across heads</span>
+<span class="c"># → more balanced learning dynamics, better stability at larger scale</span>
+<span class="c"># → and CHEAPER: Newton-Schulz on tall per-head blocks costs less than on</span>
+<span class="c">#   the full projection matrix, so optimiser overhead drops slightly too.</span>
+
+<span class="c"># Distributed detail (§5.2.2): Newton-Schulz needs the FULL matrix, but the</span>
+<span class="c"># optimiser shards parameters across DP ranks. Rather than all-gathering the</span>
+<span class="c"># entire parameter buffer on every rank, each rank pulls only the shards of</span>
+<span class="c"># the parameters it owns, peer-to-peer:</span>
+<span class="k">for</span> chunk <span class="k">in</span> my_model_chunks:                 <span class="c"># pipelined against compute</span>
+    full = p2p_gather_shards(chunk, from_owners=shard_owners(chunk))
+    apply(muon_step_per_head(full, momentum[chunk], n_heads))</pre></figure>
+
+  <p>It also happens to be cheaper: Newton–Schulz on tall per-head blocks costs less than on the full projection matrix. A rare case where the principled choice is also the faster one.</p>
+</section>
+
+<section id="long">
+  <p class="kicker">Reach</p>
+  <h2>Getting to a million tokens</h2>
+
+  <h3>No positional encoding to extend</h3>
+  <p>The cheapest part of K3's long-context story is the part that isn't there. With NoPE, position is carried implicitly through KDA's recurrent gating and decay. There is no RoPE frequency base to retune, no YaRN interpolation to fit, no positional surgery at all — <em class="term">the model extrapolates to 1M directly</em>.</p>
+
+  <h3>Length is not capability</h3>
+  <p>Natural long documents and videos are full of junk: near-duplicates, binary blobs, truncated files, throwaway clips, machine-generated logs. K3 runs them through exact and fuzzy deduplication, perceptual hashing over video frames, heuristic and classifier quality filtering, and structural validation. Because genuinely long, coherent sources are scarce relative to short text, they are then <strong>upsampled</strong> so the long-context distribution isn't drowned out during cooldown.</p>
+  <p>But the report is blunt that this still isn't enough: <em>"Length alone does not confer long-range capability."</em> A model trained on long documents can happily learn to attend locally and ignore the rest. So K3 <strong>synthesizes</strong> long-context data — permuting and concatenating multimodal documents and sub-tasks so the embedded tasks are <em>only</em> solvable by attending to information scattered across the full window. That trains attention at the intended scale instead of letting it degenerate into local patterns.</p>
+
+  <figure class="code"><figcaption>Long-context data: clean, upsample, then synthesise <span class="ref">§3.4</span></figcaption><pre><span class="c"># ---- 1. natural long sources are mostly junk ----</span>
+docs = exact_dedup(raw_long_docs)
+docs = fuzzy_dedup(docs)
+vids = perceptual_hash_dedup(raw_videos)         <span class="c"># over frames</span>
+docs = [d <span class="k">for</span> d <span class="k">in</span> docs + vids
+        <span class="k">if</span> quality_filter(d)                     <span class="c"># heuristic + classifier</span>
+        <span class="k">and</span> structurally_valid(d)]               <span class="c"># no truncated files, binary</span>
+                                                 <span class="c"># blobs, machine-gen logs</span>
+
+<span class="c"># ---- 2. genuinely long coherent sources are SCARCE relative to short text ----</span>
+train_mix = upsample(docs, so_that=<span class="s">"long-context distribution survives cooldown"</span>)
+
+<span class="c"># ---- 3. but length alone does NOT confer long-range capability ----</span>
+<span class="c">#     A model fed long documents will happily learn to attend locally.</span>
+<span class="k">def</span> synthesise_long_context_example(target_len=1_000_000):
+    parts, answers = [], []
+    <span class="k">for</span> _ <span class="k">in</span> range(n_subtasks):
+        doc, subtask = sample_multimodal_document_and_task()
+        parts.append(doc); answers.append(subtask)
+
+    shuffle(parts)                    <span class="c"># deliberately PERMUTE, then concatenate,</span>
+    ctx = concat(parts)               <span class="c"># so the evidence for each embedded task is</span>
+                                      <span class="c"># scattered across the full window</span>
+    <span class="k">assert</span> <span class="k">not</span> solvable_from_any_local_span(ctx, answers)
+    <span class="k">return</span> ctx, answers
+<span class="c"># This trains attention AT the intended scale instead of letting it</span>
+<span class="c"># degenerate into local patterns.</span>
+
+<span class="c"># ---- 4. and none of it needs positional surgery ----</span>
+<span class="c"># NoPE: position lives in KDA's recurrent gating and decay, so extending to</span>
+<span class="c"># 1M requires no RoPE base retuning, no YaRN interpolation. The model just</span>
+<span class="c"># extrapolates. Compare the usual: rescale(rope_theta), fit(yarn_factors), ...</span></pre></figure>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Four-stage context curriculum</h4><span class="sub">click a stage</span></div>
+    <div class="mod-b">
+      <div class="curric" id="curric">
+        <button class="stage on" data-i="0"><span class="w">8K</span><span class="p">Pre-training · start</span></button>
+        <button class="stage" data-i="1"><span class="w">64K</span><span class="p">Pre-training · later phase</span></button>
+        <button class="stage" data-i="2"><span class="w">256K</span><span class="p">Cooldown</span></button>
+        <button class="stage" data-i="3"><span class="w">1M</span><span class="p">Cooldown · final</span></button>
+      </div>
+      <canvas id="curC" width="920" height="170"></canvas>
+      <div class="readout" id="curOut"></div>
+    </div>
+  </div>
+  <p>The economics are the point: long-sequence computation is expensive per token, so concentrating it in a small fraction of the total budget keeps the curriculum affordable while still letting the model adapt gradually to longer dependencies. The sequence-dimension partitioning that makes million-token KDA training tractable at all — KDA Context Parallelism — is an infrastructure story, covered in <a href="kimi-k3-architecture.html#infra" style="color:var(--accent)">Part 01</a>.</p>
+</section>
+
+<section id="vision">
+  <p class="kicker">Modality, from the data side</p>
+  <h2>The vision tower was trained from scratch</h2>
+  <p>Prior practice — including K2.5 — initializes the vision encoder from a contrastively pre-trained model such as SigLIP, on the premise that pre-existing visual knowledge gives a head start. K3 abandons that, and the stated reason is <em class="term">training stability</em>, not accuracy: under joint optimization the SigLIP-initialized tower showed persistently higher gradient norms with frequent spikes, while the from-scratch MoonViT-V2 stayed smooth throughout.</p>
+  <p>There's a second, more interesting argument. Training the encoder with next-token prediction lets the language-modeling objective shape its representations directly, rather than a contrastive loss that favours global semantics over the fine-grained textual and structural cues a document-reading, chart-parsing, screenshot-inspecting model actually needs.</p>
+  <p>And the result was a wash on quality: MoonViT-V2 <strong>matched</strong> the SigLIP-initialized baseline across vision evaluations. Which turns a stability fix into a general claim — contrastive pre-training is unnecessary as an initialization for multimodal LLMs at scale.</p>
+  <div class="mod">
+    <div class="mod-h"><h4>Gradient-norm stability</h4><span class="sub">schematic — reproduces the reported pattern, not digitized values</span></div>
+    <div class="mod-b">
+      <canvas id="gnC" width="920" height="240"></canvas>
+      <p class="note" style="margin-top:10px">The paper's Fig. 6 shows the SigLIP-initialized tower running at a higher gradient-norm baseline with repeated spikes across the full trajectory, and the from-scratch tower flat beneath it. This is a redrawn illustration of that pattern; the axis values are not taken from the figure.</p>
+    </div>
+  </div>
+</section>
+
+<section id="takeaway">
+  <p class="kicker">Summary</p>
+  <h2>What to take away</h2>
+  <ul>
+    <li><strong>The headline is a curve shift, not a score.</strong> 2.5× scaling efficiency over K2 on held-out OOD validation — architecture, data and recipe together.</li>
+    <li><strong>Changing the architecture invalidates the old hyperparameters.</strong> K3 re-ran scaling-law studies for batch size, LR, TPP and model shape rather than inheriting K2's.</li>
+    <li><strong>Schedule comparisons need per-schedule tuning.</strong> Cosine beat WSD only once each was given its own optimum; a shared grid would have decided the question by accident.</li>
+    <li><strong>Programmatic multimodal data is a strategic asset.</strong> Code paired with its rendered output — SVG, 3D, webpages, games, CAD — is the pre-training root of K3's strongest post-training results.</li>
+    <li><strong>NoPE makes long context nearly free to extend.</strong> No RoPE retuning, no interpolation; position lives in KDA's decay.</li>
+    <li><strong>Long data must be synthesized, not just collected.</strong> Filtering and upsampling handle quality; only deliberately scattered tasks force attention to actually use the window.</li>
+    <li><strong>Contrastive vision initialization was dropped, and nothing broke.</strong> A from-scratch next-token-prediction tower was more stable and equally good.</li>
+  </ul>
+</section>
+
+<footer>
+  <p style="max-width:70ch">Source: <em>Kimi K3: Open Frontier Intelligence — Technical Report</em>, §3 and §2.4–2.5, Kimi Team, July 2026. Charts marked schematic reproduce the shape of a reported result where the paper gives the conclusion but not the underlying values; every stated number is quoted from the report.</p>
+  <div class="trilogy">
+    <a href="kimi-k3-architecture.html"><span class="n">Part 01</span><span class="t">Architecture &amp; systems →</span></a>
+    <a href="kimi-k3-posttraining.html"><span class="n">Part 03</span><span class="t">Post-training &amp; data →</span></a>
+    <a href="index.html"><span class="n">Library</span><span class="t">All explainers →</span></a>
+  </div>
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+$("#tgl").addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  document.documentElement.setAttribute("data-theme",cur==="dark"?"light":"dark");redrawAll();});
+
+function fit(c,hh){const r=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2),h=hh;
+  c.width=Math.max(320,r.width*dpr);c.height=h*dpr;c.style.height=h+"px";
+  const x=c.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);return {x,w:r.width,h};}
+
+/* ---------- scaling law ---------- */
+let lawT=1;
+function lawLoss(F,shift){ // F in log10 FLOPs; shift = effective compute multiplier
+  const Fe=F+Math.log10(shift);   // K3 behaves as if it had `shift`× the compute
+  return 1.62+1.209*Math.pow(10,-(Fe-19.2)*0.345);
+}
+function drawLaw(){
+  const c=$("#lawC"),{x,w,h}=fit(c,330);
+  x.clearRect(0,0,w,h);
+  const L=58,R=18,T=18,B=40,pw=w-L-R,ph=h-T-B;
+  const f0=19.6,f1=21.6;
+  const y0=1.70,y1=2.55;
+  const X=f=>L+(f-f0)/(f1-f0)*pw, Y=v=>T+(y1-v)/(y1-y0)*ph;
+  x.strokeStyle=css("--rule");x.lineWidth=1;
+  for(let v=1.8;v<=2.5;v+=0.1){x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(v.toFixed(1),L-6,Y(v)+3);}
+  for(let f=20;f<=21.5;f+=0.5){x.beginPath();x.moveTo(X(f),T);x.lineTo(X(f),h-B);x.stroke();
+    x.fillStyle=css("--ink-3");x.textAlign="center";x.fillText("10^"+f.toFixed(1),X(f),h-14);}
+  x.fillStyle=css("--ink-3");x.textAlign="center";x.font="10px ui-monospace,Menlo,monospace";
+  x.fillText("training FLOPs",L+pw/2,h-2);
+  x.save();x.translate(13,T+ph/2);x.rotate(-Math.PI/2);x.fillText("validation loss (OOD)",0,0);x.restore();
+  function curve(shift,col,dash,frac){x.save();x.setLineDash(dash||[]);x.strokeStyle=col;x.lineWidth=2.4;x.beginPath();
+    const n=Math.floor(220*frac);
+    for(let i=0;i<=n;i++){const f=f0+(f1-f0)*i/220;i?x.lineTo(X(f),Y(lawLoss(f,shift))):x.moveTo(X(f),Y(lawLoss(f,shift)));}
+    x.stroke();x.restore();}
+  curve(1,css("--ink-3"),[6,4],lawT);
+  curve(2.5,css("--accent"),[],lawT);
+  // target line
+  const tv=y0+ (1-(+$("#lossS").value)/100)*(y1-y0)*0.82+0.06;
+  x.save();x.setLineDash([2,4]);x.strokeStyle=css("--ink-2");x.globalAlpha=.7;
+  x.beginPath();x.moveTo(L,Y(tv));x.lineTo(w-R,Y(tv));x.stroke();x.restore();x.globalAlpha=1;
+  function solveF(shift,target){let lo=f0-3,hi=f1+3;for(let i=0;i<60;i++){const m=(lo+hi)/2;
+    (lawLoss(m,shift)>target)?lo=m:hi=m;}return (lo+hi)/2;}
+  const fK3=solveF(2.5,tv), fK2=solveF(1,tv);
+  if(lawT>=1){
+    [[fK3,css("--accent")],[fK2,css("--ink-3")]].forEach(([f,col])=>{
+      if(f<f0-.2||f>f1+.2)return;
+      x.fillStyle=col;x.beginPath();x.arc(X(f),Y(tv),4.5,0,7);x.fill();});
+    if(fK3>f0&&fK2<f1){
+      x.strokeStyle=css("--accent");x.lineWidth=1.4;x.beginPath();
+      x.moveTo(X(fK3),Y(tv)-16);x.lineTo(X(fK2),Y(tv)-16);x.stroke();
+      x.fillStyle=css("--accent");x.font="11px ui-monospace,Menlo,monospace";x.textAlign="center";
+      x.fillText("2.5×",(X(fK3)+X(fK2))/2,Y(tv)-21);
+    }
+  }
+  x.font="11px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillStyle=css("--ink-3");x.fillText("Kimi K2",X(f1-.42),Y(lawLoss(f1-.42,1))-9);
+  x.fillStyle=css("--accent");x.fillText("Kimi K3",X(f1-.42),Y(lawLoss(f1-.42,2.5))-9);
+  $("#lawStats").innerHTML=`target loss <b>${tv.toFixed(2)}</b>`+
+    `<span>K2 needs <b>10<sup>${fK2.toFixed(2)}</sup></b> FLOPs</span>`+
+    `<span>K3 needs <b style="color:var(--accent)">10<sup>${fK3.toFixed(2)}</sup></b> FLOPs</span>`+
+    `<span>ratio <b>${Math.pow(10,fK2-fK3).toFixed(2)}×</b></span>`;
+}
+$("#lossS").addEventListener("input",drawLaw);
+$("#lawGo").addEventListener("click",()=>{if(RM){lawT=1;drawLaw();return;}lawT=0;const st=performance.now();
+  (function step(t){lawT=Math.min(1,(t-st)/900);drawLaw();if(lawT<1)requestAnimationFrame(step);})(st);});
+
+/* ---------- schedule comparison ---------- */
+let schMode="shared";
+$("#schSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#schSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");schMode=b.dataset.s;drawSch();});
+function drawSch(){
+  const c=$("#schC"),{x,w,h}=fit(c,280);
+  x.clearRect(0,0,w,h);
+  const L=56,R=18,T=18,B=44,pw=w-L-R,ph=h-T-B;
+  // x axis = peak LR (log), y = final loss
+  const X=i=>L+i/8*pw, Y=v=>T+(2.32-v)/(2.32-2.02)*ph;
+  x.strokeStyle=css("--rule");
+  for(let v=2.05;v<=2.30;v+=0.05){x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(v.toFixed(2),L-6,Y(v)+3);}
+  const labels=["1e-4","2e-4","4e-4","8e-4","1.6e-3","3.2e-3","6.4e-3","1.3e-2","2.6e-2"];
+  labels.forEach((s,i)=>{x.fillStyle=css("--ink-3");x.textAlign="center";x.fillText(s,X(i),h-26);});
+  x.fillText("peak learning rate  (each schedule's own optimum differs)",L+pw/2,h-8);
+  // parabolas: cosine optimum at i=3, wsd optimum at i=6
+  const cos=i=>2.06+0.020*(i-3)**2, wsd=i=>2.09+0.019*(i-6)**2;
+  function cv(f,col,dash){x.save();x.setLineDash(dash||[]);x.strokeStyle=col;x.lineWidth=2.2;x.beginPath();
+    for(let i=0;i<=80;i++){const v=i/10;i?x.lineTo(X(v),Y(f(v))):x.moveTo(X(v),Y(f(v)));}x.stroke();x.restore();}
+  cv(cos,css("--accent"));cv(wsd,css("--ink-3"),[6,4]);
+  function dot(i,f,col,r){x.fillStyle=col;x.beginPath();x.arc(X(i),Y(f(i)),r||5,0,7);x.fill();}
+  let msg;
+  if(schMode==="shared"){
+    const i=6;
+    x.save();x.setLineDash([3,4]);x.strokeStyle=css("--ink-2");x.beginPath();x.moveTo(X(i),T);x.lineTo(X(i),h-B);x.stroke();x.restore();
+    dot(i,cos,css("--accent"));dot(i,wsd,css("--ink-3"));
+    x.fillStyle=css("--ink-2");x.font="11px ui-monospace,Menlo,monospace";x.textAlign="center";
+    x.fillText("one shared LR",X(i),T+12);
+    msg=`<b>Shared grid — WSD "wins"</b>Evaluated at a single learning rate, WSD reaches <strong>${wsd(6).toFixed(3)}</strong> and cosine <strong>${cos(6).toFixed(3)}</strong>. But that LR happens to sit at WSD's optimum and far from cosine's. Nothing about the schedules was measured — only their distance from an arbitrary point.`;
+  } else {
+    dot(3,cos,css("--accent"),6);dot(6,wsd,css("--ink-3"),6);
+    x.fillStyle=css("--accent");x.font="11px ui-monospace,Menlo,monospace";x.textAlign="center";
+    x.fillText("cosine optimum",X(3),Y(cos(3))-12);
+    x.fillStyle=css("--ink-3");x.fillText("WSD optimum",X(6),Y(wsd(6))-12);
+    msg=`<b>Independent search — cosine wins</b>Each schedule tuned to its own optimum: cosine reaches <strong>${cos(3).toFixed(3)}</strong>, WSD <strong>${wsd(6).toFixed(3)}</strong>. This is the comparison K3 ran, and it consistently favoured cosine decay — which is why K3 uses it as the default schedule.`;
+  }
+  $("#schOut").innerHTML=msg;
+}
+
+/* ---------- per-head muon ---------- */
+let muMode="full";
+$("#muSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#muSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");muMode=b.dataset.m;drawMu();});
+$("#spreadS").addEventListener("input",drawMu);
+function drawMu(){
+  const c=$("#muC"),{x,w,h}=fit(c,250);
+  x.clearRect(0,0,w,h);
+  const H=12, sp=+$("#spreadS").value/10;
+  const raw=Array.from({length:H},(_,i)=>Math.exp(-sp*i/H)*(0.55+0.9*((i*37%13)/13)));
+  const L=64,R=20,T=26,B=44,pw=w-L-R,ph=h-T-B;
+  const bw=pw/H;
+  // effective update scale after orthogonalization
+  const gmean=Math.exp(raw.reduce((a,c)=>a+Math.log(c),0)/H);
+  const eff = muMode==="full" ? raw.map(v=>v/gmean) : raw.map(()=>1);
+  const mx=Math.max(...eff,1.4);
+  x.font="10px ui-monospace,Menlo,monospace";
+  x.fillStyle=css("--ink-3");x.textAlign="left";x.fillText("effective update magnitude per head (1.0 = properly normalised)",L,16);
+  x.save();x.setLineDash([3,4]);x.strokeStyle=css("--accent-line");x.lineWidth=1.5;
+  const y1=T+ph-(1/mx)*ph;x.beginPath();x.moveTo(L,y1);x.lineTo(w-R,y1);x.stroke();x.restore();
+  eff.forEach((v,i)=>{
+    const bh=(v/mx)*ph, y=T+ph-bh;
+    const off=Math.abs(v-1);
+    x.fillStyle= off<0.08?css("--accent"):(off>0.45?css("--neg"):css("--ink-3"));
+    x.fillRect(L+i*bw+3,y,bw-6,bh);
+    x.fillStyle=css("--ink-3");x.textAlign="center";x.font="9px ui-monospace,Menlo,monospace";
+    x.fillText("h"+(i+1),L+i*bw+bw/2,h-26);
+  });
+  x.fillStyle=css("--ink-3");x.textAlign="center";x.font="10px ui-monospace,Menlo,monospace";
+  x.fillText("attention heads",L+pw/2,h-8);
+  const dev=Math.sqrt(eff.reduce((a,c)=>a+(c-1)**2,0)/H);
+  $("#muOut").innerHTML= muMode==="full"
+   ? `<b>Full-matrix orthogonalisation</b>Q, K and V are treated as one coupled block, so a single shared normalisation is applied across all heads. Heads whose momentum runs hot dominate the update direction; quiet heads receive updates that were normalised for somebody else's scale. Deviation from unit scale: <strong>${dev.toFixed(2)}</strong>.`
+   : `<b>Per-head orthogonalisation</b>The momentum matrix is partitioned along the head dimension and each head's block is orthogonalised on its own, so every head receives a correctly normalised update regardless of its momentum magnitude. Deviation: <strong>${dev.toFixed(2)}</strong>. More balanced learning dynamics, better stability at scale — and cheaper, since Newton–Schulz on tall per-head blocks costs less than on the full matrix.`;
+}
+
+/* ---------- context curriculum ---------- */
+const stages=[
+ {w:"8K",phase:"Pre-training, opening phase",txt:"Training starts short. The overwhelming majority of tokens are seen at this window, where per-token cost is lowest and the model is learning language, code and vision fundamentals rather than long-range structure."},
+ {w:"64K",phase:"Pre-training, later phase",txt:"The window is extended within pre-training. Still cheap enough to run at volume, and long enough that the model begins encountering genuine cross-document structure."},
+ {w:"256K",phase:"Cooldown",txt:"The expensive stages are deferred to cooldown, where the token budget is a small fraction of the total. Long documents and videos are upsampled here so short sequences don't drown out the long-context distribution."},
+ {w:"1M",phase:"Cooldown, final",txt:"The full window. Synthesised long-context data — permuted and concatenated multimodal documents and sub-tasks — makes the embedded tasks solvable only by attending across the whole million tokens, preventing attention from collapsing into local patterns. KDA Context Parallelism is what makes this tractable at all."}
+];
+let curSel=0;
+$("#curric").addEventListener("click",e=>{const b=e.target.closest(".stage");if(!b)return;
+  $$("#curric .stage").forEach(x=>x.classList.remove("on"));b.classList.add("on");curSel=+b.dataset.i;drawCur();});
+function drawCur(){
+  const c=$("#curC"),{x,w,h}=fit(c,170);
+  x.clearRect(0,0,w,h);
+  const vals=[8192,65536,262144,1048576];
+  const L=54,R=20,T=24,B=34,pw=w-L-R,ph=h-T-B;
+  const mx=Math.log2(1048576), mn=Math.log2(8192);
+  x.strokeStyle=css("--rule");x.beginPath();x.moveTo(L,T+ph);x.lineTo(w-R,T+ph);x.stroke();
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("window size (log scale) across the training budget",L,14);
+  // budget widths: most tokens at 8k/64k
+  const budg=[.52,.30,.11,.07];
+  let acc=0;
+  vals.forEach((v,i)=>{
+    const x0=L+acc*pw, x1=L+(acc+budg[i])*pw;
+    const hh=((Math.log2(v)-mn)/(mx-mn))*ph*0.88+6;
+    const on=i===curSel;
+    x.fillStyle=on?css("--accent"):css("--rule-2");
+    x.globalAlpha=on?1:.65;
+    x.fillRect(x0+2,T+ph-hh,Math.max(4,x1-x0-4),hh);
+    x.globalAlpha=1;
+    x.fillStyle=on?css("--accent"):css("--ink-3");
+    x.textAlign="center";x.font=(on?"bold ":"")+"11px ui-monospace,Menlo,monospace";
+    x.fillText(stages[i].w,(x0+x1)/2,T+ph-hh-7);
+    x.fillStyle=css("--ink-3");x.font="9px ui-monospace,Menlo,monospace";
+    x.fillText(Math.round(budg[i]*100)+"% of budget",(x0+x1)/2,T+ph+15);
+    acc+=budg[i];
+  });
+  x.fillStyle=css("--ink-3");x.textAlign="left";x.font="9px ui-monospace,Menlo,monospace";
+  x.fillText("budget split illustrative — the report states only that long-sequence work is concentrated in a small fraction of training",L,h-4);
+  const s=stages[curSel];
+  $("#curOut").innerHTML=`<b>${s.w} — ${s.phase}</b>${s.txt}`;
+}
+
+/* ---------- gradient norms ---------- */
+function drawGN(){
+  const c=$("#gnC"),{x,w,h}=fit(c,240);
+  x.clearRect(0,0,w,h);
+  const L=54,R=18,T=20,B=38,pw=w-L-R,ph=h-T-B;
+  const X=t=>L+t*pw, Y=v=>T+ph-(v/0.62)*ph;
+  x.strokeStyle=css("--rule");
+  for(let v=0;v<=0.6;v+=0.2){x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(v.toFixed(1),L-6,Y(v)+3);}
+  x.textAlign="center";x.fillStyle=css("--ink-3");
+  x.fillText("training step  →",L+pw/2,h-8);
+  x.save();x.translate(13,T+ph/2);x.rotate(-Math.PI/2);x.fillText("vision-tower gradient norm",0,0);x.restore();
+  let s=3;const r=()=>{s=(s*1103515245+12345)%2147483648;return s/2147483648;};
+  // siglip: higher baseline + spikes
+  x.strokeStyle=css("--ink-3");x.lineWidth=1.4;x.beginPath();
+  for(let i=0;i<=400;i++){const t=i/400;let v=0.115+0.035*Math.sin(i/9)+0.02*r();
+    if(r()>0.965)v+=0.16+0.30*r();
+    i?x.lineTo(X(t),Y(v)):x.moveTo(X(t),Y(v));}
+  x.stroke();
+  s=11;
+  x.strokeStyle=css("--accent");x.lineWidth=1.8;x.beginPath();
+  for(let i=0;i<=400;i++){const t=i/400;const v=0.046+0.012*Math.sin(i/13)+0.008*r();
+    i?x.lineTo(X(t),Y(v)):x.moveTo(X(t),Y(v));}
+  x.stroke();
+  x.font="11px ui-monospace,Menlo,monospace";x.textAlign="right";
+  x.fillStyle=css("--ink-3");x.fillText("MoonViT-3D (SigLIP init.)",w-R,T+14);
+  x.fillStyle=css("--accent");x.fillText("MoonViT-V2 (from scratch)",w-R,T+30);
+}
+
+/* ---------- rail ---------- */
+const railLinks=$$(".rail a");
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)
+  railLinks.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id));});},
+  {rootMargin:"-15% 0px -70% 0px"});
+$$("section[id]").forEach(s=>io.observe(s));
+
+function redrawAll(){drawLaw();drawSch();drawMu();drawCur();drawGN();}
+redrawAll();
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(redrawAll,120);});
+})();
+</script>

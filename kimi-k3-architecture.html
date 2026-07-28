@@ -1,0 +1,1185 @@
+<meta charset="utf-8">
+<title>Kimi K3 — Architecture, Systems &amp; Evaluation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --accent:#0F8C87; --accent-2:#0B6E6A; --accent-wash:rgba(15,140,135,.10); --accent-line:rgba(15,140,135,.35);
+  --bg:#F4F6F6; --panel:#FFFFFF; --panel-2:#EDF1F1; --ink:#12191A; --ink-2:#48585A; --ink-3:#7C8D8E;
+  --rule:#DBE3E3; --rule-2:#C3CFCF;
+  --pos:#1E7A4C; --neg:#A6432C; --warn:#8A6516;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:ui-serif,"New York",Palatino,Georgia,serif;
+  --shadow:0 1px 2px rgba(10,30,30,.05),0 8px 28px -18px rgba(10,40,40,.35);
+}
+@media (prefers-color-scheme:dark){:root{
+  --accent:#3FBFB6; --accent-2:#66D6CD; --accent-wash:rgba(63,191,182,.11); --accent-line:rgba(63,191,182,.34);
+  --bg:#0C1112; --panel:#131A1B; --panel-2:#182122; --ink:#E6EEEE; --ink-2:#9FB1B1; --ink-3:#6E8182;
+  --rule:#233030; --rule-2:#2F4041;
+  --pos:#54B98A; --neg:#DE8A72; --warn:#D3A64A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}}
+:root[data-theme="dark"]{
+  --accent:#3FBFB6; --accent-2:#66D6CD; --accent-wash:rgba(63,191,182,.11); --accent-line:rgba(63,191,182,.34);
+  --bg:#0C1112; --panel:#131A1B; --panel-2:#182122; --ink:#E6EEEE; --ink-2:#9FB1B1; --ink-3:#6E8182;
+  --rule:#233030; --rule-2:#2F4041;
+  --pos:#54B98A; --neg:#DE8A72; --warn:#D3A64A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}
+:root[data-theme="light"]{
+  --accent:#0F8C87; --accent-2:#0B6E6A; --accent-wash:rgba(15,140,135,.10); --accent-line:rgba(15,140,135,.35);
+  --bg:#F4F6F6; --panel:#FFFFFF; --panel-2:#EDF1F1; --ink:#12191A; --ink-2:#48585A; --ink-3:#7C8D8E;
+  --rule:#DBE3E3; --rule-2:#C3CFCF;
+  --pos:#1E7A4C; --neg:#A6432C; --warn:#8A6516;
+  --shadow:0 1px 2px rgba(10,30,30,.05),0 8px 28px -18px rgba(10,40,40,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+a{color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
+
+/* ---------- masthead ---------- */
+.top{border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px)}
+.top .wrap{display:flex;align-items:center;gap:14px;height:52px}
+.brand{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2)}
+.brand b{color:var(--accent);font-weight:600}
+.top nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);
+  text-decoration:none;padding:5px 8px;border-radius:5px}
+.top nav a:hover{color:var(--accent);background:var(--accent-wash)}
+.tgl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;background:none;border:1px solid var(--rule-2);color:var(--ink-2);
+  border-radius:5px;padding:5px 9px;cursor:pointer}
+.tgl:hover{border-color:var(--accent);color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+
+/* ---------- hero ---------- */
+.hero{padding:64px 0 40px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 18px}
+h1{font-family:var(--mono);font-weight:700;font-size:clamp(30px,5.4vw,58px);line-height:1.04;letter-spacing:-.035em;
+  margin:0 0 22px;text-wrap:balance;max-width:16ch}
+.lede{font-family:var(--serif);font-size:clamp(18px,2.1vw,22px);line-height:1.52;color:var(--ink-2);max-width:60ch;margin:0}
+.specstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--rule);
+  border:1px solid var(--rule);margin-top:40px;border-radius:8px;overflow:hidden}
+.spec{background:var(--panel);padding:14px 16px}
+.spec dt{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+.spec dd{margin:0;font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.02em}
+.spec dd small{font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:0}
+
+/* ---------- layout ---------- */
+.shell{display:grid;grid-template-columns:184px minmax(0,1fr);gap:clamp(24px,4vw,56px);padding:44px 0 90px}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.rail{display:none}}
+.rail{position:sticky;top:74px;align-self:start;font-family:var(--mono);font-size:11px;line-height:1.9}
+.rail .rl{letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px;font-size:10px}
+.rail a{display:block;color:var(--ink-3);text-decoration:none;padding:1px 0 1px 11px;border-left:2px solid var(--rule)}
+.rail a:hover{color:var(--accent)}
+.rail a.on{color:var(--ink);border-left-color:var(--accent)}
+
+section{padding:8px 0 54px;scroll-margin-top:70px}
+h2{font-family:var(--sans);font-weight:660;font-size:clamp(24px,3vw,33px);letter-spacing:-.02em;line-height:1.16;margin:0 0 14px;text-wrap:balance}
+h3{font-family:var(--sans);font-weight:640;font-size:19px;letter-spacing:-.01em;margin:34px 0 10px}
+h4{font-family:var(--mono);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 9px}
+p{max-width:68ch;margin:0 0 15px}
+p.tight{margin-bottom:9px}
+.note{font-size:13.5px;color:var(--ink-3);max-width:74ch;font-family:var(--mono);line-height:1.6}
+code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+em.term{font-style:normal;font-weight:620;color:var(--accent)}
+ul{max-width:68ch;padding-left:20px;margin:0 0 15px}li{margin-bottom:7px}
+
+/* pseudocode */
+figure.code{margin:20px 0;border:1px solid var(--rule);border-radius:9px;overflow:hidden;background:var(--panel)}
+figure.code figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:center}
+figure.code figcaption .ref{margin-left:auto;color:var(--accent);letter-spacing:.08em}
+figure.code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.9px;line-height:1.66;color:var(--ink)}
+.k{color:var(--accent);font-weight:620}
+.c{color:var(--ink-3);font-style:italic}
+.s{color:var(--pos)}
+
+/* ---------- modules ---------- */
+.mod{background:var(--panel);border:1px solid var(--rule);border-radius:10px;margin:26px 0 30px;box-shadow:var(--shadow);overflow:hidden}
+.mod-h{padding:14px 18px;border-bottom:1px solid var(--rule);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;background:var(--panel-2)}
+.mod-h h4{margin:0;color:var(--ink)}
+.mod-h .sub{font-size:12.5px;color:var(--ink-3);margin-left:auto;font-family:var(--mono)}
+.mod-b{padding:18px}
+.ctrls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-family:var(--mono);font-size:12px}
+.ctrls label{color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+input[type=range]{accent-color:var(--accent);width:180px}
+.seg{display:inline-flex;border:1px solid var(--rule-2);border-radius:6px;overflow:hidden}
+.seg button{font-family:var(--mono);font-size:11.5px;padding:6px 11px;background:var(--panel);color:var(--ink-2);border:0;cursor:pointer;border-right:1px solid var(--rule)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{font-family:var(--mono);font-size:11.5px;padding:6px 12px;border:1px solid var(--rule-2);background:var(--panel);color:var(--ink-2);border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+canvas{display:block;width:100%;height:auto}
+.scroller{overflow-x:auto}
+
+/* layer stack */
+.stack{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:14px}
+.ly{width:15px;height:26px;border-radius:2px;cursor:pointer;border:1px solid transparent;background:var(--panel-2)}
+.ly.kda{background:color-mix(in srgb,var(--accent) 34%,var(--panel))}
+.ly.mla{background:var(--accent)}
+.ly.sel{outline:2px solid var(--ink);outline-offset:1px}
+.ly:hover{border-color:var(--ink-2)}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:6px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.readout{background:var(--panel-2);border-radius:8px;padding:13px 15px;font-size:14px;min-height:78px;border:1px solid var(--rule)}
+.readout b{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:5px}
+
+/* expert grid */
+.egrid{display:grid;grid-template-columns:repeat(24,1fr);gap:2px}
+.ex{aspect-ratio:1;border-radius:2px;background:var(--panel-2)}
+.bars{display:grid;grid-template-columns:repeat(24,1fr);gap:2px;align-items:end;height:92px;margin-top:14px}
+.bar{background:var(--accent);border-radius:1px 1px 0 0;min-height:1px}
+.bar.hot{background:var(--neg)}
+.bar.cold{background:var(--rule-2)}
+.stats{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;margin-top:12px;color:var(--ink-2)}
+.stats b{color:var(--ink);font-weight:600}
+
+/* tables */
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-family:var(--mono)}
+th,td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;font-family:var(--sans);font-size:14px;white-space:normal;min-width:170px}
+thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600;position:sticky;top:0;background:var(--panel)}
+tbody tr:hover{background:var(--accent-wash)}
+td.best{color:var(--ink);font-weight:700;background:var(--accent-wash)}
+td.k3{border-left:2px solid var(--accent-line);border-right:2px solid var(--accent-line)}
+tr.grp td{background:var(--panel-2);font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);padding:6px 10px}
+.delta{font-family:var(--mono);font-size:12px}
+.up{color:var(--pos)}.down{color:var(--neg)}
+
+/* accordion */
+.acc{border:1px solid var(--rule);border-radius:9px;overflow:hidden;margin:18px 0}
+.acc details{border-bottom:1px solid var(--rule);background:var(--panel)}
+.acc details:last-child{border-bottom:0}
+.acc summary{cursor:pointer;padding:13px 16px;display:flex;gap:12px;align-items:baseline;list-style:none;font-weight:600;font-size:15px}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary:hover{background:var(--accent-wash)}
+.acc summary .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);
+  border:1px solid var(--accent-line);border-radius:4px;padding:2px 6px;flex:none}
+.acc summary .mark{margin-left:auto;font-family:var(--mono);color:var(--ink-3);font-size:13px}
+.acc details[open] summary .mark{color:var(--accent)}
+.acc .body{padding:2px 16px 16px;border-top:1px solid var(--rule)}
+.acc .body p{font-size:15px;margin-bottom:11px}
+
+/* callout */
+.pull{border-left:3px solid var(--accent);padding:4px 0 4px 18px;margin:26px 0;font-family:var(--serif);font-size:19px;line-height:1.5;color:var(--ink);max-width:58ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:9px;padding:15px 16px}
+.card h5{margin:0 0 7px;font-size:15px;font-weight:640}
+.card p{font-size:14px;margin:0;color:var(--ink-2)}
+.card .num{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;color:var(--accent);display:block;margin-bottom:3px}
+footer{border-top:1px solid var(--rule);padding:30px 0 60px;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+footer a{color:var(--accent)}
+.trilogy{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0 0}
+.trilogy a{display:block;padding:13px 15px;border:1px solid var(--rule);border-radius:8px;text-decoration:none;background:var(--panel)}
+.trilogy a:hover{border-color:var(--accent)}
+.trilogy .n{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:4px}
+.trilogy .t{font-weight:620;font-size:14.5px;color:var(--ink)}
+.trilogy a.cur{border-color:var(--accent);background:var(--accent-wash)}
+</style>
+
+<header class="top"><div class="wrap">
+  <span class="brand"><b>Kimi K3</b> &nbsp;/&nbsp; 01 Architecture &amp; Systems</span>
+  <nav>
+    <a href="#arch">Architecture</a><a href="#kda">KDA</a><a href="#attnres">AttnRes</a><a href="#moe">LatentMoE</a>
+    <a href="#infra">Infra</a><a href="#serve">Serving</a><a href="#evals">Evals</a>
+  </nav>
+  <button class="tgl" id="tgl">Theme</button>
+</div></header>
+
+<div class="wrap hero">
+  <p class="eyebrow">Moonshot AI · Technical Report · July 2026</p>
+  <h1>2.8 trillion parameters, and almost none of them run.</h1>
+  <p class="lede">Kimi K3 is the first open 3T-class model. Its architecture is a single sustained argument: widen the flow of information along <em>sequence</em>, <em>depth</em>, and <em>width</em> simultaneously — then build the kernels, schedulers and caches that make each widening survive contact with real hardware.</p>
+  <dl class="specstrip">
+    <div class="spec"><dt>Total params</dt><dd>2.78<small>T</small></dd></div>
+    <div class="spec"><dt>Activated / token</dt><dd>104.2<small>B</small></dd></div>
+    <div class="spec"><dt>Layers</dt><dd>93</dd></div>
+    <div class="spec"><dt>Attention</dt><dd>69<small>KDA</small> 24<small>MLA</small></dd></div>
+    <div class="spec"><dt>Routed experts</dt><dd>896<small>· 16 live</small></dd></div>
+    <div class="spec"><dt>Context</dt><dd>1<small>M tokens</small></dd></div>
+    <div class="spec"><dt>Vision tower</dt><dd>401<small>M, from scratch</small></dd></div>
+    <div class="spec"><dt>vs. K2 efficiency</dt><dd>2.5<small>×</small></dd></div>
+  </dl>
+</div>
+
+<div class="wrap shell">
+<aside class="rail">
+  <p class="rl">Contents</p>
+  <a href="#arch">The three axes</a>
+  <a href="#kda">Kimi Delta Attention</a>
+  <a href="#mla">Gated MLA &amp; NoPE</a>
+  <a href="#attnres">Attention Residuals</a>
+  <a href="#moe">Stable LatentMoE</a>
+  <a href="#vision">Native vision</a>
+  <a href="#infra">Training infra</a>
+  <a href="#serve">Inference &amp; serving</a>
+  <a href="#evals">Evaluation</a>
+  <a href="#cases">What it built</a>
+</aside>
+
+<main>
+
+<!-- ============ ARCH ============ -->
+<section id="arch">
+  <p class="kicker">The thesis</p>
+  <h2>Three axes, one architecture</h2>
+  <p>Every component in K3 maps onto exactly one direction in which information is allowed to move. That framing is what makes an otherwise sprawling list of tricks legible.</p>
+  <div class="grid2">
+    <div class="card"><h5>Sequence → Hybrid attention</h5><p>Three Kimi Delta Attention layers per one Gated MLA layer. Linear-cost recurrent mixing carries the long range; periodic global attention preserves unrestricted token-to-token reach.</p></div>
+    <div class="card"><h5>Depth → Attention Residuals</h5><p>A residual stream is an RNN over layers. AttnRes replaces uniform accumulation with a learned softmax over <em>all</em> preceding layer outputs.</p></div>
+    <div class="card"><h5>Width → Stable LatentMoE</h5><p>896 routed experts, 16 live — sparsity 56. Experts work in a half-width latent space so routing multiplicity stops costing full-width traffic.</p></div>
+  </div>
+
+  <div class="mod">
+    <div class="mod-h"><h4>The 93-layer backbone</h4><span class="sub">click any layer</span></div>
+    <div class="mod-b">
+      <div class="stack" id="stack"></div>
+      <div class="legend">
+        <span><i style="background:color-mix(in srgb,var(--accent) 34%,var(--panel))"></i>KDA — linear, recurrent state</span>
+        <span><i style="background:var(--accent)"></i>Gated MLA — global, NoPE</span>
+        <span style="color:var(--ink-2)">Pattern: (KDA×3 + MLA) × 23, then one final MLA so the last layer is always global.</span>
+      </div>
+      <div class="readout" id="layerOut" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <div class="mod">
+    <div class="mod-h"><h4>K2 → K3</h4><span class="sub">what actually changed</span></div>
+    <div class="mod-b scroller">
+      <table id="cmp"><thead><tr><th>Dimension</th><th>Kimi K2</th><th>Kimi K3</th><th>Δ</th></tr></thead><tbody></tbody></table>
+      <p class="note" style="margin-top:12px">Hidden dimension and vocabulary are untouched. The model got <em class="term">deeper and sparser</em>, not wider — width growth was spent on expert count inside a compressed latent space.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KDA ============ -->
+<section id="kda">
+  <p class="kicker">Sequence axis</p>
+  <h2>Kimi Delta Attention</h2>
+  <p>KDA is the delta rule with a <em class="term">channel-wise forget gate</em>. Each token updates a fixed-size recurrent state <code>S ∈ ℝ^(d_k×d_v)</code>: decay the state per channel, erase the component along the current key, then write the new value.</p>
+  <p style="font-family:var(--mono);font-size:15px;background:var(--panel-2);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;max-width:none;overflow-x:auto">
+    S<sub>t</sub> = (I − β<sub>t</sub> k<sub>t</sub> k<sub>t</sub><sup>⊤</sup>) · Diag(α<sub>t</sub>) · S<sub>t−1</sub> &nbsp;+&nbsp; β<sub>t</sub> k<sub>t</sub> v<sub>t</sub><sup>⊤</sup>
+  </p>
+  <p>α<sub>t</sub> is the per-channel retention factor, β<sub>t</sub> the write strength. Because the state never grows, the cost of an extra token is constant — the property the whole 1M-context story rests on.</p>
+
+  <figure class="code"><figcaption>KDA — sequential form and the chunkwise form it's actually run as <span class="ref">§2.1.1 · Eq. 1–5</span></figcaption><pre><span class="c"># ---- per-token projections (all heads independent) ----</span>
+q, k = L2Norm(Swish(ShortConv(W_q @ x))), L2Norm(Swish(ShortConv(W_k @ x)))
+v    = Swish(ShortConv(W_v @ x))
+beta = Sigmoid(W_beta @ x)              <span class="c"># write strength, scalar</span>
+z    = W_up @ (W_down @ x) + b_alpha    <span class="c"># low-rank decay logits, per key channel</span>
+
+<span class="c"># ---- THE CHANGE: bounded log-decay (Kimi K3 vs Kimi Linear) ----</span>
+<span class="c"># Kimi Linear:  g = -exp(A) * Softplus(z)        → (-inf, 0], can underflow alpha to 0</span>
+g     = G_MIN * Sigmoid(exp(A) * z)     <span class="c"># G_MIN = -5, A learnable per head</span>
+alpha = exp(g)                          <span class="c"># now guaranteed &gt; e^-5 ≈ 6.7e-3</span>
+
+<span class="c"># ---- conceptual recurrence (what the math says) ----</span>
+S = zeros(d_k, d_v)
+<span class="k">for</span> t <span class="k">in</span> range(T):
+    S = (I - beta[t] * outer(k[t], k[t])) @ diag(alpha[t]) @ S \
+        + beta[t] * outer(k[t], v[t])     <span class="c"># decay, then erase, then write</span>
+    o[t] = S.T @ q[t]
+
+<span class="c"># ---- chunkwise form (what the kernel does): serial across chunks, parallel within ----</span>
+<span class="k">for</span> chunk <span class="k">in</span> chunks(T, size=C):
+    Gam = cumprod(alpha[chunk], axis=0)          <span class="c"># channel-wise cumulative decay</span>
+    A_intra = Tril((Q[chunk] * Gam) @ (K[chunk] / Gam).T)
+    <span class="c">#                                  ^^^^^^^^^^^ 1/Gam is why the floor matters:</span>
+    <span class="c">#   without G_MIN this reciprocal can overflow BF16, forcing the slow</span>
+    <span class="c">#   position-pair path on every diagonal tile. With it, the 16-token tile</span>
+    <span class="c">#   log-decay stays in (-80, 0) and EVERY causal tile is a dense Tensor Core GEMM.</span>
+    U, W  = UT_transform(K[chunk], V[chunk], beta[chunk])
+    V_eff = U - W @ S
+    O[chunk] = (Gam * Q[chunk]) @ S  +  A_intra @ V_eff
+    <span class="c">#          └─ inter-chunk ─┘        └── intra-chunk ──┘</span>
+    S = propagate(S, chunk)                      <span class="c"># the serial dependency</span>
+
+<span class="c"># ---- full-rank output gate (K3 replaces Kimi Linear's low-rank one) ----</span>
+y = W_o @ (Sigmoid(W_g @ x) * RMSNorm(o))</pre></figure>
+
+  <h3>The change that actually mattered: bounding the decay</h3>
+  <p>Chunkwise KDA rescales keys inside a chunk by the reciprocal cumulative decay <code>1/Γ</code>. If retention can approach zero, that reciprocal explodes past what BF16 can hold. Kimi Linear handled this with log-space arithmetic plus 16-token sub-tiles — but the <em>diagonal</em> tiles still needed explicit position-pair computation, and that was the intra-chunk bottleneck.</p>
+  <p>K3 swaps the unbounded negative-Softplus map for a <em class="term">scaled sigmoid with a floor</em>:</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Log-decay parameterisation</h4><span class="sub">g<sub>min</sub> = −5 is the whole trick</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <label for="gminS">g<sub>min</sub></label><input type="range" id="gminS" min="-12" max="-2" step="0.5" value="-5">
+        <span id="gminV" style="font-family:var(--mono)"></span>
+        <span class="seg"><button data-k="both" class="on">Both</button><button data-k="kl">Kimi Linear</button><button data-k="k3">Kimi K3</button></span>
+      </div>
+      <canvas id="decayC" width="920" height="300"></canvas>
+      <div class="stats" id="decayStats"></div>
+      <p class="note" style="margin-top:10px">With a floor at −5 every retention factor stays above e<sup>−5</sup> ≈ 6.7×10<sup>−3</sup>. Cumulative log-decay over a 16-token tile lands in (−80, 0), so the reciprocal rescale stays under e<sup>80</sup> — inside BF16 range. Consequence: <em class="term">every</em> causal tile, diagonal included, becomes a dense Tensor Core matmul. The special-case path disappears.</p>
+    </div>
+  </div>
+  <p>K3 also promotes KDA's output gate from Kimi Linear's low-rank form to a full-rank input-dependent projection, applied after head-wise RMSNorm.</p>
+</section>
+
+<!-- ============ MLA ============ -->
+<section id="mla">
+  <p class="kicker">Sequence axis, continued</p>
+  <h2>Gated MLA — and no positional encoding at all</h2>
+  <p>Every fourth layer is Multi-head Latent Attention: keys and values are compressed into one low-dimensional latent per token and reconstructed on the fly, so the KV cache stays small while global attention stays exact.</p>
+  <p>The interesting decision is <em class="term">NoPE</em>. K3 applies no positional encoding to the MLA layers whatsoever. Position is carried implicitly by the KDA layers' recency-aware decay. The payoff is direct: extending to 1M tokens requires no RoPE base retuning, no YaRN interpolation, no positional surgery of any kind. The model simply extrapolates.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>What the hybrid buys at long context</h4><span class="sub">structural model — layer accounting, not measured bytes</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <label for="ctxS">Context</label><input type="range" id="ctxS" min="13" max="20" step="1" value="17">
+        <span id="ctxV" style="font-family:var(--mono)"></span>
+      </div>
+      <canvas id="kvC" width="920" height="230"></canvas>
+      <div class="stats" id="kvStats"></div>
+      <p class="note" style="margin-top:10px">A 93-layer all-global design pays per-token cache in every layer. K3 pays it in 24, and carries 69 fixed-size recurrent states that cost the same at 8K as at 1M. This chart counts <em>which layers hold length-proportional state</em>; it is a structural ratio, not a byte measurement.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ATTNRES ============ -->
+<section id="attnres">
+  <p class="kicker">Depth axis</p>
+  <h2>Attention Residuals</h2>
+  <p>The argument is elegant. A standard residual stream compresses everything a network has computed into one running state <code>h<sub>l</sub></code> — structurally an RNN over depth, with the same bottleneck recurrence has over time. Transformers solved that bottleneck for sequences by letting each position <em>attend</em>. AttnRes applies exactly that move to depth.</p>
+  <p>Each layer carries a learnable pseudo-query; the outputs of all preceding layers (plus the token embedding) are keys and values, RMSNorm'd so a loud layer can't dominate. A layer reads from wherever it needs to.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Who can read whom</h4><span class="sub">rows = layers · columns = sources</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <span class="seg" id="arSeg"><button data-m="std" class="on">Standard residual</button><button data-m="full">Full AttnRes</button><button data-m="blk">Block AttnRes (N=8)</button></span>
+      </div>
+      <canvas id="arC" width="920" height="360"></canvas>
+      <div class="readout" id="arOut" style="margin-top:14px"></div>
+    </div>
+  </div>
+  <p>Full AttnRes is affordable in arithmetic — depth is under 100, so O(L²d) is nothing — but the O(Ld) cost of keeping every layer output alive is real, and worse under pipeline parallelism where those tensors cross stage boundaries. So K3 uses the <em class="term">block</em> variant: 8 blocks of 12 layers, each block summed to one representation, full attention across the 9 block-level vectors (embedding included). Memory and cross-stage traffic drop from O(Ld) to O(Nd), and — the part that pays off at serving time — the inference state is bounded, letting the parallel inter-block result merge with the sequential intra-block partial sum through online softmax.</p>
+  <figure class="code"><figcaption>Block Attention Residuals <span class="ref">§2.2 · Eq. 8–10</span></figcaption><pre><span class="c"># Standard residual: h = h + f(h). One state, uniform accumulation, no selectivity.</span>
+
+<span class="c"># ---- Full AttnRes: every layer attends over every preceding layer ----</span>
+sources = [token_embedding]                    <span class="c"># index 0 is always the embedding</span>
+<span class="k">for</span> l <span class="k">in</span> range(L):
+    logits = [dot(w[l], RMSNorm(s)) <span class="k">for</span> s <span class="k">in</span> sources]
+    <span class="c">#                    ^^^^^^^^ stops a loud layer from dominating the weights</span>
+    h[l] = sum(softmax(logits)[i] * sources[i] <span class="k">for</span> i <span class="k">in</span> range(len(sources)))
+    sources.append(f[l](h[l]))
+<span class="c"># arithmetic O(L^2 d): fine at L &lt; 100. Memory O(Ld): NOT fine — every layer</span>
+<span class="c"># output must stay live, and cross pipeline stages.</span>
+
+<span class="c"># ---- Block AttnRes: what K3 ships. 8 blocks x 12 layers. ----</span>
+blocks = [token_embedding]                     <span class="c"># b_0</span>
+
+<span class="k">for</span> n <span class="k">in</span> range(N_BLOCKS):                       <span class="c"># N = 8</span>
+    running_sum = 0                            <span class="c"># partial sum within this block</span>
+    <span class="k">for</span> i <span class="k">in</span> range(BLOCK_SIZE):                  <span class="c"># S = 12</span>
+        V = blocks <span class="k">if</span> i == 0 <span class="k">else</span> blocks + [running_sum]
+        h = attend(query=w[n][i], keys=V, values=V)
+        running_sum += f(h)                    <span class="c"># block outputs are SUMMED,</span>
+    blocks.append(running_sum)                 <span class="c"># not individually retained</span>
+
+output = attend(query=w_final, keys=blocks, values=blocks)
+<span class="c"># memory + PP communication: O(Ld) -&gt; O(Nd)</span>
+<span class="c"># and because inference state is now bounded, the parallel inter-block result</span>
+<span class="c"># merges with the sequential intra-block partial sum via ONLINE SOFTMAX —</span>
+<span class="c"># which is what makes it cheap to SERVE, not just cheap to train.</span></pre></figure>
+
+  <p class="note">N ≈ 8 recovers most of the benefit across scales. K3's 8×12 partition leaves a partial final block, giving 9 block representations counting the embedding.</p>
+</section>
+
+<!-- ============ MOE ============ -->
+<section id="moe">
+  <p class="kicker">Width axis</p>
+  <h2>Stable LatentMoE — and the two ways it breaks</h2>
+  <p>Ordinary MoE hands every selected expert the full <code>d</code>-dimensional token, so doubling active experts doubles communication and weight traffic. LatentMoE splits the difference: two full-width <em>shared</em> experts handle common transformations, while 896 routed experts operate in a compact latent space of half the model width (3584). That is what makes 16-of-896 affordable at all.</p>
+  <p>At sparsity 56 and 2.8T parameters, two failure modes get loud. First, the routed path chains <code>W↓</code> → gated multi-branch FFN → <code>W↑</code> into nearly four consecutive matmuls — ill-conditioned enough to explode activations. Second, balancing ~10³ experts per layer is well outside the regime where fixed-step bias updates behave. The "Stable" in the name is three answers to those two problems.</p>
+
+  <h3>1 · RMSNorm before the up-projection</h3>
+  <p>The aggregated routed representation's scale varies with which experts fired and how they were weighted. Normalising it before <code>W↑</code> desensitises the routed branch to that variation before it merges with the full-width shared branch. Beyond stability, it consistently improves validation loss.</p>
+
+  <h3>2 · SiTU-GLU: soft-capping both factors</h3>
+  <p>SwiGLU multiplies two unbounded factors, so coincident large coordinates produce outliers and overflow risk in low precision. Plain GLU's sigmoid gate is bounded but loses Swish's near-linear positive regime. SiTU-GLU applies <code>softcap(x,β) = β·tanh(x/β)</code> to the linear factor of the gate and, independently, to the up branch.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>SwiGLU vs SiTU-GLU</h4><span class="sub">β₁ = 4 (gate) · β₂ = 25 (up) · output bounded by β₁β₂ = 100</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <label for="b1">β₁ gate</label><input type="range" id="b1" min="1" max="12" step="0.5" value="4"><span id="b1v" style="font-family:var(--mono)"></span>
+        <label for="b2">β₂ up</label><input type="range" id="b2" min="5" max="60" step="1" value="25"><span id="b2v" style="font-family:var(--mono)"></span>
+      </div>
+      <canvas id="situC" width="920" height="300"></canvas>
+      <div class="stats" id="situStats"></div>
+      <p class="note" style="margin-top:10px">Near the origin the scaled tanh is approximately linear, so SiTU-GLU tracks SwiGLU where the activations actually live. Far out, it flattens to a hard ceiling instead of running away.</p>
+    </div>
+  </div>
+
+  <h3>3 · Quantile Balancing</h3>
+  <p>K3 uses auxiliary-loss-free routing: a per-expert bias <code>b<sub>j</sub></code> is added to the router score for Top-k selection only — it never enters the mixture weights, so it steers dispatch without touching the router's gradients. DeepSeek's original rule nudges that bias by a fixed step in the direction of the load error, and the step size trades slow adaptation against oscillation. At 896 experts per layer, that trade gets bad.</p>
+  <p>QB solves for the bias directly. Route with Top-(k+1) instead of Top-k: the extra entry <em>is</em> the cutoff α<sub>i</sub> a token demands. The number of tokens expert <em>j</em> would receive under a candidate bias is monotone in that bias, so setting it to the target load <code>q = mk/n</code> means picking the (q+1)-th largest margin — i.e. the <em class="term">(1−k/n)-quantile</em> of <code>s<sub>:,j</sub> − α</code>. One forward pass, closed form, applied next step so a batch is never routed by a bias derived from itself.</p>
+
+  <figure class="code"><figcaption>Stable LatentMoE forward + the Quantile Balancing update <span class="ref">§2.3 · Eq. 11–14</span></figcaption><pre><span class="c"># ================= FORWARD =================</span>
+<span class="k">def</span> stable_latent_moe(x):                  <span class="c"># d = 7168, latent = 3584, E = 896, k = 16</span>
+    z = W_down @ x                         <span class="c"># project to the LATENT space first —</span>
+                                           <span class="c"># this is what makes 16-of-896 affordable</span>
+    s = Sigmoid(W_router @ x)
+    T = argtopk(s + b, k)                  <span class="c"># bias steers DISPATCH only...</span>
+    p = {j: s[j] / sum(s[r] <span class="k">for</span> r <span class="k">in</span> T) <span class="k">for</span> j <span class="k">in</span> T}
+    <span class="c">#   ...and is deliberately ABSENT from p, so it never touches the</span>
+    <span class="c">#   mixture weights or the router's gradients.</span>
+
+    u = sum(p[j] * routed_expert[j](z) <span class="k">for</span> j <span class="k">in</span> T)   <span class="c"># latent-width experts</span>
+    <span class="k">return</span> sum(shared_expert[j](x) <span class="k">for</span> j <span class="k">in</span> range(2)) \
+         + W_up @ RMSNorm(u)               <span class="c"># ← the added RMSNorm: desensitises</span>
+                                           <span class="c">#   the routed branch to scale variation</span>
+                                           <span class="c">#   before it meets the shared branch</span>
+
+<span class="c"># expert FFN uses SiTU-GLU instead of SwiGLU — both factors soft-capped:</span>
+<span class="c">#   SiTU-GLU(x) = [B1*tanh(Wg@x / B1) * Sigmoid(Wg@x)] * [B2*tanh(Wu@x / B2)]</span>
+<span class="c">#   B1 = 4, B2 = 25  =&gt;  |output| &lt;= 100, vs SwiGLU which is unbounded.</span>
+
+<span class="c"># ================= QUANTILE BALANCING =================</span>
+<span class="c"># Old (DeepSeek-V3): b[j] += gamma * sign(mean_load - load[j])</span>
+<span class="c">#   one fixed step size trading adaptation speed against oscillation.</span>
+<span class="c">#   At E = 896 per layer that trade stops working.</span>
+<span class="c"># New: solve for the bias in closed form from one forward pass.</span>
+
+<span class="k">def</span> quantile_balancing(scores, b_old, k, n):     <span class="c"># scores: [m tokens, n experts]</span>
+    <span class="c"># Route with Top-(k+1). The (k+1)-th entry IS the cutoff a token demands —</span>
+    <span class="c"># no separate token-side quantile needed.</span>
+    alpha = [sorted(scores[i] + b_old, reverse=<span class="k">True</span>)[k] <span class="k">for</span> i <span class="k">in</span> range(m)]
+
+    b_new = []
+    <span class="k">for</span> j <span class="k">in</span> range(n):
+        margins = [scores[i][j] - alpha[i] <span class="k">for</span> i <span class="k">in</span> range(m)]
+        <span class="c"># count of tokens reaching expert j is monotone decreasing in -b.</span>
+        <span class="c"># Setting that count to the target q = m*k/n picks the (q+1)-th</span>
+        <span class="c"># largest margin — i.e. the (1 - k/n) quantile.</span>
+        b_new.append(-quantile(margins, 1 - k/n))
+
+    b_new = b_new - mean(b_new)      <span class="c"># common offset leaves Top-k unchanged</span>
+    <span class="k">return</span> b_new                      <span class="c"># applied NEXT step: a batch is never routed</span>
+                                     <span class="c"># by a bias derived from itself</span>
+
+<span class="c"># At real scale the margins number in the MILLIONS, spread across ranks and</span>
+<span class="c"># accumulation steps — gathering them for an exact quantile is not viable. So:</span>
+<span class="k">def</span> quantile_at_scale(margins_local, j):
+    hist = histogram(margins_local, bins=FEW_HUNDRED)
+    hist = all_reduce_sum(hist)      <span class="c"># counts are ADDITIVE, so the pooled</span>
+                                     <span class="c"># histogram represents the whole global</span>
+                                     <span class="c"># batch regardless of sharding</span>
+    <span class="k">return</span> quantile_from_counts(hist, 1 - k/n)   <span class="c"># exact up to bin width</span></pre></figure>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Quantile Balancing, live</h4><span class="sub">scale model: 24 experts, k = 4, 240 tokens (K3 runs 896 / 16)</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <span class="seg" id="qbSeg"><button data-q="off" class="on">Top-k only</button><button data-q="on">+ Quantile Balancing</button></span>
+        <label for="skewS">Router skew</label><input type="range" id="skewS" min="0" max="26" step="1" value="14">
+        <label for="qbSteps">Training steps</label><input type="range" id="qbSteps" min="1" max="12" step="1" value="6" style="width:120px">
+        <span id="qbStepsV" style="font-family:var(--mono)"></span>
+        <button class="btn" id="qbRe">Resample</button>
+      </div>
+      <div class="bars" id="qbBars"></div>
+      <div class="egrid" id="qbGrid" style="margin-top:6px"></div>
+      <div class="stats" id="qbStats"></div>
+      <p class="note" style="margin-top:10px">This runs the actual update: cutoffs from Top-(k+1), then b<sub>j</sub> ← −quantile<sub>1−k/n</sub>(s<sub>:,j</sub> − α), mean-centred — applied once per step, exactly as in training, so the step slider shows it converging. At real scale the margins number in the millions across ranks, so K3 reads each quantile from a <em>histogram</em> — one all-reduce over a few hundred bins per expert, exact up to bin width because counts are additive regardless of sharding.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ VISION ============ -->
+<section id="vision">
+  <p class="kicker">Modality</p>
+  <h2>Native vision, and a negative result worth stating</h2>
+  <p>Text, images and video share one backbone in one context, with no post-hoc alignment stage. Rendered output and the code that produced it live in the same token stream — which is what makes vision-in-the-loop behaviour (write code, look at the screenshot, fix it) possible without a cross-model handoff.</p>
+  <p>The notable choice: <em class="term">MoonViT-V2 is trained from scratch with next-token prediction</em>, not initialised from SigLIP. Standard practice assumes contrastive pre-training gives a head start. Moonshot dropped it primarily for stability — the SigLIP-initialised tower showed persistently higher gradient norms with frequent spikes under joint optimisation, while the from-scratch tower stayed flat. And it matched the SigLIP baseline across vision evals anyway.</p>
+  <div class="pull">"Contrastive pre-training is unnecessary as an initialisation for multimodal language models at scale." — a claim the field has largely assumed the opposite of.</div>
+  <div class="grid2">
+    <div class="card"><span class="num">27</span><h5>Layers, ~401M params</h5><p>RMSNorm, all bias terms removed from linear and attention projections — further stabilising from-scratch optimisation.</p></div>
+    <div class="card"><span class="num">4×</span><h5>Token reduction</h5><p>2×2 pixel-shuffle before projection keeps inputs up to 3584×3584 affordable inside a 1M-token context.</p></div>
+    <div class="card"><span class="num">2</span><h5>Factorised attention passes</h5><p>Intra-frame spatial and inter-frame temporal, with temporal pooling compressing along time. Images and video share all parameters.</p></div>
+  </div>
+</section>
+
+<!-- ============ INFRA ============ -->
+<section id="infra">
+  <p class="kicker">Systems</p>
+  <h2>Training infrastructure</h2>
+  <p>K3 stacks three system problems that rarely co-occur: a recurrent attention formulation hostile to wide parallelism, 3T-class sparse multimodal training, and million-token agentic rollouts. Each gets a co-designed answer.</p>
+
+  <div class="acc">
+    <details open><summary><span class="tag">KDA</span>Making a serial recurrence parallel<span class="mark">＋</span></summary><div class="body">
+      <p><strong>FlashKDA</strong> — a CUTLASS chunkwise kernel that overlaps intra-chunk computation with cross-chunk state propagation, instead of alternating between them and leaving SMs idle during the serial phase. Work is split into token-parallel stages and a head-parallel recurrence, tuned independently. Now a backend of flash-linear-attention.</p>
+      <p><strong>Intra-device context parallelism</strong> — tensor parallelism shards heads but never shortens the recurrence, so ultra-long prefill idles most SMs. Since each segment's state transition can be evaluated independently of the incoming state and composed exactly afterwards, an SM-level planner splits the sequence <em>within one rank</em>. No cross-device traffic.</p>
+      <p><strong>KDA Context Parallelism (KCP)</strong> — the cross-device version, and the subtle one. Vanilla linear attention is additive, so ranks can just sum local states. KDA isn't: the delta rule applies a token-dependent matrix M<sub>t</sub> to the incoming state <em>before</em> writing. KCP decomposes each segment into two locally computable pieces — a cumulative transition ∏M and a state generated from zero — which compose associatively, so incoming states are recovered by a prefix scan. Cost: one fixed-size all-gather, independent of sequence length.</p>
+      <figure class="code"><figcaption>KDA Context Parallelism <span class="ref">§5.1.2 · Eq. 17</span></figcaption><pre><span class="c"># Vanilla linear attention is ADDITIVE, so CP is trivial:</span>
+<span class="c">#     S_incoming[i] = sum(S_local[j] for j &lt; i)      # just sum and go</span>
+<span class="c"># KDA is NOT: the delta rule applies a token-dependent M_t to the incoming</span>
+<span class="c"># state BEFORE writing, so a segment's effect depends on what entered it.</span>
+<span class="c">#     S_t = M_t @ S_{t-1} + beta_t * outer(k_t, v_t)</span>
+<span class="c">#     M_t = (I - beta_t * outer(k_t,k_t)) @ diag(alpha_t)</span>
+
+<span class="c"># KCP decomposes each rank's segment into two LOCALLY computable pieces:</span>
+<span class="k">def</span> local_fragments(tokens):
+    M_cum  = I
+    S_zero = zeros(d_k, d_v)
+    <span class="k">for</span> t <span class="k">in</span> tokens:
+        M_cum  = M_t(t) @ M_cum                <span class="c"># cumulative transition</span>
+        S_zero = M_t(t) @ S_zero + write(t)    <span class="c"># state as if S started at 0</span>
+    <span class="k">return</span> M_cum, S_zero                       <span class="c"># both computable BEFORE the</span>
+                                               <span class="c"># incoming state is known</span>
+
+M_i, S_i = local_fragments(my_tokens)
+all_M, all_S = all_gather(M_i, S_i)   <span class="c"># FIXED SIZE — independent of seq length.</span>
+                                      <span class="c"># (Softmax-attention CP must exchange KV</span>
+                                      <span class="c">#  blocks that GROW with sequence length.)</span>
+
+<span class="c"># rank-level updates compose associatively → recover incoming state by prefix scan</span>
+S = zeros(d_k, d_v)
+<span class="k">for</span> j <span class="k">in</span> range(my_rank):                <span class="c"># same document, in order</span>
+    S = all_M[j] @ S + all_S[j]
+<span class="c"># S is now exactly the state entering my segment. Linear compute scaling.</span></pre></figure>
+    </div></details>
+
+    <details><summary><span class="tag">MoonEP</span>Perfectly balanced expert parallelism<span class="mark">＋</span></summary><div class="body">
+      <p>Conventional EP leaves ranks unevenly loaded, which costs throughput and — because routed-expert activation shapes vary step to step — fragments memory. MoonEP forces every rank to receive exactly S×K tokens using dynamically planned redundant experts.</p>
+      <p>The load-bearing result is a proof: a balanced plan <em>always</em> exists with at most <strong>E/R redundant experts per rank</strong>, and the bound is essentially tight. Reserving that many slots guarantees planning never fails, so training is never interrupted. Prior schemes (ECHO, UltraEP) preset a redundancy count or a per-rank token cap, must halt when no feasible plan fits, and still leave residual imbalance.</p>
+      <p>Perfect balance then pays out three more times. <em>Zero-copy communication:</em> the planner precomputes every token's destination, so tokens land directly in expert-grouped positions on remote ranks and buffer views feed computation with no intermediate copies — and the buffer shrinks from S×K×R to S×K. <em>Sync-free execution:</em> shapes are statically known, eliminating the per-layer host↔device sync that stalls the pipeline between MoE layers. <em>Scheduling:</em> per-expert counts within a rank are still skewed, so a workload-aware GEMM scheduler picks parameters from an analytical cost model before launch; shared experts go to a separate stream to overlap.</p>
+      <figure class="code"><figcaption>MoonEP — perfect balance via bounded redundant experts <span class="ref">§5.2.1 · App. E</span></figcaption><pre><span class="c"># THEOREM (proved in App. E, and essentially tight):</span>
+<span class="c">#   A perfectly balanced plan ALWAYS exists using at most E/R redundant</span>
+<span class="c">#   experts per rank, where E = #experts, R = EP size.</span>
+<span class="c"># Consequence: reserve E/R slots and planning can never fail, so training</span>
+<span class="c"># is never interrupted. (ECHO / UltraEP preset a redundancy count or a</span>
+<span class="c"># per-rank token cap — and must STOP when no feasible plan fits.)</span>
+
+REDUNDANT_SLOTS_PER_RANK = E // R          <span class="c"># reserved once, statically</span>
+
+<span class="k">for</span> layer <span class="k">in</span> model:
+    <span class="c"># --- forward ---</span>
+    counts = router_output_counts(micro_batch, layer)
+    plan   = gpu_planning_kernel(counts)   <span class="c"># near-optimal heuristic; exact ILP</span>
+                                           <span class="c"># solutions computed offline as refs</span>
+    <span class="k">assert</span> plan.tokens_per_rank == S * K   <span class="c"># EXACTLY equal on every rank</span>
+    prefetch(plan.redundant_experts)       <span class="c"># before routed-expert compute</span>
+
+    <span class="c"># perfect balance unlocks three separate wins:</span>
+    <span class="c">#  1. ZERO-COPY: planner precomputes every token's destination, so tokens land</span>
+    <span class="c">#     directly in expert-grouped slots and buffer VIEWS feed the GEMM.</span>
+    <span class="c">#     Buffer size: S*K   (DeepEP worst case needs S*K*R)</span>
+    <span class="c">#  2. SYNC-FREE: shapes are statically known, so no host&lt;-&gt;device sync per</span>
+    <span class="c">#     layer to discover computation shapes. No inter-layer pipeline stall.</span>
+    <span class="c">#  3. SCHEDULING: per-expert counts WITHIN a rank are still skewed, so the</span>
+    <span class="c">#     routed-expert GEMM uses a workload-aware schedule chosen from an</span>
+    <span class="c">#     analytical cost model before launch, fixed during execution.</span>
+
+    <span class="c"># --- backward ---</span>
+    stage_gradients_in_local_reduce_buffer()
+    reduce_to_home_ranks(plan.redundant_experts)</pre></figure>
+    </div></details>
+
+    <details><summary><span class="tag">Memory</span>Fitting 2.8T into a bounded budget<span class="mark">＋</span></summary><div class="body">
+      <p><strong>Unified activation manager.</strong> Every tensor saved for backward gets a pluggable storage backend, so recomputation, quantisation and offload become interchangeable <em>policies</em> declared by annotation, composable per tensor and fully decoupled from model code. Most K3 activations use block-wise FP8 plus offload; element-wise operators are recomputed.</p>
+      <p><strong>Memory-efficient MoE.</strong> The permuted-probs gradient normally depends on the forward output; rewriting it to depend only on the intermediate activation and upstream gradient removes that dependency for one cheap element-wise op. The group-GEMM input is recovered by recomputing dispatch, and the resulting communication hides inside the GEMM backward.</p>
+      <p><strong>AttnRes without the memory bill.</strong> Block representations are generated once at the block boundary and shared; the whole AttnRes computation is checkpointed so per-layer saved activations match a standard residual network exactly. Pipeline stages exchange only newly generated blocks, hitting the theoretical memory floor.</p>
+      <p><strong>Cross-rank rebalancing.</strong> Interleaved 1F1B leaves early PP ranks holding more live activations, so K3 remotely offloads activations <em>into other PP ranks' memory</em> over the Mooncake Transfer Engine. Gradients are ZeRO-2 sharded and parked in CPU memory.</p>
+      <p><strong>P2P Muon.</strong> Newton–Schulz needs whole parameter matrices, but the optimizer shards them. Rather than all-gathering the entire parameter buffer on every rank, each rank pulls only the shards it owns peer-to-peer — no full-parameter buffer, less communication, pipelined against computation.</p>
+    </div></details>
+
+    <details><summary><span class="tag">Vision</span>Hiding the encoder entirely<span class="mark">＋</span></summary><div class="body">
+      <p>Large images and long videos make the vision tower's cost both large and wildly variable, which is poison for a synchronous pipeline. K3 shards a single large image across devices along the patch dimension with gather-KV attention, and spreads multiple large images across sub-CP groups so the communication fraction doesn't grow with scale.</p>
+      <p>Then it exploits pipeline bubbles: under interleaved 1F1B the first micro-batches' text forwards all bunch up at the start and the last micro-batches' backwards finish at the very end. ViT forwards for the first micro-batches run synchronously up front; the rest are scheduled <em>into the bubbles</em>. Most of the encoder's cost disappears into space that was idle anyway.</p>
+    </div></details>
+
+    <details><summary><span class="tag">Agentic RL</span>Million-token rollouts on a few hundred GPUs<span class="mark">＋</span></summary><div class="body">
+      <p><strong>External KV cache pool.</strong> At 1M context a prefix miss is catastrophic, and partial rollouts make it worse — every iteration begins with a pile of unfinished long prefills arriving at once. K3 decouples prefix retention from GPU residency: idle reusable prefixes are written back to CPU DRAM <em>only when evicted</em> (not write-through), then prefetched before reuse. KDA states are offloaded and prefetched alongside their MLA blocks so lifecycles stay aligned. Training weights and optimizer states go to NVMe between iterations to free the DRAM.</p>
+      <p><strong>Auto-throttling scheduler.</strong> Context grows as a trajectory advances, so any fixed concurrency is either wasteful early or causes preemption late. The scheduler reads active/queued request counts and KV utilisation at runtime and modulates how many requests reach the engine.</p>
+      <p><strong>Gradient-buffer reuse.</strong> Forward-only reference models are kept in CPU memory and materialised into the policy's FP32 gradient-buffer storage — safe, because those buffers get overwritten by real gradients later. Two VPP chunk slots ping-pong: one computes while the other prefetches.</p>
+    </div></details>
+
+    <details><summary><span class="tag">AgentENV</span>51 million sandboxes<span class="mark">＋</span></summary><div class="body">
+      <p>Container runtimes weren't survivable: capable agents exploring aggressively produced kernel panics and deadlocks. But clamping down would cap capability — complex tasks need environments where an agent can mount disks, run containers, even launch VMs. AgentENV runs Firecracker microVMs instead.</p>
+      <p>The lifecycle primitives are what make it an <em>RL</em> system rather than just a sandbox. Incremental checkpointing saves only pages dirtied since the last checkpoint: <strong>133 ms to checkpoint, 49 ms to resume</strong>. On top of that: <em>Pause/Resume</em> — a paused sandbox costs nothing, and a sandbox spends up to <strong>98% of its life waiting on model inference</strong>. <em>Fork</em> — clone exact state while the original keeps running, for side-effect-free reward judging. <em>Snapshot</em> — periodic saves for error recovery.</p>
+      <p>Density: OverlayBD images with a custom ublk driver, layer sharing and P2P transport give sub-second launch at scale; copy-on-write memory and page-cache tuning reach <strong>6.5× memory overcommit</strong>.</p>
+      <p style="font-family:var(--mono);font-size:14px;color:var(--accent)">Total across K3 training and evaluation: 51,219,741 sandboxes over 1,505,678 distinct images.</p>
+    </div></details>
+  </div>
+</section>
+
+<!-- ============ SERVING ============ -->
+<section id="serve">
+  <p class="kicker">Production</p>
+  <h2>Serving a hybrid model is its own research problem</h2>
+  <p>Two cache types with incompatible shapes, brand-new modules with no existing kernels, and traffic whose per-request cost spans three orders of magnitude.</p>
+
+  <h3>The prefix-cache granularity conflict</h3>
+  <p>Block-hash prefix caching assumes one block size shared by every layer. But MLA pages per token, while KDA holds one large recurrent state per sequence — snapshots are only affordable at sparse boundaries, which forces the shared block to 1024–6144 tokens. And since hashing is tied to the storage block, hash granularity gets dragged along. At that coarseness caching is nearly useless: any request shorter than one block can never be reused, and chunked prefill exports nothing cacheable until it crosses a full boundary.</p>
+  <p>K3 decouples the two. Prefix hashing runs on fine <em class="term">512-token hash blocks</em> inside MLA pages; the physical block stays the coarse allocation unit. KDA checkpoints are saved only at a sparse subset of those same hash endpoints — the only positions a lookup could ever name.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>A hit at token 2560, inside a 6144-token block</h4><span class="sub">hover the hash blocks</span></div>
+    <div class="mod-b">
+      <canvas id="cacheC" width="920" height="210"></canvas>
+      <p class="note" style="margin-top:10px">Lookup runs in two stages. MLA matches whole physical blocks by chained hash and, at the first miss, falls back to hash endpoints inside it — so partially filled pages stay hittable. Then KDA requires a persisted checkpoint at that boundary <em>in every KDA cache group</em>. The hit is the longest boundary satisfying both: always a multiple of 512, never required to be a multiple of the physical block. The request resumes prefill from 2560 with zero recompute of [0, 2560).</p>
+      <p class="note">Three consistency rules follow from concrete failure modes: every hit block is pinned across all groups before any allocation (one group's private copy must not evict another's hit); blocks allocated or registered within the current scheduling step are excluded from matching until their GPU copies land; and evicting one group's checkpoint atomically invalidates its siblings — a checkpoint is hittable in every group or in none.</p>
+    </div>
+  </div>
+
+  <figure class="code"><figcaption>Two-stage hybrid prefix-cache lookup <span class="ref">§5.4.1</span></figcaption><pre><span class="c"># The conflict: block-hash caching needs ONE block size for all layers, but</span>
+<span class="c">#   MLA  → pages per token, tolerates fine blocks</span>
+<span class="c">#   KDA  → one big recurrent state per sequence, snapshots only affordable</span>
+<span class="c">#          at sparse boundaries → forces 1024-6144 token blocks</span>
+<span class="c"># At that coarseness caching is nearly useless. So: DECOUPLE the granularities.</span>
+
+PHYSICAL_BLOCK = 6144      <span class="c"># allocation unit</span>
+HASH_BLOCK     = 512       <span class="c"># hashing / matching unit  (12 per physical block)</span>
+
+<span class="k">def</span> lookup(request):
+    <span class="c"># ---- stage 1: MLA, coarse then fine ----</span>
+    b = match_whole_physical_blocks_by_chained_hash(request)
+    b = fall_back_to_hash_endpoints_inside(first_missing_block, b)
+    <span class="c">#   ^ each hash covers ALL preceding hash blocks, so matching an endpoint</span>
+    <span class="c">#     certifies the whole prefix up to it. Partially filled pages stay hittable —</span>
+    <span class="c">#     the registered endpoint simply advances as the page fills.</span>
+
+    <span class="c"># ---- stage 2: KDA must agree ----</span>
+    <span class="k">while</span> b &gt; 0:
+        <span class="k">if</span> all(group.has_checkpoint_at(b) <span class="k">for</span> group <span class="k">in</span> KDA_CACHE_GROUPS):
+            <span class="k">break</span>                      <span class="c"># every group, or none</span>
+        b -= HASH_BLOCK
+
+    <span class="k">return</span> b   <span class="c"># always a multiple of 512; NEVER required to be a multiple</span>
+              <span class="c"># of the 6144-token physical block</span>
+
+<span class="k">def</span> on_hit(b):
+    pin_across_all_groups(b)          <span class="c"># FAILURE MODE 1: allocating a private</span>
+                                      <span class="c"># copy for one group could evict a block</span>
+                                      <span class="c"># another group just hit</span>
+    restore_kda_state(copy=<span class="k">True</span>)      <span class="c"># checkpoints are READ-ONLY snapshots;</span>
+                                      <span class="c"># new ones go to fresh slots, never mutated</span>
+                                      <span class="c"># in place while visible to others</span>
+    copy_on_write(partial_mla_block)
+    resume_prefill(from_token=b)      <span class="c"># zero recompute of [0, b)</span>
+
+<span class="c"># FAILURE MODE 2: blocks allocated/registered within the CURRENT scheduling</span>
+<span class="c">#   step are excluded from matching until their GPU copies land — otherwise a</span>
+<span class="c">#   reader gets the previous owner's bytes.</span>
+<span class="c"># FAILURE MODE 3: evicting one group's checkpoint atomically invalidates its</span>
+<span class="c">#   siblings, so a boundary can never be half-restorable.</span></pre></figure>
+
+  <h3>Kernels</h3>
+  <div class="grid2">
+    <div class="card"><h5>KDA decode + speculation</h5><p>In-place state updates break under MTP speculative decoding: if verification rejects drafts, the state has already advanced past the last accepted token. Snapshotting per draft position would multiply state traffic at production batch sizes. Instead K3 caches only the <em>projected inputs</em> of draft tokens — far smaller than the state — rebuilds accepted states on-chip, and writes back only verified and bonus tokens. Replay, bonus token and next draft window share one recurrent loop in a single fused kernel.</p></div>
+    <div class="card"><h5>Block AttnRes</h5><p>Prefill: sequence parallelism decomposes the TP all-reduce into reduce-scatter + all-gather with the intra-block kernel between them, so each token's block representation materialises on exactly one rank. Decode: the inter-block pass runs on a side stream to overlap, and the intra-block merge + RMSNorm is fused into the preceding all-reduce.</p></div>
+    <div class="card"><h5>Sparse latent MoE</h5><p>Latent down-projection fused with the router into one GEMM; latent weights sharded with the output all-gather fused into the GEMM epilogue via multimem stores. At small batch the routed group-GEMMs are pure memory-bound weight streaming, so decoding uses a token-centric WarpDecode design — one warp per output neuron — subdivided into lane teams over disjoint expert subsets, with weights permuted offline to cut dequantisation cost.</p></div>
+    <div class="card"><h5>Fleet scheduling</h5><p>A 1M-context coding request carries a 400K-token prefix but only needs 4K of new prefill — a hit is orders of magnitude cheaper than a miss, so sessions are pinned to the cluster holding their cache. Consistent hashing assigns each session a primary <em>and</em> a secondary cluster, spreading failover re-prefill across the fleet instead of concentrating it. Separately, budget-based admission control gives each request class its own capacity, so a burst of million-token requests can't starve 2K-token ones.</p></div>
+  </div>
+</section>
+
+<!-- ============ EVALS ============ -->
+<section id="evals">
+  <p class="kicker">Results</p>
+  <h2>Where it lands</h2>
+  <p>K3 trails Claude Fable 5 and GPT-5.6 Sol overall, and beats everything else evaluated — open or proprietary. The more useful read is per-axis, because the profile is uneven in informative ways.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Benchmark suite</h4><span class="sub" id="evalCount"></span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <span class="seg" id="evSeg">
+          <button data-f="all" class="on">All</button><button data-f="Reasoning">Reasoning</button><button data-f="Coding">Coding</button>
+          <button data-f="Agentic">Agentic</button><button data-f="Vision">Vision</button>
+        </span>
+        <span class="seg" id="evRank"><button data-r="all" class="on">Every row</button><button data-r="lead">K3 leads</button><button data-r="trail">K3 trails</button></span>
+      </div>
+      <div class="scroller"><table id="evT"><thead><tr>
+        <th>Benchmark</th><th>Kimi K3</th><th>Fable 5</th><th>GPT-5.6 Sol</th><th>Opus 4.8</th><th>GPT-5.5</th><th>GLM-5.2</th>
+      </tr></thead><tbody></tbody></table></div>
+      <p class="note" style="margin-top:12px">All models at maximum reasoning effort (GPT-5.5 at xhigh). Fable 5 results include fallback behaviours; GPT-5.6 Sol results include potential cyberguards. Where a benchmark reports tool-augmented and unaugmented scores, the with-tool figure is shown. Best in each row is highlighted.</p>
+    </div>
+  </div>
+
+  <h3>Reading the profile</h3>
+  <ul>
+    <li><strong>Agentic is the strong suit.</strong> State of the art on BrowseComp (91.2), DeepSearchQA (95.0 F1), ResearchRubrics (76.2), MCPMark-Verified (94.5), AutomationBench (30.8), τ³-Banking (33.4) and Harvey Lab-AA (94.6). The exceptions are the Elo-rated knowledge-work suites, both led by Fable 5.</li>
+    <li><strong>Coding is strong but shaped oddly.</strong> Best on ProgramBench; +7 points over Fable 5 on the GPU-kernel-heavy SWE-Marathon; essentially tied with GPT-5.6 Sol on Terminal-Bench 2.1 — yet clearly behind on DeepSWE.</li>
+    <li><strong>Research-level reasoning is the honest gap.</strong> 93.5 on GPQA Diamond is frontier. CritPt at 23.4 is not, and HLE-Full trails both leaders with and without tools. The report names this as a key direction.</li>
+    <li><strong>Vision benefits enormously from tools.</strong> ZeroBench-main goes 23.0 → 41.0 with a Python interpreter; Math-Vision 94.3 → 97.8. Best score on OmniDocBench.</li>
+  </ul>
+
+  <h3>Cost efficiency is the actual headline</h3>
+  <div class="grid2">
+    <div class="card"><span class="num">38%</span><h5>of Fable 5's cost</h5><p>On Kimi Code Bench 2.0, 4.0 points behind at 38% of the cost. At <em>high</em> effort it already matches Opus 4.8's max-effort score for roughly a third of the price.</p></div>
+    <div class="card"><span class="num">$2.03</span><h5>per BrowseComp task</h5><p>Best score in the suite (91.2%) at half the cost of GPT-5.6 Sol and an order of magnitude below the Claude models at max effort.</p></div>
+    <div class="card"><span class="num">2.6×</span><h5>cheaper on GDPval-AA v2</h5><p>Within 50 Elo of GPT-5.6 Sol at 13% lower cost, and 2.6× cheaper than Fable 5.</p></div>
+  </div>
+
+  <h3>Independent evaluation</h3>
+  <div class="scroller"><table><thead><tr><th>Source</th><th>Kimi K3</th><th>Rank</th><th>Leader</th></tr></thead><tbody>
+    <tr><td>Artificial Analysis Intelligence Index v4.1</td><td class="k3">57.1</td><td>#4 / 580</td><td>Fable 5 — 59.9</td></tr>
+    <tr><td>Vals AI — Vals Index</td><td class="k3">74.7</td><td>#2 / 39</td><td>Fable 5 — 75.1</td></tr>
+    <tr><td>WebDev Arena (Elo)</td><td class="k3 best">1,678</td><td>#1 / 99</td><td>— first open model to top it</td></tr>
+    <tr><td>Text Arena (Elo)</td><td class="k3">1,486</td><td>#8 / 200</td><td>Fable 5 — 1,507</td></tr>
+    <tr><td>Agent Arena</td><td class="k3">9.1</td><td>#4 / 37</td><td>Fable 5 — 12.7</td></tr>
+  </tbody></table></div>
+
+  <h3>Cyber-security: a rare disclosure</h3>
+  <p>Frontier models from Anthropic and OpenAI refuse cyber tasks, making comparison infeasible — so Moonshot benchmarked against GLM-5.2 and published the numbers anyway. <strong>Tier 1 (vulnerability discovery):</strong> across dozens of deployed systems the model produced hundreds of candidates; of those human-reviewed, ~70% were genuine, including <strong>16 previously unknown vulnerabilities across six projects</strong> — among them a remotely triggerable heap out-of-bounds write in the Linux kernel introduced by an incomplete upstream fix, and a Dirty-COW-class RDMA flaw where an earlier fix had dropped a permission check.</p>
+  <p><strong>Tier 2 (end-to-end exploitation):</strong> 14 of 36 tasks (38.9%) versus 8 of 36 for GLM-5.2 — but 10 of those 14 come from the user-space track; on the kernel track neither model solves three-quarters. Since every task is human-solvable (~540 expert-hours for the suite), the unsolved set measures the remaining gap directly. A joint UK AISI / NIST CAISI assessment agrees: ahead of GLM-5.2, behind frontier cyber-capable models, achieving arbitrary code execution on 0 of 41 tasks.</p>
+</section>
+
+<!-- ============ CASES ============ -->
+<section id="cases">
+  <p class="kicker">Case studies</p>
+  <h2>What it actually built</h2>
+  <p>The case studies are unusually concrete, and several are self-referential — K3 optimising the kernels of its own architecture.</p>
+  <div class="grid2">
+    <div class="card"><h5>GPU kernel optimisation</h5><p>Given a 24-hour sandbox budget per kernel: AttnRes latency <strong>283.6 ms → 114.4 ms</strong>; DSA runtime −55.1%; KDA runtime −73.6%; over half of peak TFLOPS on MLA. Matched Fable 5 and beat Opus 4.8, GPT-5.6 Sol and GPT-5.5. An early checkpoint was already doing most of Moonshot's own kernel work during late development.</p></div>
+    <div class="card"><h5>MiniTriton</h5><p>A Triton-like compiler built from scratch: tile-level Python frontend and layout system, warp-level MLIR annotation layer, PTX codegen, plus a dual-mode tensor library with autograd, NCCL distributed primitives, and NN modules. Beats torch eager and torch.compile in geomean on its suite; its from-scratch tensor-core matmul reaches ~90% of measured machine roof at large shapes.</p></div>
+    <div class="card"><h5>An inference chip</h5><p>In a single 48-hour autonomous run, a prototype ASIC for a nano model of the same architecture — hybrid KDA + NoPE-MLA, Block AttnRes, INT4 weights. Closes timing at 100 MHz in a 4 mm² budget: 1.46M standard cells, 0.277 MiB SRAM, RTL-simulated decode above <strong>8,700 tokens/s</strong>.</p></div>
+    <div class="card"><h5>Research and knowledge work</h5><p>Reproduced the I–Love–Q relations in computational astrophysics — 20+ papers reviewed, 300+ equations of state evaluated, inconsistencies in published formulas found, 3,000+ lines of Python — in about two hours against a typical one-to-two weeks. Elsewhere: a 42-year AI-ASIC industry site over 120 refinement rounds, 87 quarterly reports, 99 PDFs (11,000+ pages), 2,800+ web searches.</p></div>
+  </div>
+  <p style="margin-top:20px">And, fittingly for a model whose architecture section is this dense: it produced a 3Blue1Brown-style motion-graphics explainer <em>of its own architecture</em>, and cut its own teaser video from 56 source clips.</p>
+</section>
+
+<footer>
+  <p style="max-width:70ch">Source: <em>Kimi K3: Open Frontier Intelligence — Technical Report</em>, Kimi Team, July 2026. Weights at <a href="https://huggingface.co/moonshotai/Kimi-K3">huggingface.co/moonshotai/Kimi-K3</a> · code at <a href="https://github.com/MoonshotAI/Kimi-K3">github.com/MoonshotAI/Kimi-K3</a>. Every figure here is drawn from reported values or is a labelled structural model — none are digitised from the paper's plots.</p>
+  <div class="trilogy">
+    <a href="kimi-k3-pretraining.html"><span class="n">Part 02</span><span class="t">Pre-training →</span></a>
+    <a href="kimi-k3-posttraining.html"><span class="n">Part 03</span><span class="t">Post-training &amp; data →</span></a>
+    <a href="index.html"><span class="n">Library</span><span class="t">All explainers →</span></a>
+  </div>
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const RM=matchMedia("(prefers-reduced-motion:reduce)").matches;
+
+/* theme */
+const tgl=$("#tgl");
+tgl.addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme")
+    || (matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  document.documentElement.setAttribute("data-theme",cur==="dark"?"light":"dark");
+  redrawAll();
+});
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- layer stack ---------- */
+const layers=[];
+for(let b=0;b<23;b++){for(let i=0;i<3;i++)layers.push("kda");layers.push("mla");}
+layers.push("mla"); // 93
+const stack=$("#stack");
+layers.forEach((t,i)=>{
+  const d=document.createElement("button");
+  d.className="ly "+t; d.dataset.i=i; d.type="button";
+  d.setAttribute("aria-label",`Layer ${i+1}, ${t.toUpperCase()}`);
+  stack.appendChild(d);
+});
+const layerOut=$("#layerOut");
+function describe(i){
+  const t=layers[i], blk=Math.floor(i/12)+1, pos=(i%12)+1;
+  const kdaN=layers.slice(0,i+1).filter(x=>x==="kda").length;
+  const mlaN=layers.slice(0,i+1).filter(x=>x==="mla").length;
+  const isLast=i===layers.length-1;
+  layerOut.innerHTML=`<b>Layer ${i+1} of 93 — ${t==="kda"?"Kimi Delta Attention":"Gated MLA"}${isLast?" (final global layer)":""}</b>`+
+   (t==="kda"
+    ? `Linear-cost recurrent mixing. Carries a fixed-size state <code>S</code> that costs the same at token 1,000,000 as at token 1. Supplies the positional signal for the whole block — there is no RoPE anywhere in this model.`
+    : `Unrestricted global attention over a compressed KV latent, with <strong>no positional encoding</strong> and a full-rank input-dependent output gate. ${isLast?"Placed at the end of the backbone so the last thing every token does is look globally.":"Every 4th layer, restoring exact token-to-token reach after three recurrent layers."}`)
+   + `<br><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3)">AttnRes block ${Math.min(blk,8)} · position ${pos} · cumulative: ${kdaN} KDA, ${mlaN} MLA · followed by a Stable LatentMoE layer${i===0?" (this first layer's FFN is the model's one dense layer)":""}</span>`;
+}
+stack.addEventListener("click",e=>{const b=e.target.closest(".ly");if(!b)return;
+  $$(".ly.sel").forEach(x=>x.classList.remove("sel"));b.classList.add("sel");describe(+b.dataset.i);});
+describe(0); stack.children[0].classList.add("sel");
+
+/* ---------- K2 vs K3 ---------- */
+const cmpRows=[
+ ["Layers","61","93","+52%"],["Total parameters","1.04T","2.78T","+167%"],["Activated parameters","32.6B","104.2B","+220%"],
+ ["Hidden dimension","7,168","7,168","="],["Latent MoE dimension","—","3,584 (0.5×)",""],
+ ["MoE hidden dim / expert","2,048","3,072","+50%"],["Routed experts","384","896","+133%"],
+ ["Experts active / token","8","16","+100%"],["Shared experts","1","2","+100%"],
+ ["Attention heads","64","96","+50%"],["Vocabulary","160K","160K","="],
+ ["Training context","128K","1M","8×"],["Attention mechanism","MLA","Hybrid KDA–MLA",""],
+ ["Attention composition","61 MLA","69 KDA + 24 MLA",""],["Activation","SwiGLU","SiTU-GLU",""],
+ ["Vision tower","—","401M · 27 layers",""]
+];
+$("#cmp tbody").innerHTML=cmpRows.map(r=>{
+  const d=r[3], cls=d==="="?"":(d.startsWith("+")||d.endsWith("×")?"up":"");
+  return `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="k3">${r[2]}</td><td class="delta ${cls}">${d}</td></tr>`;
+}).join("");
+
+/* ---------- canvas helper ---------- */
+function fit(c){const r=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
+  c.width=Math.max(320,r.width*dpr);c.height=(+c.dataset.h||c.height/(c.__d||1));
+  const h=+c.dataset.h||230; c.height=h*dpr; c.style.height=h+"px"; c.__d=dpr;
+  const x=c.getContext("2d"); x.setTransform(dpr,0,0,dpr,0,0); return {x,w:r.width,h};}
+$("#decayC").dataset.h=300; $("#kvC").dataset.h=230; $("#arC").dataset.h=360;
+$("#situC").dataset.h=300; $("#cacheC").dataset.h=210;
+
+/* ---------- decay curves ---------- */
+let decayMode="both";
+$$("#decayC").length;
+document.querySelectorAll(".seg [data-k]").forEach(b=>b.addEventListener("click",()=>{
+  document.querySelectorAll(".seg [data-k]").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  decayMode=b.dataset.k; drawDecay();}));
+$("#gminS").addEventListener("input",drawDecay);
+function drawDecay(){
+  const c=$("#decayC"),{x,w,h}=fit(c);
+  const gmin=+$("#gminS").value; $("#gminV").textContent=gmin.toFixed(1);
+  const L=44,R=14,T=16,B=34, pw=w-L-R, ph=h-T-B;
+  const zmin=-6,zmax=6, ymin=-14, ymax=0.6;
+  const X=z=>L+(z-zmin)/(zmax-zmin)*pw, Y=g=>T+(ymax-g)/(ymax-ymin)*ph;
+  x.clearRect(0,0,w,h);
+  x.strokeStyle=css("--rule"); x.lineWidth=1;
+  for(let g=0;g>=-14;g-=2){x.beginPath();x.moveTo(L,Y(g));x.lineTo(w-R,Y(g));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(g,L-6,Y(g)+3);}
+  x.strokeStyle=css("--rule-2");x.beginPath();x.moveTo(X(0),T);x.lineTo(X(0),h-B);x.stroke();
+  x.textAlign="center";x.fillStyle=css("--ink-3");
+  x.fillText("decay logit  z",L+pw/2,h-8);
+  x.save();x.translate(11,T+ph/2);x.rotate(-Math.PI/2);x.fillText("log-decay  g",0,0);x.restore();
+  const softplus=z=>Math.log1p(Math.exp(z));
+  const sig=z=>1/(1+Math.exp(-z));
+  function curve(f,col,dash){x.save();x.setLineDash(dash||[]);x.strokeStyle=col;x.lineWidth=2.2;x.beginPath();
+    for(let i=0;i<=260;i++){const z=zmin+(zmax-zmin)*i/260,g=Math.max(f(z),ymin-1);
+      i?x.lineTo(X(z),Y(g)):x.moveTo(X(z),Y(g));}x.stroke();x.restore();}
+  if(decayMode!=="k3") curve(z=>-softplus(z),css("--ink-2"),[5,4]);
+  if(decayMode!=="kl") curve(z=>gmin*sig(z),css("--accent"));
+  // floor
+  if(decayMode!=="kl"){x.save();x.setLineDash([2,4]);x.strokeStyle=css("--accent-line");x.beginPath();
+    x.moveTo(L,Y(gmin));x.lineTo(w-R,Y(gmin));x.stroke();x.restore();
+    x.fillStyle=css("--accent");x.font="11px ui-monospace,Menlo,monospace";x.textAlign="left";
+    x.fillText("g_min = "+gmin.toFixed(1),L+6,Y(gmin)-6);}
+  x.font="11px ui-monospace,Menlo,monospace";x.textAlign="right";
+  if(decayMode!=="k3"){x.fillStyle=css("--ink-2");x.fillText("Kimi Linear: g = −e^A·Softplus(z) → unbounded",w-R,T+14);}
+  if(decayMode!=="kl"){x.fillStyle=css("--accent");x.fillText("Kimi K3: g = g_min·Sigmoid(e^A·z)",w-R,T+(decayMode==="both"?30:14));}
+  const a=Math.exp(gmin), tile=Math.exp(-16*gmin);
+  $("#decayStats").innerHTML=
+   `min retention α &ge; <b>${a.toExponential(1)}</b>`+
+   `<span>16-token tile rescale &le; <b>e<sup>${(-16*gmin).toFixed(0)}</sup></b></span>`+
+   `<span>BF16 max ≈ 3.4×10<sup>38</sup> → <b style="color:${tile<3.4e38?css("--pos"):css("--neg")}">${tile<3.4e38?"safe · dense Tensor Core tiles":"OVERFLOW · needs the position-pair path"}</b></span>`;
+}
+
+/* ---------- KV structural model ---------- */
+$("#ctxS").addEventListener("input",drawKV);
+function drawKV(){
+  const c=$("#kvC"),{x,w,h}=fit(c);
+  const e=+$("#ctxS").value, tok=Math.pow(2,e);
+  $("#ctxV").textContent=(tok>=1048576?"1M":(tok>=1024?(tok/1024)+"K":tok))+" tokens";
+  x.clearRect(0,0,w,h);
+  const L=150,R=100,T=30,B=40,pw=w-L-R;
+  // units: per-token-per-layer = 1 unit; recurrent state const = 1500 units each (illustrative constant)
+  const K=1500;
+  const allGlobal=93*tok, hybrid=24*tok+69*K;
+  const maxV=Math.max(allGlobal,hybrid);
+  const rows=[["All-global (93 MLA layers)",allGlobal,css("--ink-3")],["Kimi K3 hybrid (24 MLA + 69 KDA)",hybrid,css("--accent")]];
+  x.font="12px system-ui";
+  rows.forEach((r,i)=>{
+    const y=T+i*72;
+    x.fillStyle=css("--ink-2");x.textAlign="right";x.font="12px system-ui";
+    x.fillText(r[0].split("(")[0].trim(),L-12,y+16);
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";
+    x.fillText("("+r[0].split("(")[1],L-12,y+31);
+    const bw=Math.max(2,pw*r[1]/maxV);
+    x.fillStyle=r[2];x.globalAlpha=i?1:.35;x.fillRect(L,y,bw,26);x.globalAlpha=1;
+    if(i===1){ // split
+      const cw=pw*(69*K)/maxV;
+      x.fillStyle=css("--rule-2");x.fillRect(L+Math.max(2,pw*(24*tok)/maxV),y,cw,26);
+      x.strokeStyle=css("--panel");x.lineWidth=1;x.beginPath();
+      x.moveTo(L+Math.max(2,pw*(24*tok)/maxV),y);x.lineTo(L+Math.max(2,pw*(24*tok)/maxV),y+26);x.stroke();
+    }
+    x.fillStyle=css("--ink-2");x.textAlign="left";x.font="11px ui-monospace,Menlo,monospace";
+    x.fillText((r[1]/1e6).toFixed(1)+"M units",L+bw+8,y+17);
+  });
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("grey segment = the 69 fixed-size KDA states (constant in context length)",L,T+150);
+  const ratio=allGlobal/hybrid;
+  $("#kvStats").innerHTML=`length-proportional layers: <b>24 / 93</b>`+
+    `<span>ratio at this context: <b>${ratio.toFixed(2)}×</b> less state than all-global</span>`+
+    `<span style="color:var(--ink-3)">illustrative constant for the recurrent state; the shape of the curve is the point</span>`;
+}
+
+/* ---------- AttnRes matrix ---------- */
+let arMode="std";
+$("#arSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#arSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");arMode=b.dataset.m;drawAR();});
+function drawAR(){
+  const c=$("#arC"),{x,w,h}=fit(c);
+  x.clearRect(0,0,w,h);
+  const N=48; // 48-layer scale model
+  const L=60,T=26,pad=90;
+  const size=Math.min((w-L-pad)/N,(h-T-44)/N);
+  const gw=size*N;
+  x.font="10px ui-monospace,Menlo,monospace";x.fillStyle=css("--ink-3");x.textAlign="left";
+  x.fillText("source layer  →",L,T-9);
+  x.save();x.translate(16,T+gw/2);x.rotate(-Math.PI/2);x.textAlign="center";x.fillText("reading layer",0,0);x.restore();
+  const B=6, S=N/B; // 6 blocks of 8 for the scale model
+  for(let l=0;l<N;l++)for(let s=0;s<N;s++){
+    let v=0;
+    if(s>l){v=0;}
+    else if(arMode==="std"){ v = (s===l-1||s===l)?1:0.055; }        // uniform accumulation, immediate predecessor
+    else if(arMode==="full"){ const d=l-s; v=Math.max(.12,Math.exp(-d/9)); }
+    else { const lb=Math.floor(l/S), sb=Math.floor(s/S);
+           if(sb<lb){ v=Math.max(.16,Math.exp(-(lb-sb)/2.1)); }
+           else if(sb===lb && s<=l){ v=(s>=lb*S)?.85:0; } else v=0; }
+    if(v<=0)continue;
+    x.fillStyle=css("--accent");x.globalAlpha=Math.min(1,v);
+    x.fillRect(L+s*size,T+l*size,Math.max(1,size-0.6),Math.max(1,size-0.6));
+  }
+  x.globalAlpha=1;
+  if(arMode==="blk"){
+    x.strokeStyle=css("--ink-2");x.lineWidth=1;x.globalAlpha=.55;
+    for(let b=1;b<B;b++){const p=L+b*S*size;x.beginPath();x.moveTo(p,T);x.lineTo(p,T+gw);x.stroke();
+      x.beginPath();x.moveTo(L,T+b*S*size);x.lineTo(L+gw,T+b*S*size);x.stroke();}
+    x.globalAlpha=1;
+  }
+  const txt={
+    std:["Standard residual","Every layer sees exactly one thing: the accumulated stream. All prior computation has been compressed into a single state — the depth-wise equivalent of an RNN's hidden vector, with the same bottleneck.","O(d) state · no selectivity"],
+    full:["Full Attention Residuals","Each layer holds a learnable pseudo-query and softmax-attends over the RMSNorm'd outputs of every preceding layer plus the embedding. Arithmetic is O(L²d), trivial at L &lt; 100 — but every layer output must stay alive, and cross pipeline stages.","O(Ld) memory · full selectivity"],
+    blk:["Block Attention Residuals (what K3 ships)","Layers are grouped into blocks; within a block, outputs are summed into one representation. Full attention runs across block-level vectors only, and the current block contributes its running partial sum. K3 uses 8 blocks × 12 layers.","O(Nd) memory · bounded inference state · online-softmax merge"]
+  }[arMode];
+  $("#arOut").innerHTML=`<b>${txt[0]}</b>${txt[1]}<br><span style="font-family:var(--mono);font-size:12px;color:var(--accent)">${txt[2]}</span>`;
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("48-layer scale model · K3 runs 93 layers in 8 blocks of 12",L,T+gw+22);
+}
+
+/* ---------- SiTU-GLU ---------- */
+["#b1","#b2"].forEach(s=>$(s).addEventListener("input",drawSitu));
+function drawSitu(){
+  const c=$("#situC"),{x,w,h}=fit(c);
+  const b1=+$("#b1").value,b2=+$("#b2").value;
+  $("#b1v").textContent=b1.toFixed(1);$("#b2v").textContent=b2;
+  const L=54,R=16,T=16,B=34,pw=w-L-R,ph=h-T-B;
+  const xmin=-10,xmax=100, ymax=Math.max(300,b1*b2*1.5), ymin=-30;
+  const X=v=>L+(v-xmin)/(xmax-xmin)*pw, Y=v=>T+(ymax-v)/(ymax-ymin)*ph;
+  x.clearRect(0,0,w,h);
+  x.strokeStyle=css("--rule");x.lineWidth=1;
+  const step=ymax>800?400:100;
+  for(let v=0;v<=ymax;v+=step){x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(v,L-6,Y(v)+3);}
+  x.strokeStyle=css("--rule-2");x.beginPath();x.moveTo(L,Y(0));x.lineTo(w-R,Y(0));x.stroke();
+  x.beginPath();x.moveTo(X(0),T);x.lineTo(X(0),h-B);x.stroke();
+  const sig=v=>1/(1+Math.exp(-v));
+  const swig=v=>(v*sig(v))*v;
+  const situ=v=>(b1*Math.tanh(v/b1)*sig(v))*(b2*Math.tanh(v/b2));
+  function cv(f,col,dash){x.save();x.setLineDash(dash||[]);x.strokeStyle=col;x.lineWidth=2.2;x.beginPath();
+    for(let i=0;i<=340;i++){const v=xmin+(xmax-xmin)*i/340;let y=f(v);y=Math.min(y,ymax*1.4);
+      i?x.lineTo(X(v),Y(y)):x.moveTo(X(v),Y(y));}x.stroke();x.restore();}
+  cv(swig,css("--ink-2"),[5,4]);
+  cv(situ,css("--accent"));
+  x.save();x.setLineDash([2,4]);x.strokeStyle=css("--accent-line");x.beginPath();
+  x.moveTo(L,Y(b1*b2));x.lineTo(w-R,Y(b1*b2));x.stroke();x.restore();
+  x.fillStyle=css("--accent");x.font="11px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("|f| ≤ β₁β₂ = "+(b1*b2).toFixed(0),L+8,Y(b1*b2)-6);
+  x.textAlign="right";x.fillStyle=css("--ink-2");x.fillText("SwiGLU — unbounded",w-R,T+14);
+  x.fillStyle=css("--accent");x.fillText("SiTU-GLU",w-R,T+30);
+  x.fillStyle=css("--ink-3");x.textAlign="center";x.font="10px ui-monospace,Menlo,monospace";
+  x.fillText("scalar input x  (both branches share x)",L+pw/2,h-8);
+  const at5=(swig(5)/situ(5)), at50=(swig(50)/situ(50));
+  $("#situStats").innerHTML=`at x=5, SwiGLU/SiTU = <b>${at5.toFixed(2)}×</b>`+
+    `<span>at x=50: <b>${at50.toFixed(0)}×</b></span>`+
+    `<span>SwiGLU(100) = <b>${swig(100).toFixed(0)}</b> vs SiTU(100) = <b style="color:var(--accent)">${situ(100).toFixed(0)}</b></span>`;
+}
+
+/* ---------- Quantile Balancing ---------- */
+const NE=24, KSEL=4, NT=240;
+let QB_STEPS=6;
+let qbOn=false, scores=null;
+function sampleScores(){
+  const skew=+$("#skewS").value/10;
+  const pop=Array.from({length:NE},(_,j)=>Math.exp(-skew*j/NE)*(0.6+0.8*rnd()));
+  scores=Array.from({length:NT},()=>pop.map(p=>1/(1+Math.exp(-(Math.log(p+1e-6)+2.2*(rnd()-.5)*2)))));
+}
+let seed=7; function rnd(){seed=(seed*1664525+1013904223)%4294967296;return seed/4294967296;}
+function quantile(arr,q){const a=[...arr].sort((x,y)=>x-y);const i=(a.length-1)*q;
+  const lo=Math.floor(i),hi=Math.ceil(i);return a[lo]+(a[hi]-a[lo])*(i-lo);}
+function qbStep(bPrev){
+  // cutoffs α_i = (k+1)-th largest biased score, from Top-(k+1) routing
+  const alpha=scores.map(s=>{const v=s.map((x,j)=>x+bPrev[j]).sort((a,c)=>c-a);return v[KSEL];});
+  // b_j ← −quantile_{1−k/n}( s_:,j − α ), then mean-centre
+  const b=new Array(NE).fill(0);
+  for(let j=0;j<NE;j++){const m=scores.map((s,i)=>s[j]-alpha[i]); b[j]=-quantile(m,1-KSEL/NE);}
+  const mean=b.reduce((a,c)=>a+c,0)/NE;
+  return b.map(v=>v-mean);
+}
+function computeQB(steps){ // the update is applied once per training step; iterate to convergence
+  let b=new Array(NE).fill(0);
+  for(let i=0;i<(steps||QB_STEPS);i++) b=qbStep(b);
+  return b;
+}
+function route(bias){
+  const load=new Array(NE).fill(0);
+  scores.forEach(s=>{
+    const idx=s.map((v,j)=>[v+bias[j],j]).sort((a,c)=>c[0]-a[0]).slice(0,KSEL);
+    idx.forEach(([,j])=>load[j]++);
+  });
+  return load;
+}
+function drawQB(){
+  $("#qbStepsV").textContent=qbOn?(QB_STEPS+" step"+(QB_STEPS>1?"s":"")):"—";
+  const bias=qbOn?computeQB():new Array(NE).fill(0);
+  const load=route(bias);
+  const target=NT*KSEL/NE, max=Math.max(...load,target*2);
+  $("#qbBars").innerHTML=load.map(v=>{
+    const cls=v>target*1.45?"hot":(v<target*.55?"cold":"");
+    return `<div class="bar ${cls}" style="height:${Math.max(1,92*v/max)}px" title="${v} tokens"></div>`;}).join("");
+  $("#qbGrid").innerHTML=load.map(v=>{
+    const a=Math.min(1,v/(target*1.8));
+    return `<div class="ex" style="background:color-mix(in srgb, var(--accent) ${Math.round(a*100)}%, var(--panel-2))"></div>`;}).join("");
+  const mean=target, dev=Math.sqrt(load.reduce((a,c)=>a+(c-mean)**2,0)/NE);
+  const dead=load.filter(v=>v===0).length, maxmin=Math.max(...load)/Math.max(1,Math.min(...load));
+  $("#qbStats").innerHTML=
+    `target load q = mk/n = <b>${target}</b>`+
+    `<span>std-dev: <b style="color:${dev<1?css("--pos"):css("--neg")}">${dev.toFixed(1)}</b></span>`+
+    `<span>max/min ratio: <b>${isFinite(maxmin)?maxmin.toFixed(2)+"×":"∞ (dead expert)"}</b></span>`+
+    `<span>dying experts: <b style="color:${dead?css("--neg"):css("--pos")}">${dead}</b></span>`;
+}
+$("#qbSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#qbSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");qbOn=b.dataset.q==="on";drawQB();});
+$("#qbSteps").addEventListener("input",e=>{QB_STEPS=+e.target.value;drawQB();});
+$("#skewS").addEventListener("input",()=>{sampleScores();drawQB();});
+$("#qbRe").addEventListener("click",()=>{sampleScores();drawQB();});
+sampleScores();drawQB();
+
+/* ---------- prefix cache diagram ---------- */
+function drawCache(){
+  const c=$("#cacheC"),{x,w,h}=fit(c);
+  x.clearRect(0,0,w,h);
+  const L=110,R=20,T=44,pw=w-L-R, N=12, bw=pw/N;
+  x.font="11px ui-monospace,Menlo,monospace";
+  x.fillStyle=css("--ink-3");x.textAlign="left";
+  x.fillText("physical cache block = 6144 tokens = 12 hash blocks of 512",L,20);
+  // MLA row
+  x.textAlign="right";x.fillStyle=css("--ink-2");x.fillText("MLA KV",L-12,T+18);
+  for(let i=0;i<N;i++){
+    const hit=i<5;
+    x.fillStyle=hit?css("--accent"):css("--panel-2");
+    x.globalAlpha=hit?.85:1;x.fillRect(L+i*bw+1,T,bw-2,26);x.globalAlpha=1;
+    x.strokeStyle=css("--rule");x.lineWidth=1;x.strokeRect(L+i*bw+1,T,bw-2,26);
+  }
+  // KDA checkpoint markers
+  x.textAlign="right";x.fillStyle=css("--ink-2");x.fillText("KDA ckpt",L-12,T+62);
+  const persisted=[0,2,5];
+  for(let i=0;i<=N;i++){
+    const cx=L+i*bw, cy=T+56;
+    const isP=persisted.includes(i), isHit=i===5;
+    x.beginPath();x.arc(cx,cy,isHit?6:4.5,0,7);
+    if(isHit){x.fillStyle=css("--accent");x.fill();}
+    else if(isP){x.fillStyle=css("--ink-3");x.fill();}
+    else{x.strokeStyle=css("--rule-2");x.lineWidth=1.4;x.stroke();}
+  }
+  // hit marker
+  const hx=L+5*bw;
+  x.save();x.setLineDash([3,3]);x.strokeStyle=css("--accent");x.lineWidth=1.5;
+  x.beginPath();x.moveTo(hx,T-8);x.lineTo(hx,T+80);x.stroke();x.restore();
+  x.fillStyle=css("--accent");x.font="11px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("hit boundary  B = 2560 = 5 × 512",hx+8,T+96);
+  x.fillStyle=css("--ink-3");
+  x.fillText("● persisted checkpoint    ○ no checkpoint    ● checkpoint hit",L,T+130);
+  x.fillStyle=css("--ink-2");
+  x.fillText("restore KDA state at B · copy-on-write the partial MLA block · resume prefill from B",L,T+150);
+}
+
+/* ---------- evals ---------- */
+const EV=[
+ ["Reasoning","GPQA Diamond",93.5,92.6,94.1,91.0,93.5,91.2],
+ ["Reasoning","CritPt",23.4,28.6,32.3,20.9,27.1,20.9],
+ ["Reasoning","AA-LCR",74.7,70.0,73.7,67.7,74.3,71.3],
+ ["Reasoning","HLE-Full (w/ tools)",56.0,63.0,58.0,57.9,52.2,null],
+ ["Coding","DeepSWE",67.5,70.0,73.0,59.0,67.0,46.2],
+ ["Coding","ProgramBench",77.8,76.8,77.6,71.9,70.8,63.7],
+ ["Coding","Terminal-Bench 2.1",88.3,88.0,88.8,84.6,83.4,82.7],
+ ["Coding","FrontierSWE",81.2,86.6,71.3,66.7,64.9,67.3],
+ ["Coding","SWE-Marathon",42.0,35.0,39.0,40.0,14.0,13.0],
+ ["Coding","PostTrainBench",36.6,41.4,34.6,34.1,28.4,34.3],
+ ["Coding","MLS-Bench-Lite",48.3,49.9,46.2,42.8,35.5,40.4],
+ ["Coding","SciCode",58.7,60.2,56.1,53.5,56.1,50.5],
+ ["Agentic","BrowseComp",91.2,88.0,90.4,84.3,84.4,null],
+ ["Agentic","DeepSearchQA (F1)",95.0,94.2,null,93.1,null,null],
+ ["Agentic","ResearchRubrics",76.2,null,73.8,73.5,64.0,71.1],
+ ["Agentic","GDPval-AA v2 (Elo)",1686,1747,1736,1593,1491,1510],
+ ["Agentic","Toolathlon-Verified",76.5,77.9,74.9,76.2,73.5,59.9],
+ ["Agentic","MCPMark-Verified",94.5,87.4,92.9,76.4,92.9,null],
+ ["Agentic","MCP-Atlas",84.2,84.7,83.6,83.6,82.8,82.6],
+ ["Agentic","AutomationBench",30.8,29.1,29.7,27.2,22.7,12.9],
+ ["Agentic","JobBench",54.3,57.4,45.4,48.4,38.3,43.4],
+ ["Agentic","AA-Briefcase (Elo)",1548,1583,1495,1354,1158,1260],
+ ["Agentic","Agents' Last Exam",28.3,25.7,29.6,27.0,26.6,20.4],
+ ["Agentic","APEX-Agents",41.0,43.3,39.9,39.4,38.5,35.6],
+ ["Agentic","OfficeQA Pro",63.3,69.9,63.2,63.9,60.9,41.4],
+ ["Agentic","SpreadsheetBench 2",34.8,34.7,32.4,31.6,29.1,28.1],
+ ["Agentic","OSWorld-Verified",84.8,85.0,83.0,83.4,79.0,null],
+ ["Agentic","OSWorld 2.0",58.3,66.1,62.6,55.7,49.5,null],
+ ["Agentic","SaaS-Bench",60.1,null,61.4,56.1,43.8,null],
+ ["Agentic","τ³-Banking",33.4,26.8,33.0,27.6,31.3,26.8],
+ ["Agentic","Harvey Lab-AA",94.6,93.6,87.2,91.1,86.3,91.0],
+ ["Agentic","CorpFin v2",71.6,71.8,64.4,66.7,68.4,66.1],
+ ["Agentic","Finance Agent v2",54.4,56.3,53.8,53.9,51.8,49.7],
+ ["Agentic","Legal Research Bench",44.2,49.5,48.1,43.8,40.4,31.3],
+ ["Vision","WorldVQA ForceAnswer",51.0,56.7,41.8,39.1,38.5,null],
+ ["Vision","OmniDocBench",91.1,89.8,85.8,87.9,89.4,null],
+ ["Vision","PerceptionBench",58.5,57.2,59.7,47.2,55.8,null],
+ ["Vision","Video-MME (w/ sub)",90.0,null,89.5,86.0,89.3,null],
+ ["Vision","MMVU",82.1,null,81.2,79.2,81.7,null],
+ ["Vision","BabyVision w/ Python",85.7,90.5,88.9,81.2,83.6,null],
+ ["Vision","MMMU-Pro (w/ tool)",83.4,86.5,84.6,82.7,83.2,null],
+ ["Vision","CharXiv RQ (w/ tool)",91.3,93.5,89.1,89.9,89.0,null],
+ ["Vision","Math-Vision (w/ tool)",97.8,98.6,97.8,97.1,96.8,null],
+ ["Vision","ZeroBench-main (w/ tool)",41.0,46.0,35.0,34.0,41.0,null]
+];
+let evF="all", evR="all";
+function drawEv(){
+  const rows=EV.filter(r=>{
+    if(evF!=="all"&&r[0]!==evF)return false;
+    const vals=r.slice(2).filter(v=>v!==null); const best=Math.max(...vals);
+    const isLead=r[2]>=best-1e-9;
+    if(evR==="lead"&&!isLead)return false;
+    if(evR==="trail"&&isLead)return false;
+    return true;
+  });
+  let last=null, html="";
+  rows.forEach(r=>{
+    if(r[0]!==last){html+=`<tr class="grp"><td colspan="7">${r[0]}</td></tr>`;last=r[0];}
+    const vals=r.slice(2); const best=Math.max(...vals.filter(v=>v!==null));
+    html+=`<tr><td>${r[1]}</td>`+vals.map((v,i)=>{
+      const cls=(v!==null&&v>=best-1e-9?"best ":"")+(i===0?"k3":"");
+      return `<td class="${cls}">${v===null?"—":(v>200?v.toLocaleString():v.toFixed(1))}</td>`;}).join("")+`</tr>`;
+  });
+  $("#evT tbody").innerHTML=html;
+  const leads=EV.filter(r=>{const b=Math.max(...r.slice(2).filter(v=>v!==null));return r[2]>=b-1e-9;}).length;
+  $("#evalCount").textContent=`${rows.length} shown · K3 best on ${leads} of ${EV.length}`;
+}
+$("#evSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#evSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");evF=b.dataset.f;drawEv();});
+$("#evRank").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#evRank button").forEach(x=>x.classList.remove("on"));b.classList.add("on");evR=b.dataset.r;drawEv();});
+drawEv();
+
+/* ---------- accordion marks ---------- */
+$$(".acc details").forEach(d=>{
+  const m=d.querySelector(".mark");
+  const set=()=>m.textContent=d.open?"−":"＋"; set();
+  d.addEventListener("toggle",set);
+});
+
+/* ---------- rail scrollspy ---------- */
+const railLinks=$$(".rail a");
+const io=new IntersectionObserver(es=>{es.forEach(e=>{
+  if(e.isIntersecting){railLinks.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id));}
+});},{rootMargin:"-15% 0px -70% 0px"});
+$$("section[id]").forEach(s=>io.observe(s));
+
+/* ---------- redraw ---------- */
+function redrawAll(){drawDecay();drawKV();drawAR();drawSitu();drawCache();}
+redrawAll();
+let rt; addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(redrawAll,120);});
+})();
+</script>

@@ -1,0 +1,888 @@
+<meta charset="utf-8">
+<title>Kimi K3 — Post-training &amp; Data</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --accent:#6B45C4; --accent-2:#523198; --accent-wash:rgba(107,69,196,.10); --accent-line:rgba(107,69,196,.32);
+  --bg:#F5F4F8; --panel:#FFFFFF; --panel-2:#EDEBF3; --ink:#15131C; --ink-2:#4E4A5E; --ink-3:#837E96;
+  --rule:#E0DDE8; --rule-2:#C8C3D6;
+  --pos:#2A7A55; --neg:#A6342F; --warn:#8A6516;
+  --mono:ui-monospace,"SF Mono",SFMono-Regular,Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --serif:ui-serif,"New York",Palatino,Georgia,serif;
+  --shadow:0 1px 2px rgba(25,15,50,.05),0 8px 28px -18px rgba(30,15,60,.35);
+}
+@media (prefers-color-scheme:dark){:root{
+  --accent:#A98BEE; --accent-2:#C0A9F5; --accent-wash:rgba(169,139,238,.12); --accent-line:rgba(169,139,238,.32);
+  --bg:#100E16; --panel:#17151F; --panel-2:#1E1B29; --ink:#EAE7F2; --ink-2:#A9A3BC; --ink-3:#7A748C;
+  --rule:#282437; --rule-2:#383247;
+  --pos:#5FBC8C; --neg:#E08A7E; --warn:#D3A64A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}}
+:root[data-theme="dark"]{
+  --accent:#A98BEE; --accent-2:#C0A9F5; --accent-wash:rgba(169,139,238,.12); --accent-line:rgba(169,139,238,.32);
+  --bg:#100E16; --panel:#17151F; --panel-2:#1E1B29; --ink:#EAE7F2; --ink-2:#A9A3BC; --ink-3:#7A748C;
+  --rule:#282437; --rule-2:#383247;
+  --pos:#5FBC8C; --neg:#E08A7E; --warn:#D3A64A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -20px rgba(0,0,0,.9);
+}
+:root[data-theme="light"]{
+  --accent:#6B45C4; --accent-2:#523198; --accent-wash:rgba(107,69,196,.10); --accent-line:rgba(107,69,196,.32);
+  --bg:#F5F4F8; --panel:#FFFFFF; --panel-2:#EDEBF3; --ink:#15131C; --ink-2:#4E4A5E; --ink-3:#837E96;
+  --rule:#E0DDE8; --rule-2:#C8C3D6;
+  --pos:#2A7A55; --neg:#A6342F; --warn:#8A6516;
+  --shadow:0 1px 2px rgba(25,15,50,.05),0 8px 28px -18px rgba(30,15,60,.35);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16.5px;line-height:1.62;
+  -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation-duration:.001ms!important;transition-duration:.001ms!important}}
+a{color:inherit}
+.wrap{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,44px)}
+.top{border-bottom:1px solid var(--rule);position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px)}
+.top .wrap{display:flex;align-items:center;gap:14px;height:52px}
+.brand{font-family:var(--mono);font-size:11.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-2)}
+.brand b{color:var(--accent);font-weight:600}
+.top nav{margin-left:auto;display:flex;gap:4px;flex-wrap:wrap}
+.top nav a{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);text-decoration:none;padding:5px 8px;border-radius:5px}
+.top nav a:hover{color:var(--accent);background:var(--accent-wash)}
+.tgl{font-family:var(--mono);font-size:11px;letter-spacing:.08em;background:none;border:1px solid var(--rule-2);color:var(--ink-2);border-radius:5px;padding:5px 9px;cursor:pointer}
+.tgl:hover{border-color:var(--accent);color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+.hero{padding:64px 0 40px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 18px}
+h1{font-family:var(--mono);font-weight:700;font-size:clamp(30px,5.4vw,58px);line-height:1.04;letter-spacing:-.035em;margin:0 0 22px;text-wrap:balance;max-width:17ch}
+.lede{font-family:var(--serif);font-size:clamp(18px,2.1vw,22px);line-height:1.52;color:var(--ink-2);max-width:60ch;margin:0}
+.specstrip{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:1px;background:var(--rule);border:1px solid var(--rule);margin-top:40px;border-radius:8px;overflow:hidden}
+.spec{background:var(--panel);padding:14px 16px}
+.spec dt{font-family:var(--mono);font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:0 0 6px}
+.spec dd{margin:0;font-family:var(--mono);font-size:20px;font-weight:600;letter-spacing:-.02em}
+.spec dd small{font-size:11px;font-weight:400;color:var(--ink-3);letter-spacing:0}
+.shell{display:grid;grid-template-columns:184px minmax(0,1fr);gap:clamp(24px,4vw,56px);padding:44px 0 90px}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.rail{display:none}}
+.rail{position:sticky;top:74px;align-self:start;font-family:var(--mono);font-size:11px;line-height:1.9}
+.rail .rl{letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px;font-size:10px}
+.rail a{display:block;color:var(--ink-3);text-decoration:none;padding:1px 0 1px 11px;border-left:2px solid var(--rule)}
+.rail a:hover{color:var(--accent)}
+.rail a.on{color:var(--ink);border-left-color:var(--accent)}
+section{padding:8px 0 54px;scroll-margin-top:70px}
+h2{font-weight:660;font-size:clamp(24px,3vw,33px);letter-spacing:-.02em;line-height:1.16;margin:0 0 14px;text-wrap:balance}
+h3{font-weight:640;font-size:19px;letter-spacing:-.01em;margin:34px 0 10px}
+h4{font-family:var(--mono);font-weight:600;font-size:11.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin:0 0 9px}
+p{max-width:68ch;margin:0 0 15px}
+.note{font-size:13.5px;color:var(--ink-3);max-width:74ch;font-family:var(--mono);line-height:1.6}
+code{font-family:var(--mono);font-size:.9em;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+em.term{font-style:normal;font-weight:620;color:var(--accent)}
+ul{max-width:68ch;padding-left:20px;margin:0 0 15px}li{margin-bottom:7px}
+/* pseudocode */
+figure.code{margin:20px 0;border:1px solid var(--rule);border-radius:9px;overflow:hidden;background:var(--panel)}
+figure.code figcaption{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  padding:9px 14px;background:var(--panel-2);border-bottom:1px solid var(--rule);display:flex;gap:10px;align-items:center}
+figure.code figcaption .ref{margin-left:auto;color:var(--accent);letter-spacing:.08em}
+figure.code pre{margin:0;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:12.9px;line-height:1.66;color:var(--ink)}
+.k{color:var(--accent);font-weight:620}
+.c{color:var(--ink-3);font-style:italic}
+.s{color:var(--pos)}
+.mod{background:var(--panel);border:1px solid var(--rule);border-radius:10px;margin:26px 0 30px;box-shadow:var(--shadow);overflow:hidden}
+.mod-h{padding:14px 18px;border-bottom:1px solid var(--rule);display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;background:var(--panel-2)}
+.mod-h h4{margin:0;color:var(--ink)}
+.mod-h .sub{font-size:12.5px;color:var(--ink-3);margin-left:auto;font-family:var(--mono)}
+.mod-b{padding:18px}
+.ctrls{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:16px;font-family:var(--mono);font-size:12px}
+.ctrls label{color:var(--ink-3);letter-spacing:.06em;text-transform:uppercase;font-size:10.5px}
+input[type=range]{accent-color:var(--accent);width:180px}
+.seg{display:inline-flex;border:1px solid var(--rule-2);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{font-family:var(--mono);font-size:11.5px;padding:6px 11px;background:var(--panel);color:var(--ink-2);border:0;cursor:pointer;border-right:1px solid var(--rule)}
+.seg button:last-child{border-right:0}
+.seg button.on{background:var(--accent);color:#fff}
+.btn{font-family:var(--mono);font-size:11.5px;padding:6px 12px;border:1px solid var(--rule-2);background:var(--panel);color:var(--ink-2);border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+canvas{display:block;width:100%;height:auto}
+.scroller{overflow-x:auto}
+.stats{display:flex;gap:22px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;margin-top:12px;color:var(--ink-2)}
+.stats b{color:var(--ink);font-weight:600}
+.readout{background:var(--panel-2);border-radius:8px;padding:13px 15px;font-size:14px;min-height:84px;border:1px solid var(--rule)}
+.readout b{font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:5px}
+table{border-collapse:collapse;width:100%;font-size:13.5px;font-family:var(--mono)}
+th,td{text-align:right;padding:7px 10px;border-bottom:1px solid var(--rule);white-space:nowrap}
+th:first-child,td:first-child{text-align:left;font-family:var(--sans);font-size:14px;white-space:normal;min-width:170px}
+td.h2c{text-align:left;font-family:var(--mono);font-size:11px;color:var(--ink-3);min-width:0}
+thead th{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+tbody tr:hover{background:var(--accent-wash)}
+td.best{font-weight:700;background:var(--accent-wash)}
+td.k3{border-left:2px solid var(--accent-line);border-right:2px solid var(--accent-line)}
+.pull{border-left:3px solid var(--accent);padding:4px 0 4px 18px;margin:26px 0;font-family:var(--serif);font-size:19px;line-height:1.5;max-width:58ch}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(258px,1fr));gap:14px;margin:18px 0}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:9px;padding:15px 16px}
+.card h5{margin:0 0 7px;font-size:15px;font-weight:640}
+.card p{font-size:14px;margin:0;color:var(--ink-2)}
+.card .num{font-family:var(--mono);font-size:23px;font-weight:600;letter-spacing:-.02em;color:var(--accent);display:block;margin-bottom:3px}
+.card .lab{font-family:var(--mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:6px}
+.acc{border:1px solid var(--rule);border-radius:9px;overflow:hidden;margin:18px 0}
+.acc details{border-bottom:1px solid var(--rule);background:var(--panel)}
+.acc details:last-child{border-bottom:0}
+.acc summary{cursor:pointer;padding:13px 16px;display:flex;gap:12px;align-items:baseline;list-style:none;font-weight:600;font-size:15px}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary:hover{background:var(--accent-wash)}
+.acc summary .tag{font-family:var(--mono);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent-line);border-radius:4px;padding:2px 6px;flex:none}
+.acc summary .mark{margin-left:auto;font-family:var(--mono);color:var(--ink-3);font-size:13px}
+.acc .body{padding:2px 16px 16px;border-top:1px solid var(--rule)}
+.acc .body p{font-size:15px;margin-bottom:11px}
+/* expert matrix */
+.emat{display:grid;grid-template-columns:104px repeat(3,1fr);gap:2px}
+.emat .hd{font-family:var(--mono);font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--ink-3);padding:8px 6px;display:flex;align-items:center}
+.emat .cell{background:var(--panel-2);border:1px solid var(--rule);padding:12px 12px;cursor:pointer;text-align:left;font:inherit;color:inherit}
+.emat .cell:hover{border-color:var(--accent)}
+.emat .cell.on{background:var(--accent-wash);border-color:var(--accent)}
+.emat .cell .t{font-family:var(--mono);font-size:11.5px;font-weight:600;color:var(--accent)}
+.emat .cell .d{font-size:12px;color:var(--ink-3);margin-top:3px}
+.chips{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0}
+.chip{font-family:var(--mono);font-size:11px;padding:5px 10px;border:1px solid var(--rule-2);border-radius:20px;background:var(--panel);color:var(--ink-2);cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+footer{border-top:1px solid var(--rule);padding:30px 0 60px;font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+footer a{color:var(--accent)}
+.trilogy{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:16px 0 0}
+.trilogy a{display:block;padding:13px 15px;border:1px solid var(--rule);border-radius:8px;text-decoration:none;background:var(--panel)}
+.trilogy a:hover{border-color:var(--accent)}
+.trilogy .n{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:4px}
+.trilogy .t{font-weight:620;font-size:14.5px;color:var(--ink)}
+</style>
+
+<header class="top"><div class="wrap">
+  <span class="brand"><b>Kimi K3</b> &nbsp;/&nbsp; 03 Post-training &amp; Data</span>
+  <nav><a href="#pipeline">Pipeline</a><a href="#rl">RL</a><a href="#mopd">MOPD</a><a href="#deploy">Deployment</a><a href="#env">Environments</a><a href="#results">Results</a></nav>
+  <button class="tgl" id="tgl">Theme</button>
+</div></header>
+
+<div class="wrap hero">
+  <p class="eyebrow">Moonshot AI · Technical Report · July 2026</p>
+  <h1>Train nine models. Ship one.</h1>
+  <p class="lede">K3's post-training doesn't optimize a single policy. It trains three domain specialists at three reasoning-effort levels — nine expert models — and then distils all nine back into one student on-policy. Everything else here is about the environments and data that make those nine experts worth having.</p>
+  <dl class="specstrip">
+    <div class="spec"><dt>Stages</dt><dd>3<small>SFT · RL · MOPD</small></dd></div>
+    <div class="spec"><dt>RL domains</dt><dd>3</dd></div>
+    <div class="spec"><dt>Effort levels</dt><dd>3<small>low·high·max</small></dd></div>
+    <div class="spec"><dt>Expert teachers</dt><dd>9</dd></div>
+    <div class="spec"><dt>Quantisation</dt><dd>MXFP4<small>/ MXFP8 act</small></dd></div>
+    <div class="spec"><dt>QAT starts</dt><dd>SFT<small>, not after</small></dd></div>
+    <div class="spec"><dt>Tool calls / rollout</dt><dd>10³<small>+, up to</small></dd></div>
+    <div class="spec"><dt>Sandboxes used</dt><dd>51.2<small>M</small></dd></div>
+  </dl>
+</div>
+
+<div class="wrap shell">
+<aside class="rail">
+  <p class="rl">Contents</p>
+  <a href="#pipeline">The three stages</a>
+  <a href="#sft">Supervised fine-tuning</a>
+  <a href="#rl">Reinforcement learning</a>
+  <a href="#rollout">Partial rollout</a>
+  <a href="#effort">Reasoning-effort RL</a>
+  <a href="#grm">Agentic reward model</a>
+  <a href="#mopd">Multi-teacher distillation</a>
+  <a href="#deploy">Deployment-aware</a>
+  <a href="#env">Environments &amp; data</a>
+  <a href="#kg">Knowledge-graph synthesis</a>
+  <a href="#tasks">Task families</a>
+  <a href="#results">What it bought</a>
+</aside>
+
+<main>
+
+<!-- ========== PIPELINE ========== -->
+<section id="pipeline">
+  <p class="kicker">Structure</p>
+  <h2>The three stages</h2>
+  <p>The shape is conventional; the scale and the consolidation step are not.</p>
+  <div class="grid2">
+    <div class="card"><span class="lab">Stage 1 · §4.1.1</span><h5>Supervised fine-tuning</h5><p>Establishes a cold-start policy with baseline agentic competence. Trajectories synthesized by <em>domain-specialized models from earlier Kimi generations</em>, then multi-stage verified and human-annotated.</p></div>
+    <div class="card"><span class="lab">Stage 2 · §4.1.2</span><h5>Reinforcement learning</h5><p>Nine experts: three broad domains × three reasoning-effort levels. This is where the capability actually comes from.</p></div>
+    <div class="card"><span class="lab">Stage 3 · §4.1.3</span><h5>Multi-teacher on-policy distillation</h5><p>Consolidates nine specialists into one unified model, teacher selected per sampled (domain, effort) pair.</p></div>
+  </div>
+  <p style="margin-top:18px">Running underneath all three: quantisation-aware training from stage 1 onward, so the model that ships is the model that trained.</p>
+</section>
+
+<!-- ========== SFT ========== -->
+<section id="sft">
+  <p class="kicker">§4.1.1</p>
+  <h2>Supervised fine-tuning</h2>
+  <p>SFT's job here is narrow and explicitly stated: produce a cold start good enough that RL has something worth optimizing. The report is direct that SFT gives "a solid cold-start foundation" but that RL is what unlocks higher-order reasoning and execution.</p>
+  <p>The interesting part is where the data comes from. Rather than human demonstrations at scale, trajectories are <em class="term">synthesized by domain-specialized models from the prior Kimi series</em> — K3's cold start is distilled from a fleet of narrower predecessors — then put through multi-stage verification and human-in-the-loop annotation. The expansion over K2/K2.5's pipeline is targeted specifically at complex agentic tasks.</p>
+
+  <figure class="code"><figcaption>SFT data construction <span class="ref">§4.1.1</span></figcaption><pre><span class="c"># K3's cold start is bootstrapped from earlier specialists, not from humans at scale</span>
+sft_data = []
+<span class="k">for</span> task <span class="k">in</span> agentic_task_pool:                 <span class="c"># broadened coverage vs. K2 / K2.5</span>
+    specialist = pick_domain_model(task.domain)   <span class="c"># from the prior Kimi series</span>
+    traj       = specialist.rollout(task)
+
+    <span class="k">if</span> <span class="k">not</span> verify_multi_stage(traj):  <span class="k">continue</span>  <span class="c"># automated checks first</span>
+    traj = human_review(traj)                     <span class="c"># human-in-the-loop annotation</span>
+
+    sft_data.append(serialize_XTML(traj))         <span class="c"># one template for reasoning +</span>
+                                                  <span class="c"># tool calls + observations</span>
+train(model, sft_data, quantization=<span class="s">"MXFP4-QAT"</span>)   <span class="c"># QAT is ON from here onward</span></pre></figure>
+
+  <p>Two details carry more weight than their length suggests. <strong>XTML</strong> (eXtensible Token Markup Language) is the chat template every trajectory is serialized with — long-horizon agentic traces mix reasoning, tool calls, tool results and multimodal observations, and they need one consistent representation across SFT, RL rollouts and production. And <strong>QAT starts here</strong>, not at the end: MXFP4 weights with MXFP8 activations run through the entire post-training stage, so the model spends all of RL adapting to its deployment precision.</p>
+</section>
+
+<!-- ========== RL ========== -->
+<section id="rl">
+  <p class="kicker">§4.1.2</p>
+  <h2>Reinforcement learning across nine cells</h2>
+  <p>The design decision worth noticing is what K3 <em>didn't</em> do: train a specialized RL model per task. Instead RL is scaled across three broad domains, each covering a wide spectrum of sub-tasks, and one expert is trained per domain at every reasoning-effort level.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>3 domains × 3 efforts = 9 teachers</h4><span class="sub">click a cell</span></div>
+    <div class="mod-b">
+      <div class="emat" id="emat"></div>
+      <div class="readout" id="ematOut" style="margin-top:14px"></div>
+    </div>
+  </div>
+
+  <p>Scaling RL FLOPs does two things at once, and the report presents them as inseparable: <em class="term">tool-call step counts scale up consistently, and capability improves across the board</em> — coding experience, general tool use, web development, agentic search, professional workflows, office deliverables, chart understanding, visual puzzles. The model isn't just getting more accurate; it's learning to take more steps before answering.</p>
+</section>
+
+<!-- ========== PARTIAL ROLLOUT ========== -->
+<section id="rollout">
+  <p class="kicker">Algorithm</p>
+  <h2>Partial rollout: refusing to wait for stragglers</h2>
+  <p>Long-horizon RL has a brutal latency distribution. Sample K completions for each of N prompts and the iteration is held hostage by whichever trajectory decides to take a thousand tool calls. K3 extends the partial-rollout scheme from its synchronous framework: generation pauses as soon as a fraction <code>λ</code> of trajectories have finished, and the unfinished ones are enqueued and prioritized for resumption next iteration.</p>
+
+  <figure class="code"><figcaption>Partial rollout with resumable sandboxes <span class="ref">§4.1.2 · §5.3.2</span></figcaption><pre>paused = Queue()          <span class="c"># survives across iterations</span>
+
+<span class="k">for</span> iteration <span class="k">in</span> training:
+    <span class="c"># resume last iteration's stragglers FIRST — they are already deep</span>
+    active = [resume(t) <span class="k">for</span> t <span class="k">in</span> paused.take(priority=<span class="k">True</span>)]
+    active += [start(p, k) <span class="k">for</span> p <span class="k">in</span> sample_prompts(N)
+                           <span class="k">for</span> k <span class="k">in</span> range(K)]        <span class="c"># N×K live trajectories</span>
+
+    done = []
+    <span class="k">while</span> len(done) &lt; LAMBDA * N * K:                <span class="c"># λ ∈ (0,1)</span>
+        done.append(step_until_complete(active))
+
+    <span class="k">for</span> t <span class="k">in</span> active <span class="k">if</span> t <span class="k">not</span> <span class="k">in</span> done:
+        checkpoint_sandbox(t)      <span class="c"># AgentENV: 133 ms, only dirty pages</span>
+        paused.push(t)             <span class="c"># paused VM costs zero CPU / memory</span>
+
+    <span class="c"># a prompt's K responses are dispatched the moment they're all in</span>
+    <span class="k">for</span> p <span class="k">in</span> prompts_with_all_K_complete(done):
+        optimize(policy, p.responses)</pre></figure>
+
+  <p>This creates a real problem: an individual long-horizon trajectory now spans multiple iterations, so by the time it's optimized it was generated by a policy several updates old. That's an extreme off-policy regime, and it's exactly what destabilizes naive RL. K3's answer is a <em class="term">per-token regularization</em> that constrains updates to a localized neighbourhood, which the report credits with tolerating highly stale data while keeping training stable.</p>
+  <div class="pull">Partial rollout only works because the sandbox can be frozen mid-task and thawed an iteration later. The algorithm and the microVM infrastructure are one design, not two.</div>
+</section>
+
+<!-- ========== EFFORT ========== -->
+<section id="effort">
+  <p class="kicker">Test-time scaling, trained in</p>
+  <h2>Reasoning-effort RL</h2>
+  <p>Effort levels aren't a decoding-time knob bolted on afterwards — they're trained. Each problem <code>x</code> gets an initial token budget <code>b₀(x)</code> estimated from the cold-start model. Any trajectory whose total budget exceeds <code>τ·b₀(x)</code> has its task reward <em>overridden with −1</em>, regardless of whether it got the answer right.</p>
+  <p>What counts toward the budget differs by task type, which is a nice detail: for general tasks it's thinking tokens; for agentic tasks it's <strong>cumulative output tokens including tool-call arguments</strong>. An agent can't game the budget by moving its reasoning into the arguments it writes.</p>
+
+  <figure class="code"><figcaption>Budget-controlled reward and the τ curriculum <span class="ref">§4.1.2</span></figcaption><pre><span class="k">def</span> reward(x, y, tau):
+    T = thinking_tokens(y) <span class="k">if</span> x.is_general <span class="k">else</span> total_output_tokens(y)
+    <span class="c">#              ^ agentic tasks count tool-call arguments too</span>
+    <span class="k">if</span> T &gt; tau * b0[x]:
+        <span class="k">return</span> -1.0                <span class="c"># hard override — correctness is irrelevant</span>
+    <span class="k">return</span> task_reward(x, y)
+
+<span class="c"># stage-wise curriculum: train long first, then anneal down</span>
+max_expert  = train_RL(tau=TAU_LARGE)   <span class="c"># still capped, to suppress overthinking</span>
+high_expert = train_RL(tau=TAU_MID,  init=max_expert)
+low_expert  = train_RL(tau=TAU_SMALL, init=high_expert)
+<span class="c"># τ is tuned per domain under human-in-the-loop guidance</span>
+
+<span class="c"># every effort level's trajectories feed the next stages</span>
+collect_for(SFT, MOPD, from=[max_expert, high_expert, low_expert])</pre></figure>
+
+  <div class="mod">
+    <div class="mod-h"><h4>The budget cliff</h4><span class="sub">reward as a function of trajectory length</span></div>
+    <div class="mod-b">
+      <div class="ctrls">
+        <label for="tauS">τ (budget multiplier)</label><input type="range" id="tauS" min="4" max="30" step="1" value="18">
+        <span id="tauV" style="font-family:var(--mono)"></span>
+        <span class="seg" id="effSeg"><button data-e="max" class="on">max</button><button data-e="high">high</button><button data-e="low">low</button></span>
+      </div>
+      <canvas id="tauC" width="920" height="260"></canvas>
+      <div class="stats" id="tauStats"></div>
+      <p class="note" style="margin-top:10px">The cliff is what makes this work as a <em>preference</em> rather than a penalty: below the threshold the model is free to think as much as it likes and is scored purely on the task; one token over and the trajectory is worthless. Annealing τ downward is what converts a max-effort expert into a high- and then low-effort one.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ========== GRM ========== -->
+<section id="grm">
+  <p class="kicker">Non-verifiable rewards</p>
+  <h2>The agentic generative reward model</h2>
+  <p>For tasks with no ground truth, K3 keeps K2.5's tournament-style group reward with binary comparisons — but the judge is now an <em>agent</em>, and it's held to a mandatory four-step protocol rather than asked for an opinion.</p>
+
+  <figure class="code"><figcaption>Agentic GRM judging protocol <span class="ref">§4.1.2</span></figcaption><pre><span class="k">def</span> judge(candidate_a, candidate_b, task):
+    <span class="c"># mandatory protocol — the judge may not skip to a verdict</span>
+    out_a, out_b = read_outcome(candidate_a), read_outcome(candidate_b)
+    rubric       = generate_rubric(task)            <span class="c"># 2. written before scoring</span>
+    score_a      = score_against(out_a, rubric)     <span class="c"># 3.</span>
+    score_b      = score_against(out_b, rubric)
+    scorepad.record(rubric, score_a, score_b)       <span class="c"># 4. auditable trail</span>
+
+    <span class="c"># verbosity control: same trick as the reasoning budget, applied to output</span>
+    <span class="k">for</span> cand <span class="k">in</span> (candidate_a, candidate_b):
+        <span class="k">if</span> length(cand) &gt; SIGMA * l0[task]:
+            <span class="k">return</span> other(cand)     <span class="c"># automatic loss — kills verbosity hacking</span>
+
+    <span class="k">return</span> argmax(score_a, score_b)
+
+<span class="c"># tournament over the group, binary comparisons throughout</span>
+ranking = tournament(candidates, compare=judge)</pre></figure>
+
+  <p>Forcing the rubric to be written before the candidates are scored, and recorded in a scorepad, is a straightforward anti-rationalization measure. The verbosity control is the same budget idea from reasoning-effort RL pointed at a different failure mode: reward hacking toward ever-longer outputs. A candidate exceeding <code>σ·ℓ₀</code> automatically loses its comparison.</p>
+</section>
+
+<!-- ========== MOPD ========== -->
+<section id="mopd">
+  <p class="kicker">§4.1.3</p>
+  <h2>Consolidating nine experts into one</h2>
+  <p>Nine specialists is a research artifact, not a product. Multi-Teacher On-Policy Distillation collapses them: for each training sample, a domain <code>d</code> and an effort level <code>e</code> are sampled, and the corresponding expert <code>π<sup>(d,e)</sup></code> supervises the student — on the student's own rollouts.</p>
+  <p>The reward is a clipped per-token log-ratio between teacher and student:</p>
+  <p style="font-family:var(--mono);font-size:15px;background:var(--panel-2);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;max-width:none;overflow-x:auto">
+    r<sup>d</sup><sub>opd</sub>(y<sub>t</sub> | e, x, y<sub>&lt;t</sub>) = clip( sg( log [ π<sup>(d,e)</sup><sub>teacher</sub>(y<sub>t</sub>) / π<sub>θ</sub>(y<sub>t</sub> | e) ] ), −R<sub>max</sub>, +R<sub>max</sub> )
+  </p>
+
+  <figure class="code"><figcaption>Multi-Teacher On-Policy Distillation <span class="ref">§4.1.3 · Eq. 15</span></figcaption><pre><span class="k">for</span> batch <span class="k">in</span> training:
+    x    = sample_query(batch)
+    d    = domain_of(x)                       <span class="c"># general | agents | coding</span>
+    e    = sample([<span class="s">"low"</span>, <span class="s">"high"</span>, <span class="s">"max"</span>])       <span class="c"># effort is an input to the student</span>
+    T    = teachers[d][e]                     <span class="c"># one of the nine RL experts</span>
+
+    y    = student.rollout(x, effort=e)       <span class="c"># ON-policy: student's own tokens</span>
+
+    <span class="k">for</span> t, y_t <span class="k">in</span> enumerate(y):
+        logp_T = T.logprob(y_t | x, y[:t])
+        logp_S = student.logprob(y_t | x, y[:t], effort=e)
+        r[t]   = clip(stop_grad(logp_T - logp_S), -R_MAX, +R_MAX)
+        <span class="c"># dense per-token reward → plugs straight into the RL framework,</span>
+        <span class="c"># so partial rollout and every infra optimisation still apply</span>
+
+    optimize(student, y, r)
+
+<span class="c"># NOTE: finer-grained top-k distillation objectives were tried and</span>
+<span class="c"># showed no advantage in convergence speed or final performance.</span></pre></figure>
+
+  <p>The clip matters for the same reason it does anywhere in RL — an unbounded log-ratio on a rare token produces an advantage spike that wrecks the update. But the structural point is the one the report emphasizes: because the distillation signal is expressed as a <em class="term">dense per-token reward</em>, it drops into the existing RL machinery unchanged. Partial rollout, the sandbox infrastructure, the off-policy tolerance — MOPD inherits all of it instead of needing a separate training path.</p>
+</section>
+
+<!-- ========== DEPLOY ========== -->
+<section id="deploy">
+  <p class="kicker">§4.1.4</p>
+  <h2>Post-training that knows how it will be served</h2>
+
+  <h3>MXFP4 quantisation-aware training</h3>
+  <p>MoE expert weights dominate parameter memory, so those go to MXFP4 with MXFP8 activations, while everything else — attention projections, latent MoE projections, shared experts, routers — stays at higher precision. QAT runs through <em>all</em> of post-training, SFT and RL alike.</p>
+  <p>The consequence is worth stating plainly: during RL, <em class="term">rollout and training share the same quantisation scheme</em>. The usual train–inference mismatch, where a model is optimized in one numeric regime and deployed in another, is eliminated by construction rather than patched afterwards.</p>
+
+  <h3>Turning the MTP layer into a draft model</h3>
+  <p>K3 is pre-trained with a multi-token-prediction layer that mirrors a backbone block. An EAGLE-3 draft model is a single decoder layer with the same structure — so K3 fine-tunes the MTP layer <em>into</em> the draft, freezing the target and updating only the draft layer and its feature-fusion projection.</p>
+
+  <figure class="code"><figcaption>EAGLE-3 draft fine-tuning from the MTP layer <span class="ref">§4.1.4 · Eq. 16</span></figcaption><pre><span class="c"># fuse low / mid / high level features of the frozen target model</span>
+h_low, h_mid, h_high = target.attnres_block_out[0], [3], [-1]
+W_E3 = init([0, 0, I])       <span class="c"># at init the fusion == h_high, exactly the</span>
+                             <span class="c"># input the MTP layer was pre-trained on;</span>
+                             <span class="c"># low/mid are learned in gradually</span>
+
+<span class="k">for</span> batch <span class="k">in</span> data:
+    feat = W_E3 @ concat(h_low, h_mid, h_high)
+    <span class="k">for</span> step <span class="k">in</span> range(7):                 <span class="c"># EAGLE-3 training-time test</span>
+        q = draft(feat)
+        <span class="k">if</span> step &gt; 0:
+            feat = draft_own_output(q)     <span class="c"># mirrors recurrent drafting</span>
+                                           <span class="c"># at inference time</span>
+        p = target.next_token_dist()       <span class="c"># frozen</span>
+
+        <span class="c"># optimise the acceptance rate ITSELF, not a KL surrogate:</span>
+        loss = -log(sum(min(p[x], q[x]) <span class="k">for</span> x <span class="k">in</span> vocab))
+        <span class="c"># ^ Σ min(p,q) is exactly the per-token acceptance rate under</span>
+        <span class="c">#   lossless speculative sampling. Both at temperature 1,</span>
+        <span class="c">#   no auxiliary ground-truth cross-entropy term.</span>
+        backprop(loss, params=[draft, W_E3])</pre></figure>
+
+  <p>The <code>W_E3 = [0 0 I]</code> initialization is a small piece of craft: it makes the fused representation start out identical to the high-level feature the MTP layer already knows how to consume, so fine-tuning begins from a working draft rather than a scrambled one, and the low- and mid-level features get incorporated gradually.</p>
+  <p>The loss choice is the substantive one. Speculative decoding's speedup is governed by the acceptance rate <code>Σ min(p,q)</code>. Minimizing KL — the conventional surrogate — does not maximize that quantity for a capacity-limited draft, so K3 optimizes the negative log of the acceptance rate directly.</p>
+</section>
+
+<!-- ========== ENVIRONMENTS ========== -->
+<section id="env">
+  <p class="kicker">§4.2 — the data half</p>
+  <h2>Environments are the training data</h2>
+  <p>For an agentic model, "data" mostly isn't a corpus. It's environments that can be instantiated, acted in, and scored. K3's §4.2 is a catalogue of purpose-built ones, and it's where most of the interesting engineering lives.</p>
+
+  <h3>The unified white-box harness</h3>
+  <p>Training inside one fixed agent harness teaches a model that harness — its tool schema, its system prompt, its context-management strategy. K3 instead represents a harness as a <em class="term">collection of configurable, composable modules</em>: tool interfaces, system prompts, context management, skills, memories, subagents. Compose them one way and you get Kimi Code; compose them another and you get Claude Code, Codex, OpenClaw, Hermes — or something that has never existed.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Compose a harness</h4><span class="sub">toggle modules · RL varies these per task group</span></div>
+    <div class="mod-b">
+      <div class="chips" id="hchips"></div>
+      <div class="readout" id="hOut"></div>
+      <p class="note" style="margin-top:10px">During RL, harness configurations are constructed <em>dynamically per task group</em>, so the model sees many combinations rather than the conventions of any one scaffold. The same abstraction is what lets a single RL framework span every task domain below.</p>
+    </div>
+  </div>
+
+  <figure class="code"><figcaption>Dynamic harness instantiation during RL <span class="ref">§4.2.1</span></figcaption><pre><span class="k">for</span> task_group <span class="k">in</span> rl_batch:
+    cfg = sample_harness_config(                  <span class="c"># different every group</span>
+        tools           = sample(TOOL_SCHEMAS),
+        system_prompt   = sample(PROMPT_STYLES),
+        context_mgmt    = sample([<span class="s">"compaction"</span>, <span class="s">"summarise"</span>, <span class="s">"none"</span>]),
+        skills          = sample(SKILL_SETS),
+        memory          = sample(MEMORY_BACKENDS),
+        subagents       = sample([<span class="k">True</span>, <span class="k">False</span>]),
+    )
+    harness = Harness(**cfg)   <span class="c"># may equal Kimi Code / Claude Code / Codex /</span>
+                               <span class="c"># OpenClaw / Hermes — or none of them</span>
+    rollout(policy, task_group, harness)</pre></figure>
+</section>
+
+<!-- ========== KG ========== -->
+<section id="kg">
+  <p class="kicker">§4.2.2</p>
+  <h2>Knowledge-graph-guided task synthesis</h2>
+  <p>Task quality is bounded by source-material quality, and source material is found by search — so the leverage is in the queries. Fine-grained concepts surface specialized, underrepresented knowledge; sampling across diverse concepts broadens coverage. K3 controls both by building a <em class="term">self-evolving, hierarchically organized knowledge graph</em> that agents expand through web-scale exploration.</p>
+
+  <figure class="code"><figcaption>Agentic knowledge-graph construction and task synthesis <span class="ref">§4.2.2</span></figcaption><pre><span class="c"># ---- 1. build the DAG by recursive, agent-driven expansion ----</span>
+graph = DAG(seed_nodes=COARSE_DOMAINS)   <span class="c"># CS/AI, Math, Chemistry, ...</span>
+frontier = list(seed_nodes)
+
+<span class="k">while</span> frontier:
+    node  = frontier.pop()
+    agent = Agent(concept=node)
+    found = agent.web_search_multiple(node)
+
+    <span class="k">for</span> concept <span class="k">in</span> found:
+        <span class="c"># explore BEFORE inserting — reuse beats duplicate</span>
+        existing = agent.search_graph(graph, concept)
+        <span class="k">if</span> existing: graph.link(node, existing); <span class="k">continue</span>
+
+        graph.add(concept)
+        graph.edge(coarser=node, finer=concept)   <span class="c"># direction is always</span>
+                                                  <span class="c"># coarse → fine, regardless</span>
+                                                  <span class="c"># of discovery order</span>
+        <span class="k">if</span> <span class="k">not</span> agent.is_atomic(concept):
+            frontier.append(concept)              <span class="c"># keep expanding</span>
+
+<span class="c"># ---- 2. sample → retrieve → synthesise ----</span>
+nodes    = graph.sample(granularity=<span class="s">"mixed"</span>, jointly_related=<span class="k">True</span>)
+keywords = [n.keyword <span class="k">for</span> n <span class="k">in</span> nodes] + ancestors_context(nodes)
+material = web_fetch(query=keywords)   <span class="c"># papers, blog posts, code repos</span>
+task     = synthesis_agent.make(material, type=sample(TASK_TYPES))</pre></figure>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Granularity controls what you find</h4><span class="sub">click a node to sample a query from it</span></div>
+    <div class="mod-b">
+      <canvas id="kgC" width="920" height="330" style="cursor:pointer"></canvas>
+      <div class="readout" id="kgOut" style="margin-top:14px"></div>
+    </div>
+  </div>
+  <p>Two design choices do the real work. Edges are always directed coarse → fine <em>regardless of which endpoint the agent found first</em>, which keeps the hierarchy meaningful rather than an artifact of crawl order. And an agent explores the existing graph before adding anything, reusing equivalent nodes — without that, web-scale recursive expansion degenerates into thousands of near-duplicate concepts.</p>
+</section>
+
+<!-- ========== TASKS ========== -->
+<section id="tasks">
+  <p class="kicker">§4.2.3 – §4.2.7</p>
+  <h2>Five families of training environment</h2>
+
+  <div class="acc">
+    <details open><summary><span class="tag">§4.2.4</span>Kernel optimisation — where reward hacking is the hard part<span class="mark">＋</span></summary><div class="body">
+      <p>A large suite spanning single-operator kernels to fused mega-kernels, sourced from high-quality GitHub repositories such as Flash Linear Attention. It covers CUDA, Triton, CuTe DSL, Gluon, ThunderKittens and TileLang, across widely used GPU architectures and BF16 / FP8 / FP4.</p>
+      <p>The reward is graded rather than binary — and the anti-cheating system is treated as a first-class, continuously extended component, because a kernel task is unusually easy to fake.</p>
+      <figure class="code"><figcaption>Kernel task reward</figcaption><pre><span class="k">def</span> kernel_reward(solution, task):
+    out = run(solution)
+    <span class="k">if</span> numerical_error(out, task.pytorch_reference) &gt; THRESHOLD:
+        <span class="k">return</span> 0.0                       <span class="c"># correctness gate first</span>
+
+    <span class="k">if</span> hacking_detector.flags(solution):  <span class="c"># CUDA graph replay,</span>
+        <span class="k">return</span> 0.0                        <span class="c"># input caching,</span>
+                                          <span class="c"># precision reduction, ...</span>
+                                          <span class="c"># extended as new hacks appear</span>
+    t = measure_latency(solution)
+    <span class="k">if</span> t &gt;= task.expert_time:  <span class="k">return</span> 0.5 * task.expert_time / t
+    <span class="k">return</span> 0.5 + 0.5 * progress_toward(task.roofline, t)
+    <span class="c"># 0.5 = matches an expert implementation</span>
+    <span class="c"># 1.0 = approaches the hardware roofline</span></pre></figure>
+      <div class="mod" style="margin:14px 0 0"><div class="mod-h"><h4>Reward curve</h4><span class="sub">drag the achieved latency</span></div><div class="mod-b">
+        <div class="ctrls"><label for="kerS">Achieved performance</label><input type="range" id="kerS" min="0" max="100" value="42"></div>
+        <canvas id="kerC" width="880" height="200"></canvas>
+        <div class="stats" id="kerStats"></div>
+      </div></div>
+    </div></details>
+
+    <details><summary><span class="tag">§4.2.3</span>Verifiable problems in agentic environments<span class="mark">＋</span></summary><div class="body">
+      <p>Three representative shapes. <strong>Multi-step complex information search</strong> — the model plans its research, gathers web evidence step by step, and produces a verifiable answer. <strong>Real professional work</strong> — investment banking, data analysis, legal practice: decompose a complex request, operate domain tools in a sandbox, produce a deliverable over dozens to hundreds of steps. <strong>Multi-step verifiable visual reasoning</strong> over STEM problems, visual puzzles and charts.</p>
+      <p>The visual track is the most architecturally interesting, because it's the pre-training multimodal bet cashing out. Each trajectory runs in an agent environment with a Python interpreter in an isolated sandbox: the model writes and executes code to <em>crop, zoom or transform the input image</em>, compute precisely, or verify intermediate results — and receives execution outputs, <strong>including generated images</strong>, as new observations. As it learns to perform more image operations and gather more observations, complex-visual-reasoning performance steadily improves. That is the mechanism behind ZeroBench going 23.0 → 41.0 with a Python tool.</p>
+    </div></details>
+
+    <details><summary><span class="tag">§4.2.5</span>Personal assistant tasks — living environments<span class="mark">＋</span></summary><div class="body">
+      <p>Realistic mock implementations of Gmail, Notion, Slack and Canvas, preserving the core semantics of the real applications while allowing reproducible, large-scale interaction with no external APIs or rate limits.</p>
+      <p>On top of those, tasks modelled on real professional workflows in HR, legal services and finance. The agent operates in a <em class="term">persistent, evolving environment over multiple simulated days</em>, encountering dozens of interdependent events distributed across applications. Each event carries its own evaluation criterion, assessed by deterministic rules or LLM evaluators.</p>
+      <p>Scale of a single rollout: <strong>up to thousands of tool calls and millions of context tokens</strong>. The initial workspace itself is built by agents that search the web for reference material and transform it into a coherent, task-relevant environment — and the RL framework had to be extended to model event streams and the world-state transitions they induce.</p>
+    </div></details>
+
+    <details><summary><span class="tag">§4.2.6</span>Autonomous Execution Tasks — verify in the loop<span class="mark">＋</span></summary><div class="body">
+      <p>AET gives the agent an initial state, a constrained goal, a tool-based action space, execution budgets, and an <em>independent verifier</em>. What it deliberately withholds is everything else: no reference trajectories, no predefined procedures. The agent must do its own decomposition, tool selection, planning, error recovery and termination.</p>
+      <p>Crucially, reward is grounded in the verifier's assessment of the <strong>final environment state</strong> — not the agent's self-reported completion.</p>
+      <figure class="code"><figcaption>AET loop and anti-hacking structure</figcaption><pre>state = task.initial_state
+<span class="k">for</span> attempt <span class="k">in</span> range(SUBMISSION_BUDGET):
+    plan   = agent.decompose(task.goal, task.constraints)
+    state  = agent.execute(plan, tools=task.action_space)
+    result = public_verifier.check(state)   <span class="c"># diagnostic feedback</span>
+    <span class="k">if</span> result.passed: <span class="k">break</span>
+    agent.adapt(result.feedback)            <span class="c"># hypothesise → act →</span>
+                                            <span class="c"># analyse → adapt</span>
+
+<span class="c"># reward comes from a verifier the agent never had access to</span>
+reward = hidden_verifier.evaluate(state, held_out_scenarios) \
+       - PENALTY * attempts_used
+<span class="c"># agents are isolated from verifiers; the public one gives feedback,</span>
+<span class="c"># the hidden one grades held-out scenarios</span></pre></figure>
+      <p>Verifier types span black-box system replication, quantitative factor discovery and tax auditing. In the report's flagship example — reconstructing a hidden 3D-camera repair system as a web application through oracle queries alone — K3 reaches 1.000 completion where Opus 4.8 reaches 0.918, GPT-5.5 0.893, and Kimi K2.6 only 0.560.</p>
+    </div></details>
+
+    <details><summary><span class="tag">§4.2.7</span>Web development — deterministic checks plus a judge that looks<span class="mark">＋</span></summary><div class="body">
+      <p>Expert-curated tasks whose inputs range from one-line scene descriptions to multi-paragraph specifications, producing websites, interactive games, 3D/WebGL scenes, data visualisations, SVGs and full-stack applications. Every task runs in a containerised sandbox and is rolled out under <em>diverse agent scaffolds</em> rather than a single fixed harness, to force cross-scaffold generalisation.</p>
+      <figure class="code"><figcaption>Two-component web-dev reward</figcaption><pre><span class="k">def</span> webdev_reward(project, task):
+    <span class="k">if</span> <span class="k">not</span> builds(project):        <span class="k">return</span> 0.0
+    <span class="k">if</span> runs_with_errors(project):   <span class="k">return</span> 0.0
+    <span class="k">if</span> is_faked(project):           <span class="k">return</span> 0.0   <span class="c"># mocked, not implemented</span>
+
+    det = functional_tests(project)                 <span class="c"># behaviour</span>
+    <span class="k">if</span> task.has_reference:
+        det += structural_similarity(project, task.reference)
+        det += pixel_similarity(render(project), task.reference)
+
+    judged = reward_model.inspect_source(project) \
+           + reward_model.look_at_and_interact_with(render(project))
+    <span class="c">#         ^ the judge actually operates the artifact</span>
+    <span class="k">return</span> combine(det, judged)</pre></figure>
+      <p>The three zeroing conditions carry the design: a project that fails to build, errors at runtime, or <em>fakes rather than implements</em> the artifact scores nothing. The last one is the anti-hacking clause — an agent that stubs out the hard part and returns something that looks right gets no credit.</p>
+    </div></details>
+  </div>
+</section>
+
+<!-- ========== RESULTS ========== -->
+<section id="results">
+  <p class="kicker">Attribution</p>
+  <h2>What the post-training bought</h2>
+  <p>Public benchmarks are covered in <a href="kimi-k3-architecture.html#evals" style="color:var(--accent)">Part 01</a>. The in-house suite is more diagnostic, because Moonshot built it specifically to track failure modes the public benchmarks miss — and it separates K3's strengths from its weaknesses far more sharply.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>In-house benchmarks</h4><span class="sub">max reasoning effort · GPT-5.5 at xhigh</span></div>
+    <div class="mod-b scroller">
+      <table id="inT"><thead><tr><th>Benchmark</th><th>Harness</th><th>Kimi K3</th><th>Fable 5</th><th>GPT-5.6 Sol</th><th>Opus 4.8</th><th>GPT-5.5</th><th>GLM-5.2</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+
+  <p><strong>The clearest wins are orchestration and research.</strong> K3 leads Swarm Bench (76.3) and Deep Research Bench (90.0) by clear margins — decomposing complex objectives, coordinating parallel work, producing rubric-satisfying deliverables. That maps directly onto the AET and knowledge-graph environments.</p>
+  <p><strong>Coding behaviour outruns coding score.</strong> On Kimi Code Bench 2.0 it trails only Fable 5, but it takes the top spot on <em>Coding Experience</em> — communication quality, behavioural appropriateness, instruction-following stability. The report's own reading: its practical behaviour as a coding agent is ahead of its raw task numbers.</p>
+
+  <div class="mod">
+    <div class="mod-h"><h4>Kimi Webdev Bench — blind expert judging vs Opus 4.8</h4><span class="sub">both under the Claude Code harness</span></div>
+    <div class="mod-b">
+      <canvas id="wdC" width="920" height="230"></canvas>
+      <p class="note" style="margin-top:10px">Experts scored code quality, feature completeness, visual fidelity and interaction experience without knowing which model produced which output. The 3D/WebGL/Shader margin (+59.1) is the largest in the suite — and it is hard not to connect it to the programmatic multimodal pre-training corpus that paired code with its rendered result.</p>
+    </div>
+  </div>
+
+  <p><strong>Where it trails:</strong> Agent Behavior Bench, MIRA Bench, 24/7 ClawBench 2.0, Agentic Vision Bench and KWV Bench. Agent Behavior Bench is the pointed one — it scores <em>process</em> quality, tool-use discipline and efficiency rather than outcome correctness, and K3 sits at 65.0 against 76.4 for GPT-5.6 Sol. A model trained with partial rollouts and generous step budgets getting marked down on efficiency is a coherent, if uncomfortable, result.</p>
+
+  <div class="grid2" style="margin-top:26px">
+    <div class="card"><span class="num">+31.0</span><h5>Webdev win margin</h5><p>Overall win−lose against Opus 4.8 under blind expert judging.</p></div>
+    <div class="card"><span class="num">90.0</span><h5>Deep Research Bench</h5><p>Best in suite, ahead of Opus 4.8 (87.2) and GPT-5.6 Sol (85.3).</p></div>
+    <div class="card"><span class="num">1,678</span><h5>WebDev Arena Elo</h5><p>#1 of 99 — the first open model to top that leaderboard.</p></div>
+    <div class="card"><span class="num">38%</span><h5>of Fable 5's cost</h5><p>On Kimi Code Bench 2.0, 4.0 points behind at 38% of the price.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p style="max-width:70ch">Source: <em>Kimi K3: Open Frontier Intelligence — Technical Report</em>, §4, Kimi Team, July 2026. Pseudocode is written for clarity from the report's prose and equations — it is a faithful restatement of the described algorithms, not extracted source code. Section references are given on each block.</p>
+  <div class="trilogy">
+    <a href="kimi-k3-architecture.html"><span class="n">Part 01</span><span class="t">Architecture &amp; systems →</span></a>
+    <a href="kimi-k3-pretraining.html"><span class="n">Part 02</span><span class="t">Pre-training →</span></a>
+    <a href="index.html"><span class="n">Library</span><span class="t">All explainers →</span></a>
+  </div>
+</footer>
+</main>
+</div>
+
+<script>
+(function(){
+"use strict";
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+$("#tgl").addEventListener("click",()=>{
+  const cur=document.documentElement.getAttribute("data-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light");
+  document.documentElement.setAttribute("data-theme",cur==="dark"?"light":"dark");redrawAll();});
+function fit(c,h){const r=c.getBoundingClientRect(),dpr=Math.min(devicePixelRatio||1,2);
+  c.width=Math.max(320,r.width*dpr);c.height=h*dpr;c.style.height=h+"px";
+  const x=c.getContext("2d");x.setTransform(dpr,0,0,dpr,0,0);return {x,w:r.width,h};}
+
+/* ---------- expert matrix ---------- */
+const DOM=[
+ {k:"general",n:"General tasks",d:"general experience · vision · reasoning · faithfulness · search · knowledge work"},
+ {k:"agents",n:"General agents",d:"long-horizon assistant · deep research · paragraph-level writing"},
+ {k:"coding",n:"Coding agents",d:"software engineering · coding experience · kernels · web development"}
+];
+const EFF=["low","high","max"];
+const emat=$("#emat");
+let html=`<div class="hd"></div>`+EFF.map(e=>`<div class="hd">${e} effort</div>`).join("");
+DOM.forEach(d=>{
+  html+=`<div class="hd">${d.n}</div>`;
+  EFF.forEach(e=>{html+=`<button class="cell" data-d="${d.k}" data-e="${e}"><span class="t">π(${d.k}, ${e})</span><span class="d">expert</span></button>`;});
+});
+emat.innerHTML=html;
+const EDESC={
+ general:{low:"Answers directly with minimal deliberation. Trained by annealing τ hard — the thinking-token budget is tight enough that the policy must front-load its judgement.",
+          high:"Extended deliberation on reasoning, faithfulness and knowledge tasks without the full max-effort budget. The workhorse setting for most general queries.",
+          max:"The unconstrained end. τ is large but still capped, because uncapped budgets produce overthinking rather than better answers."},
+ agents:{low:"Short assistant loops. Budget counts cumulative output tokens including tool-call arguments, so the agent cannot smuggle reasoning into its arguments.",
+         high:"Deep research and multi-step assistant work at a moderate step budget.",
+         max:"Long-horizon execution — hundreds to thousands of tool calls, millions of accumulated context tokens, spanning multiple RL iterations via partial rollout."},
+ coding:{low:"Fast edits and focused fixes. Kimi Code Bench cost-efficiency at low effort is where K3's price advantage is widest.",
+         high:"The setting that already matches Opus 4.8's max-effort score on Kimi Code Bench 2.0 at roughly a third of the cost.",
+         max:"Full agentic engineering: repository navigation, terminal orchestration, kernel optimisation, web development with vision in the loop."}
+};
+emat.addEventListener("click",e=>{const b=e.target.closest(".cell");if(!b)return;
+  $$("#emat .cell").forEach(x=>x.classList.remove("on"));b.classList.add("on");
+  const d=b.dataset.d,ef=b.dataset.e;
+  const dm=DOM.find(x=>x.k===d);
+  $("#ematOut").innerHTML=`<b>π(${d}, ${ef}) — one of nine RL experts</b>${EDESC[d][ef]}<br><span style="font-family:var(--mono);font-size:12px;color:var(--ink-3)">domain covers: ${dm.d}</span>`;});
+$("#ematOut").innerHTML=`<b>Nine experts, one student</b>Each cell is a separately RL-trained policy. None of them ships. During MOPD a (domain, effort) pair is sampled per query and that cell becomes the teacher for the student's own rollout — so the final model inherits all nine behaviours behind a single effort parameter.`;
+
+/* ---------- budget cliff ---------- */
+let effLvl="max";
+$("#effSeg").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  $$("#effSeg button").forEach(x=>x.classList.remove("on"));b.classList.add("on");effLvl=b.dataset.e;
+  $("#tauS").value={max:24,high:14,low:7}[effLvl];drawTau();});
+$("#tauS").addEventListener("input",drawTau);
+function drawTau(){
+  const c=$("#tauC"),{x,w,h}=fit(c,260);
+  const tau=+$("#tauS").value/10; $("#tauV").textContent="τ = "+tau.toFixed(1);
+  x.clearRect(0,0,w,h);
+  const L=56,R=20,T=22,B=42,pw=w-L-R,ph=h-T-B;
+  const b0=1.0, maxT=3.2;
+  const X=t=>L+t/maxT*pw, Y=r=>T+ph*(1.15-r)/2.3;
+  x.strokeStyle=css("--rule");
+  [-1,-0.5,0,0.5,1].forEach(v=>{x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(v.toFixed(1),L-6,Y(v)+3);});
+  // task reward rising with length then flat
+  x.strokeStyle=css("--accent");x.lineWidth=2.6;x.beginPath();
+  for(let i=0;i<=300;i++){const t=maxT*i/300;
+    let r = t<=tau ? 0.30+0.62*(1-Math.exp(-t*1.5)) : -1;
+    if(i>0 && t>tau && maxT*(i-1)/300<=tau){x.lineTo(X(tau),Y(0.30+0.62*(1-Math.exp(-tau*1.5))));x.lineTo(X(tau),Y(-1));}
+    i?x.lineTo(X(t),Y(r)):x.moveTo(X(t),Y(r));}
+  x.stroke();
+  // b0 marker
+  x.save();x.setLineDash([3,4]);x.strokeStyle=css("--ink-3");x.lineWidth=1;
+  x.beginPath();x.moveTo(X(b0),T);x.lineTo(X(b0),h-B);x.stroke();
+  x.strokeStyle=css("--accent");x.beginPath();x.moveTo(X(tau),T);x.lineTo(X(tau),h-B);x.stroke();x.restore();
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="center";
+  x.fillText("b₀(x)",X(b0),T-8);
+  x.fillStyle=css("--accent");x.fillText("τ·b₀(x)",X(tau),T-8);
+  x.fillStyle=css("--ink-3");x.textAlign="center";
+  x.fillText("trajectory token budget T(y)  →",L+pw/2,h-8);
+  x.save();x.translate(13,T+ph/2);x.rotate(-Math.PI/2);x.fillText("reward",0,0);x.restore();
+  x.fillStyle=css("--neg");x.textAlign="left";x.font="11px ui-monospace,Menlo,monospace";
+  x.fillText("reward = −1, regardless of correctness",X(tau)+8,Y(-1)-8);
+  $("#tauStats").innerHTML=`effort level: <b>${effLvl}</b>`+
+    `<span>budget ceiling: <b>${tau.toFixed(1)} × b₀(x)</b></span>`+
+    `<span>counts: <b>${"thinking tokens (general) / cumulative output incl. tool args (agentic)"}</b></span>`;
+}
+
+/* ---------- harness composer ---------- */
+const MODULES=["tool interfaces","system prompt","context management","skills","memories","subagents"];
+const HARNESSES=[
+ {n:"Kimi Code",need:["tool interfaces","system prompt","context management","skills"]},
+ {n:"Claude Code",need:["tool interfaces","system prompt","context management","skills","subagents"]},
+ {n:"Codex",need:["tool interfaces","system prompt","context management"]},
+ {n:"OpenClaw",need:["tool interfaces","system prompt","memories"]},
+ {n:"Hermes",need:["tool interfaces","system prompt","skills","memories","subagents"]}
+];
+let sel=new Set(["tool interfaces","system prompt","context management","skills"]);
+function drawH(){
+  $("#hchips").innerHTML=MODULES.map(m=>`<button class="chip ${sel.has(m)?"on":""}" data-m="${m}">${m}</button>`).join("");
+  const on=[...sel];
+  const exact=HARNESSES.find(hh=>hh.need.length===on.length&&hh.need.every(x=>sel.has(x)));
+  const near=HARNESSES.map(hh=>({h:hh,d:hh.need.filter(x=>!sel.has(x)).length+on.filter(x=>!hh.need.includes(x)).length}))
+    .sort((a,b)=>a.d-b.d)[0];
+  $("#hOut").innerHTML= exact
+   ? `<b>This configuration instantiates ${exact.n}</b>Mainstream harnesses aren't special cases in K3's environment — they're points in a configuration space. The RL loop reaches them incidentally, alongside configurations no one has ever shipped.`
+   : (on.length===0
+     ? `<b>No modules selected</b>A harness is a composition. With nothing enabled there is no agent — enable tool interfaces and a system prompt to get the minimum viable scaffold.`
+     : `<b>A harness that doesn't exist yet</b>Closest named scaffold: <strong>${near.h.n}</strong> (${near.d} module${near.d===1?"":"s"} different). This is the point — training across the space rather than at its named points is what stops the model overfitting to one tool schema, prompt style or context-management convention.`);
+}
+$("#hchips").addEventListener("click",e=>{const b=e.target.closest(".chip");if(!b)return;
+  const m=b.dataset.m; sel.has(m)?sel.delete(m):sel.add(m); drawH();});
+drawH();
+
+/* ---------- knowledge graph ---------- */
+const KGN=[
+ {id:0,x:.5,y:.10,l:"Root",lvl:0},
+ {id:1,x:.20,y:.34,l:"CS / AI",lvl:1},{id:2,x:.50,y:.34,l:"Physics",lvl:1},{id:3,x:.80,y:.34,l:"Biomedicine",lvl:1},
+ {id:4,x:.10,y:.60,l:"Systems",lvl:2},{id:5,x:.30,y:.60,l:"Deep learning",lvl:2},
+ {id:6,x:.50,y:.60,l:"Condensed matter",lvl:2},{id:7,x:.80,y:.60,l:"Genomics",lvl:2},
+ {id:8,x:.06,y:.86,l:"GPU kernel",lvl:3},{id:9,x:.22,y:.86,l:"RoPE",lvl:3},{id:10,x:.38,y:.86,l:"MoE routing",lvl:3},
+ {id:11,x:.55,y:.86,l:"Band structure",lvl:3},{id:12,x:.80,y:.86,l:"Variant calling",lvl:3}
+];
+const KGE=[[0,1],[0,2],[0,3],[1,4],[1,5],[2,6],[3,7],[4,8],[5,9],[5,10],[6,11],[7,12],[4,10]];
+let kgSel=10;
+function drawKG(){
+  const c=$("#kgC"),{x,w,h}=fit(c,330);
+  x.clearRect(0,0,w,h);
+  const P=n=>[40+n.x*(w-80), 26+n.y*(h-70)];
+  x.lineWidth=1.2;
+  KGE.forEach(([a,b])=>{
+    const A=P(KGN[a]),B=P(KGN[b]);
+    const hot = a===kgSel||b===kgSel||isAnc(a,kgSel);
+    x.strokeStyle=hot?css("--accent-line"):css("--rule");
+    x.beginPath();x.moveTo(A[0],A[1]);x.lineTo(B[0],B[1]);x.stroke();
+  });
+  KGN.forEach(n=>{
+    const [px,py]=P(n);
+    const on=n.id===kgSel, anc=isAnc(n.id,kgSel);
+    const r= n.lvl===0?9:(n.lvl===1?8:(n.lvl===2?7:6));
+    x.beginPath();x.arc(px,py,on?r+3:r,0,7);
+    x.fillStyle= on?css("--accent"):(anc?css("--accent-line"):css("--rule-2"));
+    x.fill();
+    x.fillStyle= on?css("--accent"):(anc?css("--ink-2"):css("--ink-3"));
+    x.font=(on?"bold ":"")+"11px ui-monospace,Menlo,monospace";x.textAlign="center";
+    x.fillText(n.l,px,py-r-7);
+    n._p=[px,py,r+6];
+  });
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("edges always run coarse → fine, whichever end the agent discovered first",40,h-8);
+}
+function isAnc(a,b){ // is a an ancestor of b
+  let cur=b,guard=0;
+  while(guard++<8){const e=KGE.find(([p,q])=>q===cur);if(!e)return false;if(e[0]===a)return true;cur=e[0];}
+  return false;
+}
+function ancChain(id){const out=[];let cur=id,g=0;
+  while(g++<8){const e=KGE.find(([p,q])=>q===cur);if(!e)break;out.unshift(KGN[e[0]].l);cur=e[0];}return out;}
+function kgOut(){
+  const n=KGN[kgSel];
+  const chain=ancChain(kgSel);
+  const gran=["root","broad domain","sub-field","atomic concept"][n.lvl];
+  const q=[...chain.slice(1),n.l].join(" · ");
+  $("#kgOut").innerHTML=`<b>${n.l} — ${gran}</b>`+
+   (n.lvl>=3
+    ? `A branch stops expanding when its agent judges the concept sufficiently atomic. Fine nodes like this are what surface specialised, underrepresented material that a broad query would never reach.`
+    : `Coarse nodes give coverage, not depth. Sampling only here produces generic tasks; the system deliberately samples across granularities, individually or in related combinations.`)+
+   `<br><span style="font-family:var(--mono);font-size:12px;color:var(--accent)">web query ← keywords + ancestor context: &nbsp;${q}</span>`;
+}
+$("#kgC").addEventListener("click",e=>{
+  const r=$("#kgC").getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+  let best=null,bd=1e9;
+  KGN.forEach(n=>{if(!n._p)return;const d=Math.hypot(n._p[0]-mx,n._p[1]-my);if(d<bd){bd=d;best=n;}});
+  if(best&&bd<28){kgSel=best.id;drawKG();kgOut();}
+});
+kgOut();
+
+/* ---------- kernel reward ---------- */
+$("#kerS").addEventListener("input",drawKer);
+function drawKer(){
+  const c=$("#kerC");if(!c)return;
+  const {x,w,h}=fit(c,200);
+  x.clearRect(0,0,w,h);
+  const L=52,R=20,T=22,B=40,pw=w-L-R,ph=h-T-B;
+  const X=p=>L+p/100*pw, Y=r=>T+ph*(1.08-r)/1.16;
+  x.strokeStyle=css("--rule");
+  [0,0.5,1].forEach(v=>{x.beginPath();x.moveTo(L,Y(v));x.lineTo(w-R,Y(v));x.stroke();
+    x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="right";x.fillText(v.toFixed(1),L-6,Y(v)+3);});
+  const R2=p=>p<=50? 0.5*p/50 : 0.5+0.5*(p-50)/50;
+  x.strokeStyle=css("--accent");x.lineWidth=2.6;x.beginPath();
+  for(let i=0;i<=200;i++){const p=100*i/200;i?x.lineTo(X(p),Y(R2(p))):x.moveTo(X(p),Y(R2(p)));}x.stroke();
+  x.save();x.setLineDash([3,4]);x.strokeStyle=css("--rule-2");
+  x.beginPath();x.moveTo(X(50),T);x.lineTo(X(50),h-B);x.stroke();
+  x.beginPath();x.moveTo(X(100),T);x.lineTo(X(100),h-B);x.stroke();x.restore();
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="center";
+  x.fillText("expert impl.",X(50),T-8);x.fillText("roofline",X(100)-24,T-8);
+  x.fillText("achieved performance  →",L+pw/2,h-8);
+  const p=+$("#kerS").value, r=R2(p);
+  x.fillStyle=css("--accent");x.beginPath();x.arc(X(p),Y(r),5.5,0,7);x.fill();
+  $("#kerStats").innerHTML=`reward: <b style="color:var(--accent)">${r.toFixed(2)}</b>`+
+    `<span>${p<50?"below expert parity":(p<100?"between expert and roofline":"at the hardware roofline")}</span>`+
+    `<span style="color:var(--neg)">any numerical-error or hacking flag → <b style="color:var(--neg)">0.00</b></span>`;
+}
+
+/* ---------- in-house table ---------- */
+const IN=[
+ ["Kimi Code Bench 2.0","Claude Code",73.7,76.9,null,71.7,null,64.2],
+ ["Coding Experience","Claude Code",59.9,59.8,null,58.0,null,53.3],
+ ["24/7 ClawBench 2.0","OpenClaw",48.3,47.4,52.0,47.2,48.5,43.2],
+ ["MIRA Bench","MIRA",64.1,72.9,62.2,59.8,54.6,null],
+ ["KAET","Kimi Code",83.5,null,85.4,78.7,79.7,74.7],
+ ["CLIF Bench","Kimi Code",52.4,null,50.6,48.8,52.3,39.2],
+ ["Agentic Vision Bench","Kimi Code",78.3,81.1,82.9,82.8,76.9,null],
+ ["Swarm Bench","Kimi Agent",76.3,null,73.2,72.6,61.8,58.5],
+ ["Online Experience","Kimi Agent",77.9,74.2,84.0,69.4,73.7,64.0],
+ ["Deep Research Bench","Kimi Agent",90.0,null,85.3,87.2,81.9,84.0],
+ ["Finance Bench","—",62.6,null,62.7,60.7,58.4,55.4],
+ ["KWV Bench","—",64.7,63.6,66.9,61.7,65.8,null],
+ ["DECK Bench","—",73.5,73.0,74.7,66.9,68.2,68.6],
+ ["Agent Behavior Bench","Kimi Work",65.0,75.5,76.4,65.7,70.1,null],
+ ["Faithfulness (1−halluc.)","—",85.5,null,84.8,83.6,86.5,74.8],
+ ["Chat All-in-One Bench","Kimi Work",85.2,88.0,79.0,83.8,71.8,null]
+];
+$("#inT tbody").innerHTML=IN.map(r=>{
+  const v=r.slice(2), best=Math.max(...v.filter(z=>z!==null));
+  return `<tr><td>${r[0]}</td><td class="h2c">${r[1]}</td>`+v.map((z,i)=>
+    `<td class="${z!==null&&z>=best-1e-9?"best ":""}${i===0?"k3":""}">${z===null?"—":z.toFixed(1)}</td>`).join("")+`</tr>`;
+}).join("");
+
+/* ---------- webdev bench ---------- */
+const WD=[["Games",55.6,3.7,40.7],["3D / WebGL / Shader",72.7,13.7,13.6],["Website / UI clone",52.6,21.1,26.3],["Overall",58.6,13.8,27.6]];
+function drawWD(){
+  const c=$("#wdC"),{x,w,h}=fit(c,230);
+  x.clearRect(0,0,w,h);
+  const L=150,R=90,T=26,pw=w-L-R;
+  x.font="12px system-ui";
+  WD.forEach((r,i)=>{
+    const y=T+i*46, bh=26;
+    const isTot=i===WD.length-1;
+    x.fillStyle=isTot?css("--ink"):css("--ink-2");
+    x.textAlign="right";x.font=(isTot?"600 ":"")+"13px system-ui";
+    x.fillText(r[0],L-12,y+17);
+    let acc=0;
+    [[r[1],css("--accent")],[r[2],css("--rule-2")],[r[3],css("--ink-3")]].forEach(([v,col],j)=>{
+      const bw=pw*v/100;
+      x.fillStyle=col;x.globalAlpha=j===2?.55:1;x.fillRect(L+acc,y,bw,bh);x.globalAlpha=1;
+      if(bw>34){x.fillStyle=j===0?"#fff":css("--panel");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="center";
+        x.fillText(v.toFixed(1)+"%",L+acc+bw/2,y+17);}
+      acc+=bw;
+    });
+    const d=r[1]-r[3];
+    x.fillStyle=d>0?css("--pos"):css("--neg");x.textAlign="left";x.font="600 12px ui-monospace,Menlo,monospace";
+    x.fillText((d>0?"+":"")+d.toFixed(1),L+pw+10,y+17);
+  });
+  x.fillStyle=css("--ink-3");x.font="10px ui-monospace,Menlo,monospace";x.textAlign="left";
+  x.fillText("K3 preferred", L, T-9);
+  x.fillText("tie", L+pw*0.62, T-9);
+  x.fillText("Opus 4.8 preferred", L+pw*0.78, T-9);
+  x.textAlign="left";x.fillText("win − lose", L+pw+10, T-9);
+}
+
+/* ---------- accordion ---------- */
+$$(".acc details").forEach(d=>{const m=d.querySelector(".mark");
+  const set=()=>m.textContent=d.open?"−":"＋";set();d.addEventListener("toggle",()=>{set();if(d.open)setTimeout(drawKer,30);});});
+
+/* ---------- rail ---------- */
+const railLinks=$$(".rail a");
+const io=new IntersectionObserver(es=>{es.forEach(e=>{if(e.isIntersecting)
+  railLinks.forEach(a=>a.classList.toggle("on",a.getAttribute("href")==="#"+e.target.id));});},
+  {rootMargin:"-15% 0px -70% 0px"});
+$$("section[id]").forEach(s=>io.observe(s));
+
+function redrawAll(){drawTau();drawKG();drawKer();drawWD();}
+redrawAll();
+let rt;addEventListener("resize",()=>{clearTimeout(rt);rt=setTimeout(redrawAll,120);});
+})();
+</script>
