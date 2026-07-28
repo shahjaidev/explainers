@@ -1,0 +1,946 @@
+<meta charset="utf-8">
+<title>On-Policy Self-Distillation — A Field Explainer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    /* light theme (default) — cool technical paper */
+    --ground: #EEF1F5;
+    --surface: #FFFFFF;
+    --surface-2: #E7ECF2;
+    --line: rgba(22,32,52,0.12);
+    --line-soft: rgba(22,32,52,0.07);
+    --text: #161C28;
+    --dim: #4E5A6B;
+    --faint: #838E9E;
+    --teacher: #B9740C;   /* privileged signal — amber */
+    --teacher-soft: rgba(185,116,12,0.12);
+    --verifier: #0C8478;  /* verifier direction — teal */
+    --verifier-soft: rgba(12,132,120,0.12);
+    --collapse: #C1352F;  /* collapse / failure — crimson */
+    --collapse-soft: rgba(193,53,47,0.11);
+    --good: #1C8F63;
+    --good-soft: rgba(28,143,99,0.13);
+    --neutral-line: #8A93A2;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg: 0 2px 4px rgba(16,24,40,.08), 0 20px 48px rgba(16,24,40,.12);
+
+    --serif: ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", Consolas, monospace;
+
+    --measure: 66ch;
+    --maxw: 1180px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0B0E15;
+      --surface: #141A26;
+      --surface-2: #1B2333;
+      --line: rgba(255,255,255,0.10);
+      --line-soft: rgba(255,255,255,0.055);
+      --text: #E7EBF2;
+      --dim: #9AA5B6;
+      --faint: #67718400;
+      --faint: #6A7488;
+      --teacher: #E9A93E;
+      --teacher-soft: rgba(233,169,62,0.15);
+      --verifier: #35CDB9;
+      --verifier-soft: rgba(53,205,185,0.15);
+      --collapse: #E76A63;
+      --collapse-soft: rgba(231,106,99,0.15);
+      --good: #4FC98D;
+      --good-soft: rgba(79,201,141,0.15);
+      --neutral-line: #6A7488;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+      --shadow-lg: 0 2px 6px rgba(0,0,0,.4), 0 24px 60px rgba(0,0,0,.5);
+    }
+  }
+  /* explicit toggle overrides — must win both directions */
+  :root[data-theme="light"] {
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;--teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --verifier:#0C8478;--verifier-soft:rgba(12,132,120,0.12);--collapse:#C1352F;--collapse-soft:rgba(193,53,47,0.11);
+    --good:#1C8F63;--good-soft:rgba(28,143,99,0.13);--neutral-line:#8A93A2;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);--shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+  }
+  :root[data-theme="dark"] {
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --verifier:#35CDB9;--verifier-soft:rgba(53,205,185,0.15);--collapse:#E76A63;--collapse-soft:rgba(231,106,99,0.15);
+    --good:#4FC98D;--good-soft:rgba(79,201,141,0.15);--neutral-line:#6A7488;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  ::selection { background: var(--teacher-soft); }
+
+  /* ---------- layout scaffolding ---------- */
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .col { max-width: var(--measure); }
+  section { padding: clamp(48px, 8vw, 96px) 0; border-top: 1px solid var(--line-soft); }
+  section:first-of-type { border-top: none; }
+
+  h1,h2,h3 { font-family: var(--serif); font-weight: 600; text-wrap: balance; letter-spacing: -0.01em; }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height: 1.12; margin: 0 0 .4em; }
+  h3 { font-size: 1.28rem; line-height: 1.25; margin: 0 0 .35em; }
+  p { margin: 0 0 1.05em; }
+  a { color: inherit; }
+  .lead { font-size: 1.16rem; color: var(--dim); }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+    color: var(--teacher); margin: 0 0 1.1em; display: flex; align-items: center; gap: .7em;
+  }
+  .eyebrow::before { content:""; width: 26px; height: 1px; background: var(--teacher); opacity:.6; }
+  .sec-num { font-family: var(--mono); color: var(--faint); font-size:.72rem; letter-spacing:.1em; }
+
+  strong { color: var(--text); font-weight: 650; }
+  em { color: var(--dim); }
+  code, .m { font-family: var(--mono); font-size: .86em; }
+  .aid { font-family: var(--mono); font-size: .78em; color: var(--faint); letter-spacing: .01em; white-space: nowrap; }
+
+  /* ---------- top bar ---------- */
+  header.topbar {
+    position: sticky; top: 0; z-index: 50;
+    backdrop-filter: saturate(1.4) blur(14px);
+    background: color-mix(in srgb, var(--ground) 82%, transparent);
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .topbar .wrap { display: flex; align-items: center; gap: 18px; height: 56px; }
+  .brand { font-family: var(--mono); font-size:.8rem; letter-spacing:.06em; font-weight:600; }
+  .brand b { color: var(--teacher); }
+  .navlinks { margin-left: auto; display: flex; gap: 4px; }
+  .navlinks a {
+    font-family: var(--mono); font-size:.72rem; letter-spacing:.04em; text-decoration:none; color: var(--dim);
+    padding: 6px 10px; border-radius: 7px; transition: background .15s, color .15s;
+  }
+  .navlinks a:hover { background: var(--surface-2); color: var(--text); }
+  @media (max-width: 860px){ .navlinks{ display:none; } }
+  .theme-btn {
+    font-family: var(--mono); font-size:.72rem; color: var(--dim); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 7px; padding: 6px 11px; cursor: pointer;
+  }
+  .theme-btn:hover { color: var(--text); border-color: var(--neutral-line); }
+
+  /* ---------- hero ---------- */
+  .hero { padding-top: clamp(40px, 6vw, 72px); }
+  .hero h1 {
+    font-size: clamp(2.3rem, 6vw, 4.1rem); line-height: 1.03; margin: 0 0 .35em; max-width: 15ch;
+  }
+  .hero .kicker {
+    font-family: var(--mono); font-size:.8rem; letter-spacing:.16em; text-transform:uppercase;
+    color: var(--verifier); margin-bottom: 1.5em;
+  }
+  .hero .lead { max-width: 52ch; }
+  .hero-grid { display: grid; grid-template-columns: 1.05fr .95fr; gap: clamp(24px,4vw,60px); align-items: center; }
+  @media (max-width: 940px){ .hero-grid{ grid-template-columns: 1fr; } }
+
+  .plot-card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px;
+    padding: 20px 20px 14px; box-shadow: var(--shadow-lg);
+  }
+  .plot-head { display:flex; justify-content:space-between; align-items:baseline; margin-bottom: 6px; }
+  .plot-title { font-family: var(--mono); font-size:.74rem; letter-spacing:.05em; color: var(--dim); text-transform:uppercase; }
+  .plot-sub { font-family: var(--mono); font-size:.68rem; color: var(--faint); }
+  canvas { width: 100%; display: block; }
+  .legend { display:flex; flex-wrap:wrap; gap: 14px 20px; margin-top: 10px; padding-top: 12px; border-top:1px solid var(--line-soft); }
+  .legend .item { display:flex; align-items:center; gap: 8px; font-size:.8rem; color: var(--dim); }
+  .legend .swatch { width: 22px; height: 3px; border-radius: 3px; flex: none; }
+  .legend .item b { color: var(--text); font-weight:600; }
+
+  .replay {
+    margin-top: 12px; font-family: var(--mono); font-size:.7rem; letter-spacing:.04em; color: var(--dim);
+    background: transparent; border: 1px solid var(--line); border-radius: 7px; padding: 5px 10px; cursor:pointer;
+  }
+  .replay:hover { border-color: var(--neutral-line); color: var(--text); }
+
+  /* ---------- tldr strip ---------- */
+  .pills { display:flex; flex-wrap:wrap; gap: 8px; margin-top: 22px; }
+  .pill {
+    font-family: var(--mono); font-size:.72rem; letter-spacing:.02em; padding: 5px 11px; border-radius: 100px;
+    border: 1px solid var(--line); color: var(--dim); background: var(--surface);
+  }
+  .pill b { color: var(--text); }
+
+  /* ---------- key findings ---------- */
+  .findings { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; margin-top: 8px; }
+  @media (max-width: 780px){ .findings{ grid-template-columns: 1fr; } }
+  .finding {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 22px 22px 20px;
+    box-shadow: var(--shadow); position: relative; overflow: hidden;
+  }
+  .finding::before { content:""; position:absolute; left:0; top:0; bottom:0; width:3px; background: var(--teacher); opacity:.75; }
+  .finding .fnum { font-family: var(--mono); font-size:.72rem; color: var(--teacher); letter-spacing:.08em; }
+  .finding h3 { margin-top: 6px; font-size: 1.12rem; }
+  .finding p { font-size: .95rem; color: var(--dim); margin-bottom: 0; }
+  .finding p strong { color: var(--text); }
+
+  /* ---------- taxonomy explorer ---------- */
+  .filterbar { display:flex; flex-wrap:wrap; gap: 8px; margin: 4px 0 26px; }
+  .chip {
+    font-family: var(--mono); font-size:.74rem; letter-spacing:.02em; padding: 7px 13px; border-radius: 100px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface); color: var(--dim); transition: all .15s; user-select:none;
+  }
+  .chip:hover { border-color: var(--neutral-line); color: var(--text); }
+  .chip[aria-pressed="true"] { background: var(--text); color: var(--ground); border-color: var(--text); }
+  .chip .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align: 1px; }
+
+  .tax-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(255px, 1fr)); gap: 14px; }
+  .vcard {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px 16px 15px;
+    box-shadow: var(--shadow); transition: transform .18s cubic-bezier(.2,.7,.2,1), box-shadow .18s, opacity .25s;
+    border-top: 3px solid var(--cat, var(--neutral-line));
+  }
+  .vcard:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .vcard.hide { display: none; }
+  .vcard .vhead { display:flex; justify-content:space-between; align-items:baseline; gap: 10px; }
+  .vcard .vname { font-family: var(--mono); font-weight: 650; font-size: .95rem; color: var(--text); letter-spacing:.01em; }
+  .vcard .vdesc { font-size: .87rem; color: var(--dim); margin: 8px 0 0; line-height: 1.5; }
+  .vcard .vcat { font-family:var(--mono); font-size:.62rem; letter-spacing:.06em; text-transform:uppercase; color: var(--cat); margin-top:10px; display:block; }
+  .count-note { font-family: var(--mono); font-size:.72rem; color: var(--faint); margin-bottom: 18px; }
+
+  /* ---------- failure modes ---------- */
+  .fm-list { display: grid; gap: 12px; }
+  .fm {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .fm > button {
+    width:100%; text-align:left; background:transparent; border:none; cursor:pointer; color:inherit;
+    padding: 18px 20px; display:flex; align-items:center; gap: 16px; font-family: inherit;
+  }
+  .fm .fm-tag {
+    font-family:var(--mono); font-size:.62rem; letter-spacing:.05em; text-transform:uppercase; padding: 4px 8px; border-radius: 6px;
+    flex:none; background: var(--collapse-soft); color: var(--collapse); font-weight:600;
+  }
+  .fm .fm-name { font-family: var(--serif); font-size: 1.1rem; font-weight:600; flex: 1; }
+  .fm .fm-src { font-family: var(--mono); font-size:.72rem; color: var(--faint); flex:none; }
+  @media (max-width:640px){ .fm .fm-src{ display:none; } }
+  .fm .chev { flex:none; color: var(--faint); transition: transform .2s; }
+  .fm[open-state="1"] .chev { transform: rotate(90deg); }
+  .fm-body { max-height: 0; overflow: hidden; transition: max-height .3s ease; }
+  .fm-body-inner { padding: 0 20px 20px; color: var(--dim); font-size:.96rem; }
+  .fm-body-inner .mech { color: var(--text); }
+  .corrob { display:inline-flex; align-items:center; gap:6px; margin-top:12px; font-family:var(--mono); font-size:.7rem; padding:4px 9px; border-radius:6px; }
+  .corrob.multi { background: var(--good-soft); color: var(--good); }
+  .corrob.single { background: var(--surface-2); color: var(--faint); }
+
+  /* ---------- fixes ---------- */
+  .fix-grid { display:grid; grid-template-columns: repeat(2,1fr); gap: 16px; }
+  @media (max-width: 820px){ .fix-grid{ grid-template-columns:1fr; } }
+  .fixgroup {
+    background: var(--surface); border:1px solid var(--line); border-radius:14px; padding: 22px; box-shadow: var(--shadow);
+  }
+  .fixgroup h3 { font-family: var(--sans); font-size: .78rem; letter-spacing:.1em; text-transform:uppercase; color: var(--verifier); margin-bottom: 16px; }
+  .fixrow { padding: 12px 0; border-top: 1px solid var(--line-soft); }
+  .fixrow:first-of-type { border-top:none; padding-top:0; }
+  .fixrow .fr-top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .fixrow .fr-name { font-family: var(--mono); font-weight:650; color: var(--text); font-size:.9rem; }
+  .fixrow p { font-size:.87rem; color: var(--dim); margin:.5em 0 0; }
+  .badge { font-family:var(--mono); font-size:.6rem; letter-spacing:.05em; text-transform:uppercase; padding:3px 7px; border-radius:5px; font-weight:600; }
+  .badge.multi { background: var(--good-soft); color: var(--good); }
+  .badge.orig { background: var(--teacher-soft); color: var(--teacher); }
+
+  /* ---------- decision tool ---------- */
+  .tool {
+    background: linear-gradient(180deg, var(--surface), color-mix(in srgb, var(--surface) 88%, var(--verifier-soft)));
+    border: 1px solid var(--line); border-radius: 18px; padding: clamp(22px, 4vw, 40px); box-shadow: var(--shadow-lg);
+  }
+  .q-step { display:none; }
+  .q-step.active { display:block; animation: fade .35s ease; }
+  @keyframes fade { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform:none; } }
+  @media (prefers-reduced-motion: reduce){ .q-step.active{ animation:none; } }
+  .q-progress { display:flex; gap:6px; margin-bottom: 22px; }
+  .q-progress span { height:4px; flex:1; border-radius:3px; background: var(--line); }
+  .q-progress span.on { background: var(--verifier); }
+  .q-question { font-family: var(--serif); font-size: 1.4rem; margin-bottom: 18px; text-wrap:balance; }
+  .q-opts { display:grid; gap: 10px; }
+  .q-opt {
+    text-align:left; background: var(--surface); border:1px solid var(--line); border-radius:11px; padding: 15px 18px; cursor:pointer;
+    font-family: inherit; font-size: 1rem; color: var(--text); transition: all .15s; display:flex; align-items:center; gap:12px;
+  }
+  .q-opt:hover { border-color: var(--verifier); transform: translateX(3px); box-shadow: var(--shadow); }
+  .q-opt .qk { font-family:var(--mono); font-size:.7rem; color:var(--faint); border:1px solid var(--line); border-radius:5px; padding:2px 7px; flex:none; }
+  .q-result { text-align:left; }
+  .q-result .verdict { font-family: var(--mono); font-size:.75rem; letter-spacing:.1em; text-transform:uppercase; margin-bottom: 10px; }
+  .q-result .verdict.go { color: var(--good); }
+  .q-result .verdict.caution { color: var(--teacher); }
+  .q-result .verdict.stop { color: var(--collapse); }
+  .q-result h3 { font-size: 1.5rem; margin-bottom: 12px; }
+  .q-result p { color: var(--dim); }
+  .q-restart { margin-top: 14px; font-family:var(--mono); font-size:.72rem; color: var(--dim); background:transparent; border:1px solid var(--line); border-radius:8px; padding:8px 14px; cursor:pointer; }
+  .q-restart:hover { border-color: var(--neutral-line); color: var(--text); }
+
+  /* ---------- monitor / collapse signatures ---------- */
+  .monitor { display:grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  @media (max-width: 720px){ .monitor{ grid-template-columns:1fr; } }
+  .gauge { background: var(--surface); border:1px solid var(--line); border-radius:12px; padding: 20px; box-shadow: var(--shadow); }
+  .gauge .glabel { font-family:var(--mono); font-size:.72rem; letter-spacing:.04em; color: var(--dim); text-transform:uppercase; }
+  .gauge .gval { font-family: var(--serif); font-size: 2rem; margin: 8px 0 4px; color: var(--collapse); }
+  .gauge .gdesc { font-size:.85rem; color: var(--dim); }
+
+  /* ---------- comparison table ---------- */
+  .tbl-wrap { overflow-x: auto; border:1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; background: var(--surface); }
+  th, td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--line-soft); font-size:.92rem; }
+  thead th { font-family: var(--mono); font-size:.7rem; letter-spacing:.06em; text-transform:uppercase; color: var(--dim); background: var(--surface-2); }
+  tbody tr:last-child td { border-bottom:none; }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  .win { color: var(--good); font-weight:600; }
+  .lose { color: var(--collapse); font-weight:600; }
+  td .rowname { font-family: var(--mono); font-weight:650; font-size:.86rem; }
+
+  /* ---------- industrial callout ---------- */
+  .split { display:grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width:720px){ .split{ grid-template-columns:1fr; } }
+  .box { border-radius:14px; padding: 22px; border:1px solid var(--line); box-shadow: var(--shadow); }
+  .box.real { background: var(--good-soft); border-color: color-mix(in srgb, var(--good) 30%, var(--line)); }
+  .box.notreal { background: var(--teacher-soft); border-color: color-mix(in srgb, var(--teacher) 30%, var(--line)); }
+  .box .bh { font-family:var(--mono); font-size:.72rem; letter-spacing:.06em; text-transform:uppercase; margin-bottom:12px; }
+  .box.real .bh { color: var(--good); }
+  .box.notreal .bh { color: var(--teacher); }
+  .box ul { margin:0; padding-left: 18px; }
+  .box li { font-size:.9rem; color: var(--dim); margin-bottom: 8px; }
+  .box li b { color: var(--text); }
+
+  /* ---------- caveats ---------- */
+  .caveats { display:grid; gap: 10px; }
+  .cav { display:flex; gap: 14px; padding: 14px 0; border-top:1px solid var(--line-soft); }
+  .cav:first-child{ border-top:none; }
+  .cav .cx { font-family: var(--mono); color: var(--collapse); flex:none; font-size:.9rem; padding-top:2px; }
+  .cav p { margin:0; font-size:.94rem; color: var(--dim); }
+  .cav p b { color: var(--text); }
+
+  footer { padding: 40px 0 64px; border-top: 1px solid var(--line-soft); color: var(--faint); font-family: var(--mono); font-size:.74rem; line-height:1.7; }
+  footer a { color: var(--dim); }
+
+  .reveal { opacity: 0; transform: translateY(18px); transition: opacity .6s ease, transform .6s cubic-bezier(.2,.7,.2,1); }
+  .reveal.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce){ .reveal{ opacity:1; transform:none; transition:none; } }
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <span class="brand">OPSD<b>·</b>field explainer</span>
+    <nav class="navlinks">
+      <a href="#findings">Findings</a>
+      <a href="#taxonomy">Variants</a>
+      <a href="#failures">Failure modes</a>
+      <a href="#fixes">Fixes</a>
+      <a href="#decide">Should I use it?</a>
+      <a href="#industry">Industry</a>
+    </nav>
+    <button class="theme-btn" id="themeBtn" aria-label="Toggle theme">◐ theme</button>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div class="hero-grid">
+        <div>
+          <div class="kicker">On-Policy Self-Distillation</div>
+          <h1>A model teaching its weaker self.</h1>
+          <p class="lead">One network plays teacher and student at once — the teacher sees privileged context, the student sees only the question. It works. It also collapses. This is the map of when, why, and what actually holds up.</p>
+          <div class="pills">
+            <span class="pill"><b>Origin:</b> arXiv 2601.18734</span>
+            <span class="pill"><b>Default loss:</b> forward KL</span>
+            <span class="pill">state of the field · mid-2026</span>
+          </div>
+        </div>
+        <div class="plot-card">
+          <div class="plot-head">
+            <span class="plot-title">The signature curve</span>
+            <span class="plot-sub">accuracy vs. training steps</span>
+          </div>
+          <canvas id="heroPlot" width="520" height="330" aria-label="Line chart: vanilla OPSD rises fast then collapses, GRPO climbs steadily, the verifier-anchored fix rises and holds."></canvas>
+          <div class="legend">
+            <div class="item"><span class="swatch" style="background:var(--teacher)"></span><b>Vanilla&nbsp;OPSD</b>&nbsp;— fast, then collapses</div>
+            <div class="item"><span class="swatch" style="background:var(--neutral-line)"></span><b>GRPO</b>&nbsp;— steady baseline</div>
+            <div class="item"><span class="swatch" style="background:var(--verifier)"></span><b>Verifier-anchored</b>&nbsp;— holds</div>
+          </div>
+          <button class="replay" id="replayBtn">↻ replay</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TL;DR / KEY FINDINGS -->
+  <section id="findings">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">01</span> The one-paragraph truth</div>
+        <h2>OPSD works — but narrowly, and fragilely.</h2>
+        <p class="lead">A single model teaching its weaker self from privileged context gives real early-training, sample-efficient gains. But a large June–July 2026 wave shows the vanilla objective is theoretically ill-posed — privileged-information leakage — and empirically collapses on strong "thinking" models after a few dozen steps.</p>
+        <p>The single most reliable finding across independent groups: <strong>naive full-distribution imitation of a privileged teacher hurts long-horizon reasoning.</strong> The fixes that hold up are the ones that stop imitating the teacher directly — use the teacher/student gap only to <em>modulate magnitude</em> while a verifiable reward sets <em>direction</em>.</p>
+      </div>
+
+      <div class="findings reveal" style="margin-top:36px">
+        <div class="finding">
+          <span class="fnum">FINDING 01</span>
+          <h3>Forward KL, not reverse</h3>
+          <p>Contrary to common assumption, the origin paper's default is <strong>forward KL</strong>, KL(teacher‖student). Its ablation shows reverse KL <em>degrades</em> and JSD gives only limited gains. Full-vocabulary logit matching beats sampled-token — but needs per-token KL clipping so style tokens ("wait", "therefore") don't dominate math tokens.</p>
+        </div>
+        <div class="finding">
+          <span class="fnum">FINDING 02</span>
+          <h3>The variant space is organized by privilege</h3>
+          <p>Every variant is defined by <strong>what serves as privileged information</strong> — answer/trace, environment feedback, context/hindsight, or nothing at all. Explore all 30+ below.</p>
+        </div>
+        <div class="finding">
+          <span class="fnum">FINDING 03</span>
+          <h3>Failure modes independently converged</h3>
+          <p>Leakage, fork suppression, epistemic-verbalization suppression, style drift, OOD collapse — <strong>six+ groups arrive at the same story.</strong> RLSD's leakage diagnosis is the most independently corroborated result in the field.</p>
+        </div>
+        <div class="finding">
+          <span class="fnum">FINDING 04</span>
+          <h3>Replication is real but partial</h3>
+          <p>The collapse story is corroborated across groups. But most <em>fixes</em> are reported only by their originating authors, and headline gains are <strong>backbone-specific</strong> — almost everything is Qwen3-1.7B/4B/8B or OLMo-3.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAXONOMY -->
+  <section id="taxonomy">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">02</span> The variant taxonomy</div>
+        <h2>Thirty-plus variants, one organizing question.</h2>
+        <p class="lead">What counts as the privileged information the self-teacher gets to see? Filter the space by that answer.</p>
+      </div>
+      <div class="filterbar reveal" id="filterbar"></div>
+      <div class="count-note reveal" id="countNote"></div>
+      <div class="tax-grid reveal" id="taxGrid"></div>
+    </div>
+  </section>
+
+  <!-- FAILURE MODES -->
+  <section id="failures">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">03</span> Why it collapses</div>
+        <h2>Failure modes, now well-characterized.</h2>
+        <p class="lead">Each is a distinct mechanism with a primary source. The green tag marks failures independently reproduced by non-author groups. Click to expand.</p>
+      </div>
+      <div class="fm-list reveal" id="fmList" style="margin-top:26px"></div>
+    </div>
+  </section>
+
+  <!-- FIXES -->
+  <section id="fixes">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">04</span> What actually holds up</div>
+        <h2>The fixes — and how much to trust them.</h2>
+        <p class="lead">A <span class="badge multi" style="vertical-align:1px">multi-group</span> badge means the approach (or its target failure) has independent corroboration. <span class="badge orig" style="vertical-align:1px">originator-only</span> means treat the headline number as provisional.</p>
+      </div>
+      <div class="fix-grid reveal" style="margin-top:28px">
+        <div class="fixgroup">
+          <h3>◆ Direction / magnitude decoupling</h3>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">RLSD</span><span class="badge multi">multi-group</span><span class="aid">2604.03128</span></div>
+            <p>RLVR reward sets update <em>direction</em>; teacher/student evidence ratio only modulates per-token <em>magnitude</em>. Sampled-token + stop-grad + clipping bounds leakage. Its leakage diagnosis is reused by DemoPSD, CEPO, RLCSD — the field's most validated result.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">RLCSD</span><span class="badge orig">originator-only</span><span class="aid">2606.11709</span></div>
+            <p>Contrasts the teacher–student gap under a correct vs. wrong hint to cancel the shared <em>style</em> component. Claims stability where OPSD/SDPO "explode or collapse."</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">CEPO / CAST</span><span class="badge orig">originator-only</span><span class="aid">2605.19436 · 2606.00172</span></div>
+            <p>Contrastive "does the correct answer favor this token while the wrong one disfavors it" signal. Both show OPSD/SDPO below baseline on 4/5 benchmarks, then fix it.</p>
+          </div>
+        </div>
+
+        <div class="fixgroup">
+          <h3>◆ Sample &amp; token routing</h3>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">SRPO</span><span class="badge multi">target reproduced</span><span class="aid">2604.02288</span></div>
+            <p>Routes correct rollouts to GRPO, failed ones to distillation. Qwen3-8B → 77.4% (+3.4 over GRPO), −17.2% per-step compute. TRACE independently reproduced the collapse SRPO targets.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">DemoPSD</span><span class="badge orig">originator-only</span><span class="aid">2607.02502</span></div>
+            <p>Disagreement-modulated reverse-KL barycenter: low-disagreement tokens keep dense supervision, high-disagreement tokens get attenuated. Built explicitly as a fix for RLSD's leakage.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">SCOPE / GATES</span><span class="badge orig">originator-only</span><span class="aid">2604.10688 · 2602.20574</span></div>
+            <p>Perplexity-weighted routing and consensus gating — attenuate the signal wherever teacher and student disagree most.</p>
+          </div>
+        </div>
+
+        <div class="fixgroup">
+          <h3>◆ Restriction / reflection / steering</h3>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">ROSD</span><span class="badge orig">originator-only</span><span class="aid">2605.28014</span></div>
+            <p>Reflection-guided, error-localized, partial-response loss. Dramatic OOD recovery: 41.31% vs. SDPO's 2.88% after ToolUse training on Qwen3-4B.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">OGLS-SD / Purified</span><span class="badge orig">originator-only</span><span class="aid">2605.12400 · 2607.02234</span></div>
+            <p>Outcome-guided logit steering; loss applied only to incorrect rollouts. Purified OPSD subtracts a reference-only teacher and distills a PMI target.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">AD-OPSD</span><span class="badge orig">originator-only</span><span class="aid">2607.10805</span></div>
+            <p>"Thinking-collapse" diagnosis: an asymmetrical pointwise divergence gate anchors high-risk fork tokens to the frozen base prior. Up to +4.1% over standard OPSD.</p>
+          </div>
+        </div>
+
+        <div class="fixgroup">
+          <h3>◆ Objective corrections &amp; ordering</h3>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">OPD+</span><span class="badge orig">originator-only</span><span class="aid">2606.01039</span></div>
+            <p>Proves the common stop-gradient reward yields <em>biased</em> f-divergence gradients; gives a corrected gradient-faithful weight.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">vOPD</span><span class="badge orig">originator-only</span><span class="aid">2605.07865</span></div>
+            <p>Closed-form control-variate baseline: +3% avg over single-sample OPD, matches full-vocab at −57.7% wall-clock.</p>
+          </div>
+          <div class="fixrow">
+            <div class="fr-top"><span class="fr-name">OPSD-as-compaction</span><span class="badge orig">originator-only</span><span class="aid">2605.06188</span></div>
+            <p>The ordering fix: <strong>SFT → RLVR → OPSD</strong> on correct-only rollouts preserves accuracy and shortens responses. Incorrect-only damages it.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- DECISION TOOL -->
+  <section id="decide">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">05</span> Practitioner's decision path</div>
+        <h2>Should you actually use OPSD?</h2>
+        <p class="lead">Three questions, distilled from the field's Stage-1→4 recommendations. Answer for your setup.</p>
+      </div>
+      <div class="tool reveal" id="tool" style="margin-top:26px">
+        <div class="q-progress" id="qProgress"><span></span><span></span><span></span></div>
+        <div class="q-step active" data-step="0">
+          <div class="q-question">Do you have a <em>stronger external teacher</em> with logit access?</div>
+          <div class="q-opts">
+            <button class="q-opt" data-next="ext-teacher"><span class="qk">A</span> Yes — there's a bigger model I can distill from</button>
+            <button class="q-opt" data-next="1"><span class="qk">B</span> No — the model is (or is near) the frontier for my task</button>
+          </div>
+        </div>
+        <div class="q-step" data-step="1">
+          <div class="q-question">Is your target a strong <em>long-CoT "thinking" model</em>, or an instruction-tuned / smaller model?</div>
+          <div class="q-opts">
+            <button class="q-opt" data-next="thinking"><span class="qk">A</span> A strong long-CoT thinking model (Qwen3-8B-Think, R1-distill…)</button>
+            <button class="q-opt" data-next="2"><span class="qk">B</span> Instruction-tuned or small (≤1.7B), reasoning not yet strong</button>
+          </div>
+        </div>
+        <div class="q-step" data-step="2">
+          <div class="q-question">What's your actual goal?</div>
+          <div class="q-opts">
+            <button class="q-opt" data-next="small-win"><span class="qk">A</span> Replace RLVR to raise accuracy sample-efficiently</button>
+            <button class="q-opt" data-next="compact"><span class="qk">B</span> Shorten already-good traces without losing accuracy</button>
+          </div>
+        </div>
+
+        <div class="q-step" data-step="R" data-result="ext-teacher">
+          <div class="q-result">
+            <div class="verdict caution">Verdict · use plain OPD, not OPSD</div>
+            <h3>Reach for white-box OPD first.</h3>
+            <p>With a stronger teacher and logit access, ordinary GKD/TRL on-policy distillation is <strong>more reliable</strong> than self-teacher OPSD. The Thinking-Machines Qwen3 result — 74.4% AIME'24 in 1,800 GPU-hrs vs. RL's 67.6% in 17,920 — is the concrete win here. Save genuine OPSD for when you have <em>no</em> larger teacher but <em>do</em> have privileged info.</p>
+            <button class="q-restart">↻ start over</button>
+          </div>
+        </div>
+        <div class="q-step" data-step="R" data-result="thinking">
+          <div class="q-result">
+            <div class="verdict stop">Verdict · do NOT run vanilla OPSD</div>
+            <h3>Vanilla OPSD will likely regress at long budgets.</h3>
+            <p>Kaur et al. show up to <strong>−17% relative</strong> on thinking models at long rollout budgets; Kim et al. show up to <strong>−40% OOD</strong>. If you still want the signal, use it only as a <em>magnitude modulator</em> with direction anchored to a verifier (RLSD-style), and watch the collapse gauges below like a hawk.</p>
+            <button class="q-restart">↻ start over</button>
+          </div>
+        </div>
+        <div class="q-step" data-step="R" data-result="small-win">
+          <div class="q-result">
+            <div class="verdict go">Verdict · a safe place to try it</div>
+            <h3>Small / instruction-tuned models are where OPSD shines.</h3>
+            <p>The largest clean gains are here — Qwen3-1.7B: <strong>43.4 vs. GRPO's 37.7</strong>. Start from GRPO, add self-distillation as a magnitude modulator with per-token KL clipping from step one. Prefer sampled-token evaluation when stability is the concern; A/B it against full-vocab for accuracy.</p>
+            <button class="q-restart">↻ start over</button>
+          </div>
+        </div>
+        <div class="q-step" data-step="R" data-result="compact">
+          <div class="q-result">
+            <div class="verdict go">Verdict · the strongest, safest use</div>
+            <h3>Post-RL correct-only compaction. Do this.</h3>
+            <p>The clearest consensus win: run <strong>SFT → RLVR → OPSD</strong> on <em>correct-only</em> rollouts as a compaction stage. It preserves accuracy while shortening responses. Never use incorrect-only rollouts here — that damages accuracy.</p>
+            <button class="q-restart">↻ start over</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="col reveal" style="margin-top:48px">
+        <h3 style="font-family:var(--serif);font-size:1.35rem">Collapse signatures — abort if you see these</h3>
+        <p style="color:var(--dim)">If you run dense distillation, monitor against your GRPO baseline. These are the documented collapse thresholds; hitting any one means change approach.</p>
+      </div>
+      <div class="monitor reveal" style="margin-top:16px">
+        <div class="gauge">
+          <div class="glabel">Actor entropy</div>
+          <div class="gval">&gt; 4×</div>
+          <div class="gdesc">Per-token entropy exceeding ~4× the GRPO baseline is a documented collapse signature.</div>
+        </div>
+        <div class="gauge">
+          <div class="glabel">Validation drop</div>
+          <div class="gval">&gt; 5–10pp</div>
+          <div class="gdesc">A fall of 5–10pp from an early peak within ~150 steps — the classic "early gain, then collapse."</div>
+        </div>
+        <div class="gauge">
+          <div class="glabel">Response length</div>
+          <div class="gval">↯ collapse</div>
+          <div class="gdesc">Sudden length shrink (or runaway explosion) signals style drift overtaking task tokens.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section id="numbers">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">06</span> The quantitative picture</div>
+        <h2>What can be said with cross-paper support.</h2>
+        <p class="lead">The dominant caveat: numbers are <em>not</em> directly comparable across papers — backbones, benchmark sets, and decoding budgets all differ. Origin-paper AIME/HMMT avg@12 below.</p>
+      </div>
+      <div class="tbl-wrap reveal" style="margin-top:22px">
+        <table>
+          <thead>
+            <tr><th>Backbone</th><th>Base</th><th>SFT (off-policy)</th><th>GRPO</th><th>OPSD</th><th>Margin</th></tr>
+          </thead>
+          <tbody>
+            <tr><td class="rowname">Qwen3-8B</td><td class="num">61.8</td><td class="num">59.8</td><td class="num">64.0</td><td class="num win">64.8</td><td class="num">+0.8</td></tr>
+            <tr><td class="rowname">Qwen3-4B</td><td class="num">61.2</td><td class="num">—</td><td class="num">62.7</td><td class="num win">63.6</td><td class="num">+0.9</td></tr>
+            <tr><td class="rowname">Qwen3-1.7B</td><td class="num">37.1</td><td class="num">—</td><td class="num">37.7</td><td class="num win">43.4</td><td class="num win">+5.7</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="col reveal" style="margin-top:22px">
+        <p style="color:var(--dim);font-size:.95rem">Gains are largest at the <strong>smallest scale</strong>. On <em>thinking models at long budgets</em>, the sign flips — privileged OPSD loses up to 17% relative (Kaur et al.) and up to 40% OOD (Kim et al.). SDPO is the clearest positive result — 68.8% vs. 64.1% over GRPO, 6× faster to parity — but SRPO and TRACE both show it collapses late (18–19pp validation drop within 150–200 steps).</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- INDUSTRY -->
+  <section id="industry">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">07</span> Industrial reality check</div>
+        <h2>"On-policy distillation" in the wild ≠ OPSD.</h2>
+        <p class="lead">Technical reports frequently conflate the two. The distinction that matters: is the teacher a privileged <em>self</em>, or an ordinary external model?</p>
+      </div>
+      <div class="split reveal" style="margin-top:24px">
+        <div class="box notreal">
+          <div class="bh">◆ Shipped, but external-teacher OPD</div>
+          <ul>
+            <li><b>DeepSeek-V4</b> — replaces its mixed-RL stage with OPD, but it's multi-teacher consolidation from 10+ domain experts. Not privileged self-teaching.</li>
+            <li><b>Qwen3 / Qwen3-Omni</b> — "Strong-to-Weak Distillation," external teacher.</li>
+            <li><b>NVIDIA Nemotron-Cascade 2</b> — multi-teacher, multi-domain "MOPD."</li>
+            <li><b>GLM-5, MiMo-V2, KAT-Coder-V2…</b> — production OPD, external/lifecycle teachers.</li>
+          </ul>
+        </div>
+        <div class="box real">
+          <div class="bh">◆ Genuine privileged self-distillation</div>
+          <ul>
+            <li><b>Still overwhelmingly a research technique</b>, not a shipped production recipe.</li>
+            <li>Real gains exist (origin paper, SDPO) but are narrow and backbone-specific.</li>
+            <li>Tooling <em>does</em> support it: TRL's <span class="m">trl.experimental.sdpo</span>, NeMo-RL, veRL/rllm, official code at <span class="m">siyan-zhao/OPSD</span>, <span class="m">lasgroup/SDPO</span>.</li>
+            <li>Do not cite DeepSeek-V4/Qwen3 as production OPSD.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CAVEATS -->
+  <section id="caveats">
+    <div class="wrap">
+      <div class="col reveal">
+        <div class="eyebrow"><span class="sec-num">08</span> Read before you cite</div>
+        <h2>Caveats that change the conclusion.</h2>
+        <div class="caveats" style="margin-top:20px">
+          <div class="cav"><span class="cx">!</span><p><b>Backbone dependence is severe.</b> Nearly all evidence is Qwen3-1.7B/4B/8B and OLMo-3; almost nothing on Llama, and results flip sign between instruction-tuned and thinking models. Do not assume transfer.</p></div>
+          <div class="cav"><span class="cx">!</span><p><b>Reverse vs. forward KL confusion.</b> Much secondary coverage assumes reverse KL, but the origin OPSD default is forward KL; SDPO uses JSD; RLSD uses sampled-token magnitude modulation. Be precise about which objective a result used.</p></div>
+          <div class="cav"><span class="cx">!</span><p><b>Secondary-source numbers.</b> The widely-quoted "8–12× token efficiency" and "52.2% vs 51.3%" figures come from aggregators, not primary tables (which show 64.8 vs 64.0 on AIME/HMMT avg@12). Treat aggregator figures cautiously.</p></div>
+          <div class="cav"><span class="cx">!</span><p><b>Recency.</b> June–July 2026 papers (DemoPSD, RLCSD, CRPO, Purified OPSD, AD-OPSD, COPSD, OPD+) are single-version preprints; their claims are unreplicated.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    OPSD field explainer · synthesized from the On-Policy Self-Distillation research brief (mid-2026).<br>
+    Primary anchor: Zhao et al., arXiv 2601.18734 · <span style="color:var(--faint)">figures are illustrative of reported directional trends, not exact reproductions.</span><br>
+    Built as a personal understanding tool.
+  </div>
+</footer>
+
+<script>
+(function(){
+  "use strict";
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- theme toggle ---------- */
+  var root = document.documentElement, tb = document.getElementById("themeBtn");
+  tb.addEventListener("click", function(){
+    var cur = root.getAttribute("data-theme");
+    if(!cur){ cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark":"light"; }
+    root.setAttribute("data-theme", cur === "dark" ? "light":"dark");
+    drawPlot(1); // redraw with new colors
+  });
+
+  /* ---------- hero plot ---------- */
+  var canvas = document.getElementById("heroPlot");
+  var ctx = canvas.getContext("2d");
+  var W, H, DPR;
+  function setup(){
+    DPR = Math.min(window.devicePixelRatio||1, 2);
+    var rect = canvas.getBoundingClientRect();
+    W = rect.width; H = 330;
+    canvas.width = W*DPR; canvas.height = H*DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  function cssvar(n){ return getComputedStyle(root).getPropertyValue(n).trim(); }
+
+  // model curves over t in [0,1]
+  function grpo(t){ return 0.30 + 0.34*(1-Math.exp(-2.6*t)); }              // steady climb, plateau
+  function opsd(t){                                                          // fast rise then collapse
+    var rise = 0.30 + 0.42*(1-Math.exp(-9*t));
+    var collapse = 0.42*Math.max(0,(t-0.34))*1.15;
+    return rise - collapse;
+  }
+  function fixed(t){                                                         // rise and hold, highest
+    return 0.30 + 0.40*(1-Math.exp(-5.2*t)) + 0.03*t;
+  }
+
+  var pad = {l:44,r:16,t:18,b:34};
+  function X(t){ return pad.l + t*(W-pad.l-pad.r); }
+  function Y(v){ var lo=0.24, hi=0.76; return pad.t + (1-(v-lo)/(hi-lo))*(H-pad.t-pad.b); }
+
+  function grid(){
+    ctx.strokeStyle = cssvar("--line-soft");
+    ctx.fillStyle = cssvar("--faint");
+    ctx.lineWidth = 1;
+    ctx.font = "10px "+cssvar("--mono").split(",")[0];
+    var ys = [0.30,0.45,0.60,0.75];
+    ys.forEach(function(v){
+      var y = Y(v);
+      ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+      ctx.fillText(Math.round(v*100), 8, y+3);
+    });
+    // x axis label
+    ctx.fillStyle = cssvar("--faint");
+    ctx.fillText("steps →", pad.l, H-8);
+  }
+  function curve(fn, color, prog, dash, width){
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = width||2.4;
+    ctx.lineJoin="round"; ctx.lineCap="round";
+    if(dash) ctx.setLineDash(dash); else ctx.setLineDash([]);
+    ctx.beginPath();
+    var N = 240, end = Math.floor(N*prog);
+    for(var i=0;i<=end;i++){
+      var t=i/N, x=X(t), y=Y(fn(t));
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+    // endpoint dot
+    if(prog>0){
+      var t2=end/N, x2=X(t2), y2=Y(fn(t2));
+      ctx.setLineDash([]);
+      ctx.fillStyle=color; ctx.beginPath(); ctx.arc(x2,y2,3.4,0,Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function frame(prog){
+    ctx.clearRect(0,0,W,H);
+    grid();
+    curve(grpo,  cssvar("--neutral-line"), prog, [5,5], 2);
+    curve(fixed, cssvar("--verifier"),     prog, null, 2.6);
+    curve(opsd,  cssvar("--teacher"),      prog, null, 2.8);
+  }
+  var animId=null;
+  function drawPlot(instant){
+    setup();
+    if(animId) cancelAnimationFrame(animId);
+    if(instant || reduce){ frame(1); return; }
+    var start=null, dur=1500;
+    function step(ts){
+      if(!start) start=ts;
+      var p=Math.min(1,(ts-start)/dur);
+      var e = 1-Math.pow(1-p,3);
+      frame(e);
+      if(p<1) animId=requestAnimationFrame(step);
+    }
+    animId=requestAnimationFrame(step);
+  }
+  document.getElementById("replayBtn").addEventListener("click", function(){ drawPlot(false); });
+  window.addEventListener("resize", function(){ drawPlot(true); });
+
+  /* ---------- taxonomy data ---------- */
+  var CATS = {
+    trace:    {label:"Answer / trace",      color:"#c1873a"},
+    feedback: {label:"Environment feedback", color:"#0C8478"},
+    context:  {label:"Context / hindsight",  color:"#6f6bd8"},
+    nonpriv:  {label:"Non-privileged",        color:"#c1352f"},
+    compress: {label:"Compression",           color:"#3a86c1"},
+    crossmodal:{label:"Cross-modal",          color:"#c14fa0"},
+    selfplay: {label:"Self-play",             color:"#2f9e5b"}
+  };
+  var VARIANTS = [
+    {n:"OPSD", id:"2601.18734", c:"trace", d:"The origin. Stop-gradient self-teacher sees the verified trace; forward-KL over the student's own rollouts."},
+    {n:"SDFT", id:"2601.19897", c:"trace", d:"Demonstration-conditioned self-distillation that enables continual learning with less forgetting."},
+    {n:"HDPO", id:"2603.23871", c:"trace", d:"Targets 'cliff prompts' where all RL rollouts fail; claims it provably recovers the KL-regularized optimum."},
+    {n:"pi-Distill", id:"2602.04942", c:"trace", d:"Privileged info in agentic settings where only actions are observable."},
+    {n:"SDPO", id:"2601.20802", c:"feedback", d:"Model conditioned on feedback is the self-teacher; JSD + EMA teacher. 68.8% vs 64.1% over GRPO, 6× faster."},
+    {n:"RLTF-SD", id:"2602.02482", c:"feedback", d:"Reinforcement learning from textual feedback via self-distillation."},
+    {n:"OmniOPSD", id:"2606.15920", c:"feedback", d:"Rationale-privileged affect modeling on Qwen2.5-Omni-3B/7B."},
+    {n:"OPCD", id:"2602.12275", c:"context", d:"Context-conditioned teacher distills system prompts and accumulated experience."},
+    {n:"OEL", id:"2603.16856", c:"context", d:"Deployment loop that consolidates interaction traces back into the policy."},
+    {n:"Align-from-Interactions", id:"2603.12273", c:"context", d:"Hindsight self-distillation from real user follow-ups."},
+    {n:"SDZero", id:"2604.12002", c:"nonpriv", d:"Generator–reviser dual role using only binary rewards — no privileged context."},
+    {n:"GATES", id:"2602.20574", c:"nonpriv", d:"Consensus-gated asymmetric-context self-distillation. No labels, no rewards."},
+    {n:"CAST", id:"2606.00172", c:"nonpriv", d:"Non-privileged clipped asymmetric self-teaching with advantage flipping for GRPO."},
+    {n:"SSD", id:"2604.01193", c:"nonpriv", d:"Temperature-shifted self-sampling + SFT, targeted at code."},
+    {n:"OPSDC", id:"2603.05433", c:"compress", d:"Reasoning-compression variant; shortens traces while holding accuracy."},
+    {n:"OPSDL", id:"2604.17535", c:"compress", d:"Long-context: the short-context self acts as teacher for the long-context student."},
+    {n:"OPSD-compaction", id:"2605.06188", c:"compress", d:"'Compresses what RLVR teaches' — correct-only rollouts as a post-RL compaction stage."},
+    {n:"OGLS-SD", id:"2605.12400", c:"compress", d:"Outcome-guided logit steering, applied only to incorrect rollouts."},
+    {n:"D-OPSD", id:"2605.05204", c:"crossmodal", d:"Step-distilled diffusion; teacher conditioned on text + paired real image."},
+    {n:"OPSD-V", id:"2607.08766", c:"crossmodal", d:"Few-step autoregressive video; real long video as privileged temporal context."},
+    {n:"dOPSD", id:"2607.04428", c:"crossmodal", d:"Diffusion LLMs — explicitly finds the PI-free consensus policy is weak."},
+    {n:"VISD", id:"2605.06094", c:"crossmodal", d:"Video instruction self-distillation."},
+    {n:"pi-Play", id:"2604.14054", c:"selfplay", d:"Multi-agent self-play via privileged self-distillation, no external data."}
+  ];
+
+  var activeCat = "all";
+  var filterbar = document.getElementById("filterbar");
+  var grid_ = document.getElementById("taxGrid");
+  var countNote = document.getElementById("countNote");
+
+  function makeChip(key,label,color){
+    var b=document.createElement("button");
+    b.className="chip"; b.setAttribute("aria-pressed", key===activeCat?"true":"false");
+    b.dataset.key=key;
+    if(color){ b.innerHTML='<span class="dot" style="background:'+color+'"></span>'+label; }
+    else { b.textContent=label; }
+    b.addEventListener("click", function(){ setCat(key); });
+    return b;
+  }
+  filterbar.appendChild(makeChip("all","All variants",null));
+  Object.keys(CATS).forEach(function(k){ filterbar.appendChild(makeChip(k,CATS[k].label,CATS[k].color)); });
+
+  function render(){
+    grid_.innerHTML="";
+    var shown=0;
+    VARIANTS.forEach(function(v){
+      if(activeCat!=="all" && v.c!==activeCat) return;
+      shown++;
+      var cat=CATS[v.c];
+      var card=document.createElement("div");
+      card.className="vcard";
+      card.style.setProperty("--cat", cat.color);
+      card.innerHTML =
+        '<div class="vhead"><span class="vname">'+v.n+'</span><span class="aid">'+v.id+'</span></div>'+
+        '<p class="vdesc">'+v.d+'</p>'+
+        '<span class="vcat">'+cat.label+'</span>';
+      grid_.appendChild(card);
+    });
+    countNote.textContent = "Showing "+shown+" of "+VARIANTS.length+" variants" + (activeCat==="all"?"":" · "+CATS[activeCat].label);
+  }
+  function setCat(k){
+    activeCat=k;
+    Array.prototype.forEach.call(filterbar.children,function(c){
+      c.setAttribute("aria-pressed", c.dataset.key===k?"true":"false");
+    });
+    render();
+  }
+  render();
+
+  /* ---------- failure modes ---------- */
+  var FAILURES = [
+    {tag:"leakage", name:"Privileged-information leakage", src:"RLSD · 2604.03128", multi:true,
+     body:"Proves the OPSD objective is <span class='mech'>ill-posed</span>: under information asymmetry there's an irreducible mutual-information gap I(Y;R|X,Y<sub>&lt;t</sub>) &gt; 0 the student can never eliminate. The vocabulary-wide KL gradient encodes the privileged reward into every gradient direction; its variance grows as training progresses → early gains, then systematic collapse. An appendix proves an impossibility trilemma: stability, sustained improvement, and leakage-free training cannot all hold under shared parameters."},
+    {tag:"fork suppression", name:"Fork / deliberation suppression", src:"Kaur et al. · 2607.05184", multi:true,
+     body:"Across five Qwen3/OLMo thinking models, privileged distillation causes up to a <span class='mech'>17% relative drop</span> in avg@16, worst at long budgets. Mechanism: a sign reversal at high-entropy 'forking' tokens (wait/hmm/but/maybe) — vanilla OPD gives them positive advantage, privileged context flips it negative → fewer verification and backtracking markers. Instruction-tuned models are helped; stronger thinking models are hurt."},
+    {tag:"epistemic", name:"Epistemic-verbalization suppression", src:"Kim et al. · 2603.24472", multi:true,
+     body:"Rich teacher context suppresses uncertainty expression — good in-domain but up to <span class='mech'>40% drops OOD</span> (AIME24/AMC23) across Qwen3-8B, DeepSeek-Distill-7B, Olmo3-7B. GRPO, by contrast, preserves or increases epistemic markers."},
+    {tag:"style drift", name:"Privilege-induced style drift", src:"RLCSD · 2606.11709", multi:false,
+     body:"The teacher–student gap concentrates on <span class='mech'>style tokens</span> (shorter, more assertive phrasing, formatting) rather than task-bearing tokens → training instability (entropy/length explosion) or premature length shrinkage."},
+    {tag:"OOD collapse", name:"In-domain instability + OOD collapse", src:"ROSD · 2605.28014", multi:false,
+     body:"Two causes: conditioning on a verified solution encourages <span class='mech'>imitating reference trajectories</span> instead of error correction, and full-response distillation overwrites valid prefixes. After ToolUse training on Qwen3-4B, SDPO's OOD average drops to 2.88% vs ROSD's 41.31%."},
+    {tag:"biased gradient", name:"Biased stop-gradient advantage", src:"OPD+ · 2606.01039", multi:false,
+     body:"Proves the common stop-gradient reward yields <span class='mech'>biased estimates</span> of the f-divergence objective and gradient; supplies a corrected, gradient-faithful weight and an f-divergence family."},
+    {tag:"diagnostic", name:"Guidance aligns better on WRONG rollouts", src:"Unmasking OPD · 2605.10889", multi:false,
+     body:"A training-free per-token gradient-alignment diagnostic (Apple) finds distillation guidance aligns <span class='mech'>higher on incorrect rollouts</span> than correct ones, and that the best teacher/context depends jointly on student capacity and task — there is no universal recipe."}
+  ];
+  var fmList=document.getElementById("fmList");
+  FAILURES.forEach(function(f){
+    var el=document.createElement("div");
+    el.className="fm"; el.setAttribute("open-state","0");
+    var corr = f.multi
+      ? '<span class="corrob multi">✓ independently reproduced</span>'
+      : '<span class="corrob single">◦ originating group</span>';
+    el.innerHTML =
+      '<button aria-expanded="false">'+
+        '<span class="fm-tag">'+f.tag+'</span>'+
+        '<span class="fm-name">'+f.name+'</span>'+
+        '<span class="fm-src">'+f.src+'</span>'+
+        '<span class="chev">▸</span>'+
+      '</button>'+
+      '<div class="fm-body"><div class="fm-body-inner"><p style="margin:16px 0 0">'+f.body+'</p>'+corr+'</div></div>';
+    var btn=el.querySelector("button"), body=el.querySelector(".fm-body");
+    btn.addEventListener("click", function(){
+      var open = el.getAttribute("open-state")==="1";
+      el.setAttribute("open-state", open?"0":"1");
+      btn.setAttribute("aria-expanded", open?"false":"true");
+      body.style.maxHeight = open ? "0" : (body.firstElementChild.scrollHeight+8)+"px";
+    });
+    fmList.appendChild(el);
+  });
+
+  /* ---------- decision tool ---------- */
+  var tool=document.getElementById("tool");
+  var steps=tool.querySelectorAll(".q-step");
+  var prog=document.getElementById("qProgress").children;
+  function showStep(key){
+    steps.forEach(function(s){
+      var match = (s.dataset.result===key) || (s.dataset.step===key && !s.dataset.result);
+      s.classList.toggle("active", match);
+    });
+    var idx = parseInt(key,10);
+    for(var i=0;i<prog.length;i++){ prog[i].classList.toggle("on", !isNaN(idx) && i<=idx); }
+    if(isNaN(idx)){ for(var j=0;j<prog.length;j++) prog[j].classList.add("on"); }
+  }
+  tool.addEventListener("click", function(e){
+    var opt=e.target.closest(".q-opt");
+    if(opt){ showStep(opt.dataset.next); return; }
+    if(e.target.closest(".q-restart")){ showStep("0"); }
+  });
+
+  /* ---------- scroll reveal ---------- */
+  if("IntersectionObserver" in window && !reduce){
+    var io=new IntersectionObserver(function(es){
+      es.forEach(function(en){ if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); } });
+    },{threshold:0.12, rootMargin:"0px 0px -40px 0px"});
+    document.querySelectorAll(".reveal").forEach(function(el){ io.observe(el); });
+  } else {
+    document.querySelectorAll(".reveal").forEach(function(el){ el.classList.add("in"); });
+  }
+
+  /* ---------- init ---------- */
+  drawPlot(reduce);
+})();
+</script>
