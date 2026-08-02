@@ -1,0 +1,1415 @@
+<meta charset="utf-8">
+<title>Inside the Codex harness — how OpenAI's coding agent actually runs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#F7F8FA; --surface:#FFFFFF; --surface2:#EDF0F5; --ink:#12161F; --muted:#5B6577;
+  --accent:#2E6BE6; --accent-ink:#fff; --line:#DFE4EC; --code-bg:#F1F4F9;
+  --shadow:0 1px 3px rgba(18,22,31,.06),0 8px 24px rgba(18,22,31,.05);
+  --shadow-lg:0 2px 6px rgba(18,22,31,.08),0 22px 52px rgba(18,22,31,.10);
+  /* layer palette */
+  --c-front:#7C5CE0; --c-core:#2E6BE6; --c-tools:#12967F; --c-sandbox:#C2571F;
+  --c-model:#B03B8C; --c-store:#6B7280; --c-ext:#C89014;
+  --good:#137A4F; --warn:#A76A10; --bad:#B3382E;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#0C1017; --surface:#151B26; --surface2:#1D2532; --ink:#E6EAF2; --muted:#9AA5B8;
+  --accent:#5B9BFF; --accent-ink:#0a1120; --line:#2A3444; --code-bg:#1A2130;
+  --shadow:0 1px 3px rgba(0,0,0,.45),0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.5),0 24px 60px rgba(0,0,0,.55);
+  --c-front:#A98BFF; --c-core:#5B9BFF; --c-tools:#2FC0A5; --c-sandbox:#F0873F;
+  --c-model:#E86BC0; --c-store:#94A0B4; --c-ext:#EBB93C;
+  --good:#3FBE84; --warn:#D9A03E; --bad:#E4695C;
+}}
+:root[data-theme="light"]{
+  --bg:#F7F8FA; --surface:#FFFFFF; --surface2:#EDF0F5; --ink:#12161F; --muted:#5B6577;
+  --accent:#2E6BE6; --accent-ink:#fff; --line:#DFE4EC; --code-bg:#F1F4F9;
+  --shadow:0 1px 3px rgba(18,22,31,.06),0 8px 24px rgba(18,22,31,.05);
+  --shadow-lg:0 2px 6px rgba(18,22,31,.08),0 22px 52px rgba(18,22,31,.10);
+  --c-front:#7C5CE0; --c-core:#2E6BE6; --c-tools:#12967F; --c-sandbox:#C2571F;
+  --c-model:#B03B8C; --c-store:#6B7280; --c-ext:#C89014;
+  --good:#137A4F; --warn:#A76A10; --bad:#B3382E;
+}
+:root[data-theme="dark"]{
+  --bg:#0C1017; --surface:#151B26; --surface2:#1D2532; --ink:#E6EAF2; --muted:#9AA5B8;
+  --accent:#5B9BFF; --accent-ink:#0a1120; --line:#2A3444; --code-bg:#1A2130;
+  --shadow:0 1px 3px rgba(0,0,0,.45),0 8px 24px rgba(0,0,0,.35);
+  --shadow-lg:0 2px 6px rgba(0,0,0,.5),0 24px 60px rgba(0,0,0,.55);
+  --c-front:#A98BFF; --c-core:#5B9BFF; --c-tools:#2FC0A5; --c-sandbox:#F0873F;
+  --c-model:#E86BC0; --c-store:#94A0B4; --c-ext:#EBB93C;
+  --good:#3FBE84; --warn:#D9A03E; --bad:#E4695C;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto} *{animation-duration:.001s!important;transition-duration:.001s!important}}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.65 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+code,pre,.mono{font-family:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace}
+h1,h2,h3,h4{font-family:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;line-height:1.15;text-wrap:balance;font-weight:600}
+main{max-width:1080px;margin:0 auto;padding:0 20px 90px}
+.prose{max-width:70ch}
+h2{font-size:2rem;margin:0 0 .35em}
+h3{font-size:1.28rem;margin:2.1em 0 .5em}
+h4{font-size:1.02rem;margin:0 0 .4em}
+p{margin:.9em 0}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+section{padding:62px 0 8px;border-top:1px solid var(--line);margin-top:52px}
+.eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:.71rem;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);margin:0 0 10px;font-weight:600}
+.lede{font-size:1.13rem;color:var(--muted)}
+code{background:var(--code-bg);border:1px solid var(--line);border-radius:4px;padding:.08em .35em;font-size:.84em}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:9px;padding:14px 16px;overflow-x:auto;font-size:.78rem;line-height:1.6}
+pre code{background:none;border:0;padding:0;font-size:1em}
+.path{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:.85rem;font-variant-numeric:tabular-nums}
+th{text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:8px 12px;border-bottom:2px solid var(--line)}
+td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:11px;padding:4px 8px;box-shadow:var(--shadow)}
+.full{margin:26px 0}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}
+.badge{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:.64rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:99px;border:1px solid var(--line);color:var(--muted);font-weight:600}
+button{font:inherit;cursor:pointer}
+.pill{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:5px 13px;font-size:.79rem}
+.pill[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.pill:focus-visible,button:focus-visible,.node:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.note{border-left:3px solid var(--accent);background:var(--surface2);border-radius:0 9px 9px 0;padding:12px 16px;font-size:.92rem;margin:20px 0}
+.note b{color:var(--ink)}
+
+/* topbar + hero */
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;max-width:1080px;margin:0 auto;padding:14px 20px 0}
+.brand{font-family:ui-monospace,Menlo,monospace;font-size:.71rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+#themeBtn{border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:5px 12px;font-size:.77rem;color:var(--ink)}
+.hero{max-width:1080px;margin:0 auto;padding:34px 20px 0}
+.hero h1{font-size:clamp(2.05rem,5.2vw,3.3rem);margin:.1em 0 .25em}
+.hero h1 em{font-style:normal;color:var(--accent)}
+.hero .lede{max-width:66ch}
+.statrow{display:flex;flex-wrap:wrap;gap:11px;margin:26px 0 6px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:9px 15px;box-shadow:var(--shadow);min-width:118px}
+.stat b{display:block;font-family:ui-serif,Georgia,serif;font-size:1.42rem;font-weight:600;font-variant-numeric:tabular-nums}
+.stat span{font-family:ui-monospace,Menlo,monospace;font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+
+/* TOC */
+.toc{display:flex;flex-wrap:wrap;gap:8px;margin:28px 0 4px}
+.toc a{font-family:ui-monospace,Menlo,monospace;font-size:.72rem;text-decoration:none;color:var(--muted);border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:4px 11px}
+.toc a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* generic diagram scaffolding */
+.diagram{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:var(--shadow);overflow-x:auto}
+.diagram h4{margin:0 0 2px}
+.dcap{font-size:.8rem;color:var(--muted);margin:0 0 16px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:.76rem;color:var(--muted)}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:5px}
+
+/* stack map */
+.stack{display:flex;flex-direction:column;gap:9px;min-width:640px}
+.srow{display:grid;grid-template-columns:112px 1fr;gap:12px;align-items:stretch}
+.slab{font-family:ui-monospace,Menlo,monospace;font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;justify-content:flex-end;text-align:right;line-height:1.3}
+.snodes{display:flex;gap:7px;flex-wrap:wrap}
+.node{flex:1 1 118px;min-width:104px;text-align:left;border:1.5px solid var(--line);border-radius:9px;background:var(--surface2);padding:8px 10px;position:relative;transition:transform .12s,border-color .12s,box-shadow .12s;color:var(--ink)}
+.node::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-radius:9px 0 0 9px;background:var(--nc,var(--accent))}
+.node:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.node[aria-pressed="true"]{border-color:var(--nc,var(--accent));background:var(--surface)}
+.node .nn{display:block;font-weight:650;font-size:.83rem;padding-left:6px}
+.node .ns{display:block;font-family:ui-monospace,Menlo,monospace;font-size:.62rem;color:var(--muted);margin-top:2px;padding-left:6px}
+.detail{margin-top:18px;border-top:1px dashed var(--line);padding-top:14px;min-height:110px}
+.detail h4{font-size:1.03rem}
+.detail p{margin:.4em 0;font-size:.92rem}
+.facts{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.fact{font-family:ui-monospace,Menlo,monospace;font-size:.68rem;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:3px 8px;color:var(--muted)}
+
+/* turn loop stepper */
+.loopwrap{display:grid;grid-template-columns:minmax(240px,320px) 1fr;gap:22px;align-items:start}
+@media (max-width:820px){.loopwrap{grid-template-columns:1fr}}
+.steps{display:flex;flex-direction:column;gap:4px}
+.step{display:flex;gap:10px;align-items:flex-start;text-align:left;border:1px solid transparent;background:none;border-radius:8px;padding:6px 9px;color:var(--muted);font-size:.82rem;line-height:1.35;position:relative}
+.step .sn{font-family:ui-monospace,Menlo,monospace;font-size:.66rem;color:var(--muted);min-width:20px;padding-top:2px;font-weight:700}
+.step[aria-pressed="true"]{background:var(--surface2);border-color:var(--line);color:var(--ink);font-weight:600}
+.step[data-kind="loop"] .sn{color:var(--c-tools)}
+.step[data-kind="model"] .sn{color:var(--c-model)}
+.step[data-kind="guard"] .sn{color:var(--c-sandbox)}
+.stepbody{background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:16px 18px;min-height:280px}
+.stepbody h4{margin:0 0 4px;font-size:1.06rem}
+.stepbody .where{font-family:ui-monospace,Menlo,monospace;font-size:.68rem;color:var(--muted);margin-bottom:10px}
+.stepbody p{font-size:.92rem;margin:.5em 0}
+.ctrls{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;align-items:center}
+
+/* pipeline (tool dispatch) */
+.pipe{display:flex;flex-direction:column;gap:6px;min-width:560px}
+.prow{display:flex;align-items:center;gap:8px}
+.pbox{flex:1;border:1.5px solid var(--line);border-radius:9px;background:var(--surface2);padding:9px 12px;text-align:left;color:var(--ink);position:relative}
+.pbox[aria-pressed="true"]{border-color:var(--pc,var(--accent));background:var(--surface);box-shadow:var(--shadow)}
+.pbox .pn{font-weight:650;font-size:.86rem}
+.pbox .pd{font-family:ui-monospace,Menlo,monospace;font-size:.63rem;color:var(--muted);margin-top:2px}
+.pgutter{width:26px;text-align:center;color:var(--muted);font-size:.8rem;flex:0 0 26px}
+.side{flex:0 0 168px;font-size:.72rem;color:var(--muted);font-family:ui-monospace,Menlo,monospace;line-height:1.35}
+
+/* simulator */
+.sim{display:grid;grid-template-columns:minmax(250px,300px) 1fr;gap:20px;align-items:start}
+@media (max-width:820px){.sim{grid-template-columns:1fr}}
+.simfield{margin-bottom:14px}
+.simfield label{display:block;font-family:ui-monospace,Menlo,monospace;font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.simfield .opts{display:flex;flex-wrap:wrap;gap:6px}
+.simfield .opts button{border:1px solid var(--line);background:var(--surface);border-radius:7px;padding:5px 10px;font-size:.76rem;color:var(--ink);text-align:left}
+.simfield .opts button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.trace{background:var(--surface2);border:1px solid var(--line);border-radius:11px;padding:14px 16px;font-size:.85rem}
+.tline{display:flex;gap:10px;padding:7px 0;border-bottom:1px dashed var(--line)}
+.tline:last-child{border-bottom:0}
+.tline .tk{font-family:ui-monospace,Menlo,monospace;font-size:.63rem;letter-spacing:.06em;text-transform:uppercase;min-width:96px;padding-top:3px;font-weight:700}
+.tline .tv{flex:1}
+.tk.ok{color:var(--good)} .tk.no{color:var(--bad)} .tk.ask{color:var(--warn)} .tk.info{color:var(--muted)}
+.verdict{margin-top:12px;border-radius:9px;padding:11px 14px;font-size:.9rem;font-weight:600;border:1.5px solid}
+.verdict.ok{border-color:var(--good);color:var(--good);background:color-mix(in srgb,var(--good) 10%,transparent)}
+.verdict.no{border-color:var(--bad);color:var(--bad);background:color-mix(in srgb,var(--bad) 10%,transparent)}
+.verdict.ask{border-color:var(--warn);color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,transparent)}
+
+/* tool explorer */
+.tfilters{display:flex;gap:7px;flex-wrap:wrap;margin:14px 0 16px;align-items:center}
+.tgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(238px,1fr));gap:11px}
+.tcard{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--tc,var(--accent));border-radius:10px;padding:11px 13px;box-shadow:var(--shadow)}
+.tcard h4{margin:0;font-size:.86rem;font-family:ui-monospace,Menlo,monospace;font-weight:600}
+.tcard .tt{font-family:ui-monospace,Menlo,monospace;font-size:.6rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+.tcard p{font-size:.79rem;margin:.5em 0 0;color:var(--muted)}
+.tcard .gate{margin-top:8px;font-size:.66rem;font-family:ui-monospace,Menlo,monospace;background:var(--code-bg);border-radius:5px;padding:3px 7px;display:inline-block;color:var(--muted)}
+.tcount{font-size:.76rem;color:var(--muted);margin-left:auto}
+
+/* accordions */
+.acc{border:1px solid var(--line);border-radius:10px;background:var(--surface);margin:9px 0;box-shadow:var(--shadow);overflow:hidden}
+.acc-h{width:100%;display:flex;align-items:center;gap:12px;text-align:left;background:none;border:0;padding:13px 16px;color:var(--ink)}
+.acc-h .n{font-family:ui-monospace,Menlo,monospace;font-size:.7rem;color:var(--accent);font-weight:700;min-width:22px}
+.acc-h b{font-size:.94rem}
+.acc-h .chev{margin-left:auto;color:var(--muted);transition:transform .18s}
+.acc[data-open="true"] .chev{transform:rotate(90deg)}
+.acc-b{display:none;padding:0 16px 15px 50px;font-size:.9rem;color:var(--muted)}
+.acc[data-open="true"] .acc-b{display:block}
+.acc-b code{color:var(--ink)}
+
+/* svg diagrams */
+svg.dg{width:100%;height:auto;display:block;overflow:visible}
+svg.dg text{font-family:ui-monospace,Menlo,monospace;fill:var(--ink)}
+svg.dg .lbl{font-size:11px;fill:var(--ink)}
+svg.dg .sub{font-size:9px;fill:var(--muted)}
+svg.dg .edge{stroke:var(--muted);stroke-width:1.2;fill:none;opacity:.65}
+svg.dg .edge.dash{stroke-dasharray:4 3}
+svg.dg .bx{fill:var(--surface2);stroke:var(--line);stroke-width:1.2;rx:7}
+
+footer{border-top:1px solid var(--line);padding:30px 20px 70px;max-width:1080px;margin:0 auto;font-family:ui-monospace,Menlo,monospace;font-size:.72rem;color:var(--muted);line-height:1.8}
+footer a{color:var(--muted)}
+</style>
+
+<div class="topbar">
+  <span class="brand">Explainers · systems</span>
+  <button id="themeBtn" type="button">◐ theme</button>
+</div>
+
+<div class="hero">
+  <p class="eyebrow">openai/codex · a full trace of the Rust harness</p>
+  <h1>Inside the <em>Codex harness</em>.</h1>
+  <p class="lede">Everything interesting about a coding agent lives outside the model. This is a component-by-component reading of OpenAI's open-source Codex CLI at commit <code>2b5bdcf</code> — 99 Rust crates and ~1.27M lines that turn a token stream into edited files, guarded by three layers of permission machinery that all have to agree before a single command runs.</p>
+
+  <div class="statrow">
+    <div class="stat"><b>99</b><span>rust crates</span></div>
+    <div class="stat"><b>2,840</b><span>.rs files</span></div>
+    <div class="stat"><b>1.27M</b><span>lines of rust</span></div>
+    <div class="stat"><b>185k</b><span>lines in core</span></div>
+    <div class="stat"><b>237k</b><span>lines in tui</span></div>
+    <div class="stat"><b>4</b><span>sandbox backends</span></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#map">1 · the map</a>
+    <a href="#protocol">2 · Op / Event</a>
+    <a href="#lifecycle">3 · thread &amp; session</a>
+    <a href="#turn">4 · the turn loop</a>
+    <a href="#step">5 · step context</a>
+    <a href="#dispatch">6 · tool dispatch</a>
+    <a href="#approval">7 · approvals &amp; guardian</a>
+    <a href="#sandbox">8 · sandboxing</a>
+    <a href="#runtimes">9 · exec runtimes</a>
+    <a href="#context">10 · context &amp; compaction</a>
+    <a href="#persist">11 · persistence</a>
+    <a href="#ext">12 · extension surfaces</a>
+    <a href="#lessons">13 · lessons</a>
+  </nav>
+</div>
+
+<main>
+
+<section id="map">
+  <p class="eyebrow">1 · the map</p>
+  <h2>Seven layers, one narrow waist</h2>
+  <div class="prose">
+    <p>The repo looks sprawling — <code>codex-rs/</code> has 99 crate directories — but it has a strict shape. Every frontend (terminal UI, headless <code>exec</code>, IDE, desktop app, MCP server) speaks the same duplex protocol to <code>codex-core</code>. Core owns the turn loop and never touches a terminal; <code>#![deny(clippy::print_stdout)]</code> at the top of <code>core/src/lib.rs</code> enforces that literally. Below core, tools are dispatched through a single orchestrator that owns approvals and sandbox selection, and every process ultimately launches through one <code>SandboxManager</code>.</p>
+    <p>Click any box to see what it does and where it lives.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>The Codex stack</h4>
+    <p class="dcap">Frontends → protocol → core → tool layer → execution → OS sandbox. Persistence and extension surfaces hang off the side.</p>
+    <div class="stack" id="stackMap"></div>
+    <div class="legend">
+      <span><i class="sw" style="background:var(--c-front)"></i>frontend</span>
+      <span><i class="sw" style="background:var(--c-core)"></i>core / protocol</span>
+      <span><i class="sw" style="background:var(--c-tools)"></i>tools</span>
+      <span><i class="sw" style="background:var(--c-sandbox)"></i>execution &amp; sandbox</span>
+      <span><i class="sw" style="background:var(--c-model)"></i>model I/O</span>
+      <span><i class="sw" style="background:var(--c-store)"></i>persistence</span>
+      <span><i class="sw" style="background:var(--c-ext)"></i>extensions</span>
+    </div>
+    <div class="detail" id="stackDetail"></div>
+  </div>
+
+  <div class="note">
+    <b>The narrow waist.</b> A frontend never calls a tool, never sees a sandbox, and never talks to the model API. It submits an <code>Op</code> and consumes <code>Event</code>s. That's why the same core drives a ratatui TUI, a JSON-RPC app-server for IDEs, a headless CI runner, and Codex-as-an-MCP-server without any of them sharing code.
+  </div>
+</section>
+
+<section id="protocol">
+  <p class="eyebrow">2 · the wire between UI and agent</p>
+  <h2><code>Op</code> in, <code>Event</code> out</h2>
+  <div class="prose">
+    <p>The core exposes exactly two channels: a submission queue that accepts <code>Submission { id, op }</code> and an event queue that emits <code>Event { id, msg }</code>, correlated by submission id. <code>Op</code> has roughly 30 variants; <code>EventMsg</code> has well over a hundred. That asymmetry is the whole design — the UI asks for very few things, and the agent narrates everything it does.</p>
+    <p>Notice which <code>Op</code>s exist. Beyond <code>UserInput</code> and <code>Interrupt</code>, there is a whole family of <em>answers</em>: <code>ExecApproval</code>, <code>PatchApproval</code>, <code>ResolveElicitation</code>, <code>UserInputAnswer</code>, <code>RequestPermissionsResponse</code>. The agent asks questions mid-turn and blocks on a reply that arrives through the same queue as the original prompt. That single fact shapes the entire concurrency story downstream.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>Duplex protocol</h4>
+    <p class="dcap">One submission queue, one event queue, correlated by <code>id</code>. Approvals travel <em>back in</em> on the submission queue while the turn is still running.</p>
+    <svg class="dg" viewBox="0 0 900 260" role="img" aria-label="Diagram of submission queue and event queue between a frontend and codex-core">
+      <rect class="bx" x="10" y="60" width="150" height="140"/>
+      <text class="lbl" x="85" y="88" text-anchor="middle">frontend</text>
+      <text class="sub" x="85" y="106" text-anchor="middle">tui · exec · app-server</text>
+      <text class="sub" x="85" y="122" text-anchor="middle">mcp-server · sdk</text>
+
+      <rect class="bx" x="360" y="20" width="190" height="220" style="fill:var(--surface)"/>
+      <text class="lbl" x="455" y="46" text-anchor="middle">codex-core</text>
+      <text class="sub" x="455" y="64" text-anchor="middle">Session + submission_loop</text>
+      <rect class="bx" x="378" y="80" width="154" height="34"/>
+      <text class="sub" x="455" y="101" text-anchor="middle">ActiveTurn (one task)</text>
+      <rect class="bx" x="378" y="122" width="154" height="34"/>
+      <text class="sub" x="455" y="143" text-anchor="middle">ContextManager (history)</text>
+      <rect class="bx" x="378" y="164" width="154" height="34"/>
+      <text class="sub" x="455" y="185" text-anchor="middle">ToolRouter + registry</text>
+
+      <rect class="bx" x="740" y="60" width="150" height="140"/>
+      <text class="lbl" x="815" y="88" text-anchor="middle">model + tools</text>
+      <text class="sub" x="815" y="106" text-anchor="middle">Responses API (ws/http)</text>
+      <text class="sub" x="815" y="122" text-anchor="middle">shell · patch · MCP</text>
+
+      <path class="edge" d="M160 100 H 360" marker-end="url(#ar)"/>
+      <text class="sub" x="260" y="92" text-anchor="middle">SQ · Submission{id, Op}</text>
+      <path class="edge" d="M360 160 H 160" marker-end="url(#ar)"/>
+      <text class="sub" x="260" y="152" text-anchor="middle">EQ · Event{id, EventMsg}</text>
+      <path class="edge dash" d="M160 135 H 360" marker-end="url(#ar)"/>
+      <text class="sub" x="260" y="128" text-anchor="middle">ExecApproval / PatchApproval …</text>
+
+      <path class="edge" d="M550 110 H 740" marker-end="url(#ar)"/>
+      <path class="edge" d="M740 150 H 550" marker-end="url(#ar)"/>
+      <text class="sub" x="645" y="102" text-anchor="middle">Prompt + ToolSpecs</text>
+      <text class="sub" x="645" y="168" text-anchor="middle">ResponseEvent stream</text>
+      <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)" opacity=".65"/></marker></defs>
+    </svg>
+  </div>
+
+  <div class="grid2 full">
+    <div class="card">
+      <h4>Selected <code>Op</code> variants</h4>
+      <p class="path">protocol/src/protocol.rs:531</p>
+      <div class="tablewrap" style="box-shadow:none;border:0;padding:0;margin-top:10px">
+      <table>
+        <tr><td><code>UserInput</code></td><td>items + optional JSON schema for the final message, per-turn client metadata, additional context, thread-settings overrides</td></tr>
+        <tr><td><code>Interrupt</code></td><td>abort the task; background terminals survive</td></tr>
+        <tr><td><code>CleanBackgroundTerminals</code></td><td>kill long-lived PTYs explicitly</td></tr>
+        <tr><td><code>ExecApproval</code> / <code>PatchApproval</code></td><td>carry a <code>ReviewDecision</code> back into a blocked tool call</td></tr>
+        <tr><td><code>ResolveElicitation</code></td><td>answer an MCP server's structured prompt</td></tr>
+        <tr><td><code>ThreadSettings</code></td><td>mutate settings <em>through the same queue</em> so caller ordering is preserved</td></tr>
+        <tr><td><code>InterAgentCommunication</code></td><td>message from a sibling/child agent, recorded as history</td></tr>
+        <tr><td><code>RealtimeConversation*</code></td><td>voice: start / audio / text / speech / close / list voices</td></tr>
+      </table>
+      </div>
+    </div>
+    <div class="card">
+      <h4>Event families</h4>
+      <p class="path">protocol/src/protocol.rs:1288</p>
+      <div class="tablewrap" style="box-shadow:none;border:0;padding:0;margin-top:10px">
+      <table>
+        <tr><td>lifecycle</td><td><code>SessionConfigured</code>, <code>TurnStarted</code>, <code>TurnComplete</code>, <code>TurnAborted</code>, <code>ThreadSettingsApplied</code></td></tr>
+        <tr><td>streaming</td><td><code>AgentMessage</code>, <code>AgentReasoning</code>, <code>AgentReasoningRawContent</code>, <code>AgentReasoningSectionBreak</code>, content deltas</td></tr>
+        <tr><td>tools</td><td><code>ExecCommandBegin/OutputDelta/End</code>, <code>TerminalInteraction</code>, <code>McpToolCallBegin/End</code>, <code>WebSearchBegin/End</code>, <code>ViewImageToolCall</code></td></tr>
+        <tr><td>asks</td><td><code>ExecApprovalRequest</code>, <code>ApplyPatchApprovalRequest</code>, <code>RequestPermissions</code>, <code>RequestUserInput</code>, <code>ElicitationRequest</code></td></tr>
+        <tr><td>accounting</td><td><code>TokenCount</code>, <code>ContextCompacted</code>, <code>SafetyBuffering</code>, <code>ModelReroute</code>, <code>GuardianWarning</code></td></tr>
+        <tr><td>infra</td><td><code>McpStartupUpdate/Complete</code>, <code>EnvironmentConnected/Disconnected</code>, <code>HookStarted/Completed</code></td></tr>
+      </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="lifecycle">
+  <p class="eyebrow">3 · objects and their lifetimes</p>
+  <h2>ThreadManager → CodexThread → Session → Task</h2>
+  <div class="prose">
+    <p>Four nested lifetimes, and confusing them is the fastest way to misread the code. <code>ThreadManager</code> is process-wide and owns the thread store, models manager, and auth. A <code>CodexThread</code> is one conversation — it holds the submission/event channels and the config snapshot. Inside it, a <code>Session</code> owns mutable state: history, active turn, MCP connections, input queue, unified-exec processes. And a <em>task</em> is one unit of work driven by a single <code>Op</code>.</p>
+    <p>The legacy names are still exported as deprecated aliases — <code>ConversationManager</code>, <code>NewConversation</code>, <code>CodexConversation</code> — which tells you the "thread" rename is recent and the whole app-server v2 protocol was built around it.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>Ownership and lifetime nesting</h4>
+    <p class="dcap">Each box outlives everything drawn inside it. Only one task is active per session at a time; <code>ActiveTurn</code> is the mutex on that.</p>
+    <svg class="dg" viewBox="0 0 900 300" role="img" aria-label="Nested ownership diagram of ThreadManager, CodexThread, Session, and tasks">
+      <rect class="bx" x="12" y="14" width="876" height="272" style="fill:none;stroke-dasharray:5 4"/>
+      <text class="lbl" x="26" y="34">ThreadManager <tspan class="sub">— process-wide: ThreadStore, ModelsManager, AuthManager, StateDb</tspan></text>
+
+      <rect class="bx" x="30" y="48" width="840" height="224" style="fill:var(--surface)"/>
+      <text class="lbl" x="44" y="68">CodexThread <tspan class="sub">— one conversation: SQ/EQ channels, ThreadConfigSnapshot, ThreadId</tspan></text>
+
+      <rect class="bx" x="48" y="82" width="804" height="176"/>
+      <text class="lbl" x="62" y="102">Session <tspan class="sub">— mutable state + SessionServices</tspan></text>
+
+      <rect class="bx" x="64" y="116" width="180" height="60" style="fill:var(--surface)"/>
+      <text class="sub" x="154" y="138" text-anchor="middle">ContextManager</text>
+      <text class="sub" x="154" y="153" text-anchor="middle">conversation history</text>
+      <text class="sub" x="154" y="168" text-anchor="middle">+ world state baseline</text>
+
+      <rect class="bx" x="254" y="116" width="180" height="60" style="fill:var(--surface)"/>
+      <text class="sub" x="344" y="138" text-anchor="middle">McpManager</text>
+      <text class="sub" x="344" y="153" text-anchor="middle">servers, tool catalog,</text>
+      <text class="sub" x="344" y="168" text-anchor="middle">prewarm + refresh</text>
+
+      <rect class="bx" x="444" y="116" width="180" height="60" style="fill:var(--surface)"/>
+      <text class="sub" x="534" y="138" text-anchor="middle">InputQueue</text>
+      <text class="sub" x="534" y="153" text-anchor="middle">steering messages that</text>
+      <text class="sub" x="534" y="168" text-anchor="middle">arrive mid-turn</text>
+
+      <rect class="bx" x="634" y="116" width="200" height="60" style="fill:var(--surface)"/>
+      <text class="sub" x="734" y="138" text-anchor="middle">UnifiedExec processes</text>
+      <text class="sub" x="734" y="153" text-anchor="middle">up to 64 live PTYs,</text>
+      <text class="sub" x="734" y="168" text-anchor="middle">outlive the turn</text>
+
+      <rect class="bx" x="64" y="190" width="770" height="54" style="fill:var(--surface2)"/>
+      <text class="lbl" x="80" y="211">ActiveTurn → RunningTask</text>
+      <text class="sub" x="80" y="230">RegularTask · CompactTask · ReviewTask · UserShellCommandTask — one at a time, cancellable via CancellationToken</text>
+    </svg>
+  </div>
+
+  <h3>The submission loop</h3>
+  <div class="prose">
+    <p><code>submission_loop</code> (<span class="path">core/src/session/handlers.rs:714</span>) is a plain <code>while let Some(sub) = rx.recv()</code> that dispatches on <code>op</code>. Turn-starting ops spawn a task and return immediately; answer-ops resolve a pending oneshot inside a still-running task. When the channel closes, the loop runs full thread teardown — aborting the active turn <em>before</em> emitting the thread-stop lifecycle, which the tests pin explicitly.</p>
+    <p>Four task kinds share one slot:</p>
+  </div>
+  <div class="grid2 full">
+    <div class="card"><h4>RegularTask</h4><p class="path">core/src/tasks/regular.rs</p><p style="font-size:.9rem;color:var(--muted)">The normal agent turn. Wraps <code>run_turn</code>.</p></div>
+    <div class="card"><h4>CompactTask</h4><p class="path">core/src/tasks/compact.rs</p><p style="font-size:.9rem;color:var(--muted)">User-invoked <code>/compact</code>. Same summarization machinery as auto-compaction but with <code>DoNotInject</code> semantics.</p></div>
+    <div class="card"><h4>ReviewTask</h4><p class="path">core/src/tasks/review.rs</p><p style="font-size:.9rem;color:var(--muted)">Code review mode: spawns a child review thread with its own rubric prompt and exits back with a structured verdict.</p></div>
+    <div class="card"><h4>UserShellCommandTask</h4><p class="path">core/src/tasks/user_shell.rs</p><p style="font-size:.9rem;color:var(--muted)">A command the <em>user</em> typed (e.g. <code>!ls</code>), recorded into history so the model sees what happened.</p></div>
+  </div>
+</section>
+
+<section id="turn">
+  <p class="eyebrow">4 · the heart</p>
+  <h2>The turn loop, step by step</h2>
+  <div class="prose">
+    <p><code>run_turn</code> in <span class="path">core/src/session/turn.rs</span> is the single most important function in the repo. Its doc comment states the contract plainly: the model replies with either function calls or an assistant message; function calls get executed and fed back; a bare assistant message ends the turn. Everything else in the 2,700-line file is the machinery that makes that true under compaction, steering, hooks, retries, and cancellation.</p>
+    <p>Walk through it. Steps 1–8 run once per turn; 9–17 are the loop body that repeats per sampling request.</p>
+  </div>
+
+  <div class="diagram full">
+    <div class="loopwrap">
+      <div>
+        <div class="steps" id="loopSteps"></div>
+        <div class="ctrls">
+          <button class="pill" id="loopPrev" type="button">← prev</button>
+          <button class="pill" id="loopNext" type="button">next →</button>
+          <button class="pill" id="loopPlay" type="button" aria-pressed="false">▶ auto</button>
+        </div>
+      </div>
+      <div class="stepbody" id="loopBody"></div>
+    </div>
+  </div>
+
+  <h3>What the sampling request actually does</h3>
+  <div class="prose">
+    <p>Step 12 hides the most interesting concurrency in the codebase. <code>try_run_sampling_request</code> consumes the <code>ResponseEvent</code> stream and maintains a <code>FuturesOrdered</code> of in-flight tool calls. When an <code>OutputItemDone</code> carries a function call, its future is pushed onto that queue <em>while the stream keeps arriving</em>. Tool calls therefore start executing before the model has finished emitting its next item, and outputs are still returned to the model in the order they were requested.</p>
+    <p>There is a second subtlety: a commentary-phase assistant message or a reasoning item sets <code>preempt_for_mailbox_mail</code>. If a sibling agent has mail waiting, the harness breaks out of the stream early with <code>needs_follow_up: true</code> rather than letting the model keep talking — inter-agent messages get priority at natural boundaries.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>Stream consumption and tool fan-out</h4>
+    <p class="dcap">One SSE/WebSocket stream in; N tool futures out; outputs re-ordered back into the prompt.</p>
+    <svg class="dg" viewBox="0 0 900 300" role="img" aria-label="Diagram of response stream events fanning out into tool futures">
+      <rect class="bx" x="10" y="110" width="130" height="70" style="fill:var(--surface)"/>
+      <text class="lbl" x="75" y="138" text-anchor="middle">ResponseStream</text>
+      <text class="sub" x="75" y="156" text-anchor="middle">ws → http fallback</text>
+
+      <rect class="bx" x="180" y="18" width="200" height="30"/><text class="sub" x="280" y="38" text-anchor="middle">Created / ServerModel / RateLimits</text>
+      <rect class="bx" x="180" y="56" width="200" height="30"/><text class="sub" x="280" y="76" text-anchor="middle">OutputTextDelta ×N</text>
+      <rect class="bx" x="180" y="94" width="200" height="30"/><text class="sub" x="280" y="114" text-anchor="middle">ReasoningSummaryDelta ×N</text>
+      <rect class="bx" x="180" y="132" width="200" height="30"/><text class="sub" x="280" y="152" text-anchor="middle">ToolCallInputDelta ×N</text>
+      <rect class="bx" x="180" y="170" width="200" height="30" style="stroke:var(--c-tools);stroke-width:1.8"/><text class="sub" x="280" y="190" text-anchor="middle">OutputItemDone(FunctionCall)</text>
+      <rect class="bx" x="180" y="208" width="200" height="30"/><text class="sub" x="280" y="228" text-anchor="middle">OutputItemDone(Message)</text>
+      <rect class="bx" x="180" y="246" width="200" height="30"/><text class="sub" x="280" y="266" text-anchor="middle">Completed{usage, end_turn}</text>
+
+      <path class="edge" d="M140 145 C 160 145, 160 33, 180 33"/>
+      <path class="edge" d="M140 145 C 160 145, 160 71, 180 71"/>
+      <path class="edge" d="M140 145 C 160 145, 160 109, 180 109"/>
+      <path class="edge" d="M140 145 H 180"/>
+      <path class="edge" d="M140 145 C 160 145, 160 185, 180 185"/>
+      <path class="edge" d="M140 145 C 160 145, 160 223, 180 223"/>
+      <path class="edge" d="M140 145 C 160 145, 160 261, 180 261"/>
+
+      <rect class="bx" x="440" y="150" width="180" height="100" style="fill:var(--surface);stroke:var(--c-tools);stroke-width:1.6"/>
+      <text class="lbl" x="530" y="176" text-anchor="middle">FuturesOrdered</text>
+      <text class="sub" x="530" y="196" text-anchor="middle">in_flight tool calls</text>
+      <text class="sub" x="530" y="214" text-anchor="middle">started while stream</text>
+      <text class="sub" x="530" y="230" text-anchor="middle">is still open</text>
+      <path class="edge" d="M380 185 H 440" marker-end="url(#ar2)"/>
+
+      <rect class="bx" x="440" y="30" width="180" height="70" style="fill:var(--surface)"/>
+      <text class="lbl" x="530" y="56" text-anchor="middle">emit to EQ</text>
+      <text class="sub" x="530" y="76" text-anchor="middle">turn items + deltas</text>
+      <path class="edge" d="M380 71 H 440" marker-end="url(#ar2)"/>
+
+      <rect class="bx" x="690" y="90" width="200" height="120" style="fill:var(--surface)"/>
+      <text class="lbl" x="790" y="116" text-anchor="middle">next prompt</text>
+      <text class="sub" x="790" y="136" text-anchor="middle">history + FunctionCallOutput</text>
+      <text class="sub" x="790" y="154" text-anchor="middle">in request order</text>
+      <text class="sub" x="790" y="178" text-anchor="middle">needs_follow_up = true</text>
+      <text class="sub" x="790" y="194" text-anchor="middle">→ loop again</text>
+      <path class="edge" d="M620 200 C 660 200, 660 150, 690 150" marker-end="url(#ar2)"/>
+      <path class="edge dash" d="M620 65 C 660 65, 660 120, 690 120"/>
+      <defs><marker id="ar2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)" opacity=".65"/></marker></defs>
+    </svg>
+  </div>
+
+  <div class="note">
+    <b>Termination is negotiated, not assumed.</b> <code>needs_follow_up = model_needs_follow_up || has_pending_input</code>. Even when the model is done, a message the user typed while it was thinking keeps the loop alive. And even with nothing pending, a <code>Stop</code> hook can force continuation by returning a prompt — the harness records it as a hook message, sets <code>stop_hook_active</code>, and goes around again. Only a hook that declines to block actually ends the turn.
+  </div>
+</section>
+
+<section id="step">
+  <p class="eyebrow">5 · the request view</p>
+  <h2><code>StepContext</code>: freezing the world for one sampling request</h2>
+  <div class="prose">
+    <p>A subtle bug class in agent harnesses: the tool list you advertised to the model drifts from the tool list you'll dispatch against, because an MCP server reconnected or a plugin loaded in between. Codex solves it with a value type captured once per sampling request.</p>
+  </div>
+
+  <div class="grid2 full">
+    <div class="card">
+      <h4><code>StepContext</code> — per sampling request</h4>
+      <p class="path">core/src/session/step_context.rs:12</p>
+      <pre><code>pub(crate) struct StepContext {
+    turn: Arc&lt;TurnContext&gt;,
+    environments: TurnEnvironmentSnapshot,
+    selected_capability_roots: Vec&lt;…&gt;,
+    executor_capability_discovery: Option&lt;…&gt;,
+    mcp: Arc&lt;McpBinding&gt;,      // exact connections
+    tool_router: Arc&lt;ToolRouter&gt;, // exact tool plan
+    loaded_agents_md: Option&lt;Arc&lt;LoadedAgentsMd&gt;&gt;,
+}</code></pre>
+      <p style="font-size:.88rem;color:var(--muted)">Comments in the struct say it outright: "the exact MCP connections, configuration, and catalog captured for this step" and "the finalized tool plan advertised and executed for this exact sampling request." A tool future spawned in step <em>k</em> keeps its step alive even if the turn moves on.</p>
+    </div>
+    <div class="card">
+      <h4><code>TurnContext</code> — per turn</h4>
+      <p class="path">core/src/session/turn_context.rs:114</p>
+      <p style="font-size:.88rem;color:var(--muted)">46 fields. The interesting ones: <code>approval_policy: Constrained&lt;AskForApproval&gt;</code> (an admin config layer can cap what the user is allowed to select), <code>permission_profile</code>, <code>network: Option&lt;NetworkProxy&gt;</code>, <code>windows_sandbox_level</code>, <code>mode: ModeKind</code>, <code>personality</code>, <code>multi_agent_version</code>, <code>final_output_json_schema</code>, <code>dynamic_tools</code>, plus telemetry/timing state and a <code>terminal_error</code> slot.</p>
+      <p style="font-size:.88rem;color:var(--muted)">Note <code>#[deprecated] cwd</code> — the codebase is mid-migration from "the session has a working directory" to "each turn environment has its own," which is what makes remote and multi-root execution possible.</p>
+    </div>
+  </div>
+
+  <h3>Building the tool plan</h3>
+  <div class="prose">
+    <p><code>tools/spec_plan.rs</code> is where the model's tool menu gets assembled, and it is almost entirely conditional. Shell tools depend on the model's <code>ConfigShellToolType</code>; when unified exec is active the legacy <code>shell</code> tool is still registered but with <code>ToolExposure::Hidden</code> so code-mode can call it without the model seeing it. MCP resource tools appear only if any server is configured. Collaboration tools appear only in multi-agent mode. A guardian reviewer session gets a hard-coded three-tool allowlist — <code>exec_command</code>, <code>write_stdin</code>, <code>view_image</code> — and nothing else, no matter what the config says.</p>
+    <p>Filter the registry:</p>
+  </div>
+
+  <div class="diagram full">
+    <div class="tfilters" id="toolFilters"></div>
+    <div class="tgrid" id="toolGrid"></div>
+  </div>
+
+  <div class="note">
+    <b>Exposure is a first-class concept.</b> <code>ToolExposure</code> distinguishes <em>Direct</em> (model sees and calls it), <em>DirectModelOnly</em> (visible to the model but excluded from code-mode's TypeScript surface), and <em>Hidden</em> (dispatchable but never advertised). Plus a deferred-namespace mechanism: tools can be collapsed behind a search tool and their schemas fetched on demand, which is how the harness keeps the advertised tool list small when dozens of MCP servers are connected.
+  </div>
+</section>
+
+<section id="dispatch">
+  <p class="eyebrow">6 · from token to process</p>
+  <h2>The tool dispatch pipeline</h2>
+  <div class="prose">
+    <p>A function call named by the model travels through eight distinct stages before anything executes, and through three more on the way back. Two of those stages can rewrite the call, three can veto it, and one can restart it under different privileges. Click through the pipeline:</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>ToolCall → ResponseInputItem</h4>
+    <p class="dcap">Each stage is a real seam in the code. Hover a stage name to see where it lives.</p>
+    <div class="pipe" id="pipeDiagram"></div>
+    <div class="detail" id="pipeDetail"></div>
+  </div>
+
+  <h3>The orchestrator's retry ladder</h3>
+  <div class="prose">
+    <p>The module header for <code>tools/orchestrator.rs</code> describes the whole design in four lines: <em>"approval → select sandbox → attempt → retry with an escalated sandbox strategy on denial (no re-approval thanks to caching)."</em></p>
+    <p>The retry is conditional on three separate gates. The error must actually be <code>SandboxErr::Denied</code>. The tool must opt in via <code>escalate_on_failure()</code>. And the policy must permit it via <code>wants_no_sandbox_approval()</code> — under <code>Never</code> or <code>OnRequest</code> there is no silent unsandboxed retry; the harness surfaces a concise denial that preserves the original output instead. That last branch is what stops a sandbox from degrading into a suggestion.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>Escalation on sandbox denial</h4>
+    <svg class="dg" viewBox="0 0 900 250" role="img" aria-label="Flowchart of sandbox denial escalation">
+      <rect class="bx" x="10" y="100" width="130" height="50" style="fill:var(--surface)"/><text class="sub" x="75" y="122" text-anchor="middle">attempt #1</text><text class="sub" x="75" y="138" text-anchor="middle">under sandbox</text>
+      <path class="edge" d="M140 125 H 200" marker-end="url(#ar3)"/>
+      <path d="M200 125 L 250 95 L 300 125 L 250 155 Z" class="bx" style="rx:0"/>
+      <text class="sub" x="250" y="122" text-anchor="middle">Denied?</text>
+      <text class="sub" x="250" y="136" text-anchor="middle">SandboxErr</text>
+      <path class="edge" d="M250 95 V 50 H 400" marker-end="url(#ar3)"/><text class="sub" x="300" y="44">no</text>
+      <rect class="bx" x="400" y="30" width="150" height="40" style="stroke:var(--good)"/><text class="sub" x="475" y="55" text-anchor="middle">return output</text>
+
+      <path class="edge" d="M300 125 H 360" marker-end="url(#ar3)"/><text class="sub" x="325" y="118">yes</text>
+      <rect class="bx" x="360" y="100" width="170" height="50"/><text class="sub" x="445" y="120" text-anchor="middle">escalate_on_failure()</text><text class="sub" x="445" y="136" text-anchor="middle">&amp;&amp; wants_no_sandbox_approval()</text>
+      <path class="edge" d="M445 150 V 200 H 560" marker-end="url(#ar3)"/><text class="sub" x="470" y="195">false</text>
+      <rect class="bx" x="560" y="180" width="200" height="42" style="stroke:var(--bad)"/><text class="sub" x="660" y="200" text-anchor="middle">surface denial to model,</text><text class="sub" x="660" y="214" text-anchor="middle">preserve original output</text>
+
+      <path class="edge" d="M530 125 H 600" marker-end="url(#ar3)"/><text class="sub" x="560" y="118">true</text>
+      <rect class="bx" x="600" y="100" width="150" height="50" style="stroke:var(--c-sandbox)"/><text class="sub" x="675" y="120" text-anchor="middle">attempt #2</text><text class="sub" x="675" y="136" text-anchor="middle">SandboxType::None</text>
+      <path class="edge dash" d="M675 100 V 62" marker-end="url(#ar3)"/>
+      <text class="sub" x="700" y="58">approval cached — no re-prompt</text>
+      <defs><marker id="ar3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)" opacity=".65"/></marker></defs>
+    </svg>
+  </div>
+</section>
+
+<section id="approval">
+  <p class="eyebrow">7 · who says yes</p>
+  <h2>Three independent approval systems</h2>
+  <div class="prose">
+    <p>Codex does not have "an approval prompt." It has a policy enum, a rules engine, a static safety analyzer, and an LLM reviewer — and a command has to survive all of the ones that apply.</p>
+  </div>
+
+  <div class="grid2 full">
+    <div class="card">
+      <h4>1 · <code>AskForApproval</code> — the policy</h4>
+      <p class="path">protocol/src/protocol.rs:917</p>
+      <table style="margin-top:8px">
+        <tr><td><code>UnlessTrusted</code></td><td>only <code>is_safe_command()</code> read-only commands auto-approve; everything else prompts</td></tr>
+        <tr><td><code>OnRequest</code> <span class="badge">default</span></td><td>the model decides when to ask</td></tr>
+        <tr><td><code>Granular{…}</code></td><td>five independent booleans — see below</td></tr>
+        <tr><td><code>Never</code></td><td>never prompt; failures go straight back to the model</td></tr>
+      </table>
+      <p style="font-size:.88rem;color:var(--muted);margin-top:12px"><code>Granular</code> splits approval by <em>source</em>: <code>sandbox_approval</code> (shell escalation), <code>rules</code> (execpolicy <code>prompt</code> rules), <code>skill_approval</code>, <code>request_permissions</code> (the tool), <code>mcp_elicitations</code>. A <code>false</code> field does not mean "ask" — it means <em>auto-reject</em>. That's the difference between a policy and a preference.</p>
+    </div>
+    <div class="card">
+      <h4>2 · execpolicy — the rules engine</h4>
+      <p class="path">core/src/exec_policy.rs · execpolicy/</p>
+      <p style="font-size:.9rem;color:var(--muted)">A Starlark-ish rule language loaded from layered <code>.rules</code> files, evaluated per command to a <code>Decision</code>. Rules can allow a prefix, deny it, or force a prompt. Amendments are appended at runtime when a user approves "always allow <code>cargo test</code>" — <code>blocking_append_allow_prefix_rule</code> writes it back to the rules file.</p>
+      <p style="font-size:.9rem;color:var(--muted)">It also carries a <code>BANNED_PREFIX_SUGGESTIONS</code> list — <code>bash -lc</code>, <code>sh -c</code>, <code>python -c</code>, <code>bun -e</code>, <code>Rscript</code> and friends. You cannot "always allow" an interpreter, because allowing the interpreter allows everything.</p>
+    </div>
+    <div class="card">
+      <h4>3 · <code>safety.rs</code> — static analysis</h4>
+      <p class="path">core/src/safety.rs</p>
+      <p style="font-size:.9rem;color:var(--muted)"><code>assess_patch_safety</code> returns <code>AutoApprove</code> / <code>AskUser</code> / <code>Reject</code>. Even when a patch is provably confined to writable roots it still runs sandboxed — the comment explains why: <em>paths in the patch may be hard links to files outside the writable roots</em>. And auto-approval requires that a sandbox actually be available on this platform; where <code>get_platform_sandbox()</code> returns <code>None</code>, it falls back to asking rather than trusting the path analysis.</p>
+    </div>
+    <div class="card">
+      <h4>4 · the Guardian — an LLM reviewer</h4>
+      <p class="path">core/src/guardian/</p>
+      <p style="font-size:.9rem;color:var(--muted)">When <code>ApprovalsReviewer</code> routes to the guardian, an <code>on-request</code> approval is answered by a <em>separate model session</em> instead of the user. It gets a compacted transcript (10k tokens of messages, 10k of tool output, 40 recent entries), the exact planned action, and must return strict JSON.</p>
+      <p style="font-size:.9rem;color:var(--muted)"><b>Fails closed</b> on timeout (90s), execution failure, or malformed output. Circuit breaker at 3 consecutive denials per turn. The guardian inherits the parent's network proxy and allowlist, so it can't be used to widen access.</p>
+    </div>
+  </div>
+
+  <h3>Try the decision path</h3>
+  <div class="prose">
+    <p>The simulator below mirrors the real branching in <code>ToolOrchestrator::run</code>, <code>default_exec_approval_requirement</code>, <code>SandboxManager::should_sandbox</code>, and <code>assess_patch_safety</code>. Pick a configuration and an action:</p>
+  </div>
+
+  <div class="diagram full">
+    <div class="sim">
+      <div>
+        <div class="simfield">
+          <label>approval policy</label>
+          <div class="opts" data-sim="policy">
+            <button type="button" data-v="untrusted">UnlessTrusted</button>
+            <button type="button" data-v="onrequest" aria-pressed="true">OnRequest</button>
+            <button type="button" data-v="granular">Granular (sandbox=false)</button>
+            <button type="button" data-v="never">Never</button>
+          </div>
+        </div>
+        <div class="simfield">
+          <label>permission profile</label>
+          <div class="opts" data-sim="profile">
+            <button type="button" data-v="workspace" aria-pressed="true">Managed · workspace-write</button>
+            <button type="button" data-v="readonly">Managed · read-only</button>
+            <button type="button" data-v="disabled">Disabled (no sandbox)</button>
+            <button type="button" data-v="external">External (caller isolates)</button>
+          </div>
+        </div>
+        <div class="simfield">
+          <label>reviewer</label>
+          <div class="opts" data-sim="reviewer">
+            <button type="button" data-v="user" aria-pressed="true">user</button>
+            <button type="button" data-v="guardian">guardian (auto-review)</button>
+          </div>
+        </div>
+        <div class="simfield">
+          <label>action</label>
+          <div class="opts" data-sim="action">
+            <button type="button" data-v="saferead" aria-pressed="true">ls / git status</button>
+            <button type="button" data-v="wswrite">write inside workspace</button>
+            <button type="button" data-v="outside">write to ~/.ssh</button>
+            <button type="button" data-v="network">curl an unlisted domain</button>
+            <button type="button" data-v="patch">apply_patch in workspace</button>
+          </div>
+        </div>
+        <div class="simfield">
+          <label>host</label>
+          <div class="opts" data-sim="host">
+            <button type="button" data-v="macos" aria-pressed="true">macOS</button>
+            <button type="button" data-v="linux">Linux</button>
+            <button type="button" data-v="winoff">Windows (sandbox off)</button>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="trace" id="simTrace"></div>
+        <div id="simVerdict"></div>
+        <p style="font-size:.76rem;color:var(--muted);margin-top:12px">Simplified from the real code paths — the production logic also consults execpolicy rules, cached approvals, network-policy decisions, and per-tool overrides.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="sandbox">
+  <p class="eyebrow">8 · the last line</p>
+  <h2>Four sandbox backends behind one enum</h2>
+  <div class="prose">
+    <p><code>SandboxType</code> has exactly four values — <code>None</code>, <code>MacosSeatbelt</code>, <code>LinuxSeccomp</code>, <code>WindowsRestrictedToken</code> — and <code>get_platform_sandbox()</code> is a four-line function that picks one by <code>cfg!(target_os)</code>. On Windows it returns <code>None</code> unless the Windows sandbox is explicitly enabled, which is why the Windows path has its own escalation level and its own read-grant system.</p>
+    <p>Everything above the enum is policy; everything below is a <code>transform()</code> that rewrites a command into a sandboxed command.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>Backends and what enforces them</h4>
+    <div class="tablewrap" style="box-shadow:none;border:0;padding:0">
+    <table>
+      <tr><th>backend</th><th>mechanism</th><th>files</th><th>notes</th></tr>
+      <tr><td><code>MacosSeatbelt</code></td><td><code>sandbox-exec</code> with a generated SBPL profile</td><td><span class="path">seatbelt.rs</span> + <code>seatbelt_base_policy.sbpl</code>, <code>seatbelt_network_policy.sbpl</code>, <code>restricted_read_only_platform_defaults.sbpl</code></td><td>Policy is generated per-command from the writable roots; 1,455 lines of tests pin the emitted SBPL</td></tr>
+      <tr><td><code>LinuxSeccomp</code></td><td>Landlock LSM + seccomp filters in a helper binary</td><td><span class="path">landlock.rs</span>, <code>codex-linux-sandbox</code> exe</td><td>A legacy-landlock mode is kept behind <code>use_legacy_landlock</code> for older kernels</td></tr>
+      <tr><td>bubblewrap</td><td><code>bwrap</code> namespaces, when present</td><td><span class="path">bwrap.rs</span></td><td>Detected via <code>find_system_bwrap_in_path</code>; explicitly refuses to run under WSL1</td></tr>
+      <tr><td><code>WindowsRestrictedToken</code></td><td>restricted token + optional private desktop</td><td><span class="path">windows.rs</span>, <code>windows-sandbox-rs/</code></td><td>Separate elevated vs non-elevated filesystem override resolution; explicit read grants</td></tr>
+      <tr><td><code>None</code></td><td>—</td><td>—</td><td>Selected when the profile is <code>Disabled</code>/<code>External</code>, when the platform has none, or as the escalated second attempt</td></tr>
+    </table>
+    </div>
+  </div>
+
+  <h3>The network is a separate sandbox</h3>
+  <div class="prose">
+    <p>Filesystem confinement and network confinement are orthogonal in this design. Network policy is enforced by <code>codex-network-proxy</code>, a full MITM proxy the harness runs itself: it generates a CA, injects it into the sandboxed process's trust store via <code>with_managed_mitm_ca_readable_root</code>, and terminates TLS so it can apply per-domain rules. It speaks both HTTP CONNECT and SOCKS5, has a <em>credential broker</em> so secrets can be injected into outbound requests without the agent ever seeing them, and does TCP attribution on Windows to tell which process opened a connection.</p>
+    <p>When a request is refused, the denial doesn't just fail — <code>begin_network_approval</code> can put the tool call into a deferred approval state, cancel the in-flight connection, ask the user, and let the command continue. That's why <code>SandboxAttempt</code> carries both a <code>network_denial_cancellation_token</code> and a <code>network_proxy</code> handle.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>How a command actually gets launched</h4>
+    <svg class="dg" viewBox="0 0 900 320" role="img" aria-label="Diagram of the sandbox transform and spawn path">
+      <rect class="bx" x="10" y="20" width="180" height="54" style="fill:var(--surface)"/>
+      <text class="sub" x="100" y="42" text-anchor="middle">tool runtime builds</text><text class="sub" x="100" y="58" text-anchor="middle">SandboxTransformRequest</text>
+      <path class="edge" d="M190 47 H 250" marker-end="url(#ar4)"/>
+      <rect class="bx" x="250" y="14" width="200" height="66" style="stroke:var(--c-sandbox);stroke-width:1.6"/>
+      <text class="lbl" x="350" y="36" text-anchor="middle">SandboxManager</text><text class="sub" x="350" y="54" text-anchor="middle">::transform()</text><text class="sub" x="350" y="70" text-anchor="middle">policy → concrete argv</text>
+
+      <path class="edge" d="M350 80 V 120" marker-end="url(#ar4)"/>
+      <rect class="bx" x="230" y="120" width="80" height="46"/><text class="sub" x="270" y="140" text-anchor="middle">sandbox-</text><text class="sub" x="270" y="154" text-anchor="middle">exec</text>
+      <rect class="bx" x="318" y="120" width="80" height="46"/><text class="sub" x="358" y="140" text-anchor="middle">codex-linux</text><text class="sub" x="358" y="154" text-anchor="middle">-sandbox</text>
+      <rect class="bx" x="406" y="120" width="80" height="46"/><text class="sub" x="446" y="140" text-anchor="middle">bwrap</text><text class="sub" x="446" y="154" text-anchor="middle">/ restricted tok</text>
+      <path class="edge" d="M350 80 V 105 H 270 V 120"/><path class="edge" d="M350 105 H 446 V 120"/>
+
+      <path class="edge" d="M358 166 V 200" marker-end="url(#ar4)"/>
+      <rect class="bx" x="250" y="200" width="216" height="46" style="fill:var(--surface)"/>
+      <text class="sub" x="358" y="220" text-anchor="middle">spawn_process (SpawnRequest)</text><text class="sub" x="358" y="236" text-anchor="middle">PTY for unified exec, pipe for shell</text>
+
+      <rect class="bx" x="560" y="14" width="200" height="66" style="stroke:var(--c-model);stroke-width:1.4"/>
+      <text class="lbl" x="660" y="36" text-anchor="middle">NetworkProxy</text><text class="sub" x="660" y="54" text-anchor="middle">MITM CA · SOCKS5 · CONNECT</text><text class="sub" x="660" y="70" text-anchor="middle">credential broker</text>
+      <path class="edge dash" d="M450 47 H 560"/>
+      <text class="sub" x="505" y="40" text-anchor="middle">env + CA root</text>
+
+      <path class="edge dash" d="M466 223 C 540 223, 600 160, 660 88" marker-end="url(#ar4)"/>
+      <text class="sub" x="580" y="215">all egress</text>
+
+      <rect class="bx" x="560" y="200" width="200" height="66" style="fill:var(--surface)"/>
+      <text class="lbl" x="660" y="222" text-anchor="middle">violation recorder</text>
+      <text class="sub" x="660" y="240" text-anchor="middle">FileSystemSandboxViolation</text>
+      <text class="sub" x="660" y="256" text-anchor="middle">NetworkSandboxViolation</text>
+      <path class="edge dash" d="M466 233 H 560" marker-end="url(#ar4)"/>
+
+      <rect class="bx" x="250" y="272" width="216" height="36" style="stroke:var(--bad)"/>
+      <text class="sub" x="358" y="294" text-anchor="middle">is_likely_sandbox_denied(output) → escalate</text>
+      <path class="edge" d="M358 246 V 272" marker-end="url(#ar4)"/>
+      <defs><marker id="ar4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="var(--muted)" opacity=".65"/></marker></defs>
+    </svg>
+  </div>
+
+  <div class="note">
+    <b>Denial detection is a heuristic, and they know it.</b> <code>is_likely_sandbox_denied</code> exists because seatbelt, landlock, and Windows all report refusal differently, and sometimes only as an exit code plus a message on stderr. The shared helper keeps escalation behaviour consistent across every exec path rather than each tool guessing on its own.
+  </div>
+</section>
+
+<section id="runtimes">
+  <p class="eyebrow">9 · what "run a command" means</p>
+  <h2>Five execution runtimes</h2>
+
+  <div class="grid2 full">
+    <div class="card">
+      <h4>unified exec — the PTY runtime</h4>
+      <p class="path">core/src/unified_exec/ · handlers exec_command + write_stdin</p>
+      <p style="font-size:.9rem;color:var(--muted)">The modern shell tool. Commands run in a real PTY, processes persist across tool calls, and the model interacts with them via <code>write_stdin</code>. That single change turns "run a command" into "drive an interactive session" — you can start a REPL, a debugger, or a dev server and keep talking to it.</p>
+      <p style="font-size:.9rem;color:var(--muted)">Bounded hard: <b>64</b> concurrent processes, <b>1 MiB</b> output buffer per process (head/tail retention), yield windows from <b>250 ms</b> to <b>30 s</b>, background terminals capped at <b>300 s</b> by default. Windows gets a 10 s initial yield floor because process startup is slower there.</p>
+    </div>
+    <div class="card">
+      <h4>shell command — the legacy runtime</h4>
+      <p class="path">core/src/tools/runtimes/shell.rs</p>
+      <p style="font-size:.9rem;color:var(--muted)">One command, captured output, exit. Still registered (often hidden) because it is simpler to reason about, works where PTYs don't, and is what older model checkpoints were trained against. <code>unix_escalation.rs</code> — 1,089 lines — handles the "run this one thing with more privilege" path.</p>
+    </div>
+    <div class="card">
+      <h4>apply_patch — structured edits</h4>
+      <p class="path">apply-patch/ · handlers/apply_patch.rs + apply_patch.lark</p>
+      <p style="font-size:.9rem;color:var(--muted)">A dedicated patch format with a <b>Lark grammar</b>, not a diff library. Parsed into <code>ApplyPatchAction</code> with typed <code>ApplyPatchFileChange</code> entries, safety-assessed as a unit, then applied. Because the change set is structured before it touches disk, <code>assess_patch_safety</code> can reason about every target path up front — which a shell <code>sed</code> could never allow.</p>
+    </div>
+    <div class="card">
+      <h4>code mode — tools as a TypeScript API</h4>
+      <p class="path">code-mode/ · code-mode-runtime/ (V8)</p>
+      <p style="font-size:.9rem;color:var(--muted)">Instead of emitting one function call per action, the model writes a <em>program</em> that calls tools, executed in an embedded V8 runtime. Each tool's JSON Schema is rendered to a TypeScript declaration (<code>render_json_schema_to_typescript</code>) and grouped into namespaces; the model gets two tools, <code>exec</code> and <code>wait</code>. Nested tool calls made from inside the script re-enter the same registry — same approvals, same sandbox.</p>
+    </div>
+    <div class="card">
+      <h4>exec-server — local and remote environments</h4>
+      <p class="path">exec-server/ (37 modules)</p>
+      <p style="font-size:.9rem;color:var(--muted)">The abstraction that lets a turn execute somewhere other than this machine. It defines an environment with a filesystem and a process API, implemented locally (<code>local_process</code>, <code>local_file_system</code>) or remotely over a Noise-encrypted channel with a rendezvous relay. Capability roots are discovered and cached per environment; a turn can bind several, which is why tool schemas grow an <code>environment_id</code> parameter when more than one is selected.</p>
+    </div>
+    <div class="card">
+      <h4>MCP tool calls</h4>
+      <p class="path">core/src/mcp_tool_call.rs (2,229 lines)</p>
+      <p style="font-size:.9rem;color:var(--muted)">External MCP servers get their tools merged into the same registry, with their own approval templates, elicitation flow (a server can ask the <em>user</em> a structured question mid-call), resource tools (<code>list</code>/<code>read</code>), and a tool-exposure filter so a server can't silently flood the model's tool list.</p>
+    </div>
+  </div>
+</section>
+
+<section id="context">
+  <p class="eyebrow">10 · the finite resource</p>
+  <h2>Context management and compaction</h2>
+  <div class="prose">
+    <p>Conversation history is not a <code>Vec&lt;Message&gt;</code> you append to. <code>ContextManager</code> owns it, <code>for_prompt(&amp;input_modalities)</code> renders a model-appropriate view of it, and a separate <em>world state</em> tracks the environment facts injected alongside it. Every turn diffs the world state against a baseline and injects only what changed.</p>
+  </div>
+
+  <h3>What gets injected, and when</h3>
+  <div class="prose">
+    <p>The <code>core/src/context/</code> directory is a catalogue of everything the harness can silently add to your conversation — 35+ fragment types. It's the most honest inventory of "what the agent knows that you didn't tell it" I've seen in an open codebase:</p>
+  </div>
+  <div class="grid3 full">
+    <div class="card"><h4>environment</h4><p style="font-size:.85rem;color:var(--muted)"><code>environment_context</code>, <code>environments_instructions</code>, <code>current_time_reminder</code>, <code>world_state</code></p></div>
+    <div class="card"><h4>permissions</h4><p style="font-size:.85rem;color:var(--muted)"><code>permissions_instructions</code>, <code>approved_command_prefix_saved</code>, <code>network_rule_saved</code></p></div>
+    <div class="card"><h4>capabilities</h4><p style="font-size:.85rem;color:var(--muted)"><code>plugin_instructions</code>, <code>apps_instructions</code>, <code>available_plugins_instructions</code>, <code>recommended_plugins_instructions</code></p></div>
+    <div class="card"><h4>budget</h4><p style="font-size:.85rem;color:var(--muted)"><code>token_budget_context</code>, <code>rollout_budget</code> — the model is told how much room it has left</p></div>
+    <div class="card"><h4>multi-agent</h4><p style="font-size:.85rem;color:var(--muted)"><code>inter_agent_message</code>, <code>inter_agent_completion_message</code>, <code>subagent_notification</code>, <code>multi_agent_mode_instructions</code></p></div>
+    <div class="card"><h4>corrections</h4><p style="font-size:.85rem;color:var(--muted)"><code>turn_aborted</code>, <code>legacy_model_mismatch_warning</code>, <code>legacy_apply_patch_exec_command_warning</code>, <code>guardian_followup_review_reminder</code></p></div>
+  </div>
+
+  <h3>Three compaction implementations</h3>
+  <div class="prose">
+    <p>When history approaches the limit, the harness summarizes and replaces. There are three paths — local inline, remote, and remote v2 — chosen by <code>should_use_remote_compact_task(provider)</code>. But the load-bearing detail is <em>where the summary goes</em>, and the comment in <code>compact.rs</code> is unusually explicit about why:</p>
+    <blockquote style="margin:16px 0;padding:12px 18px;border-left:3px solid var(--accent);background:var(--surface2);border-radius:0 9px 9px 0;font-size:.92rem">
+      "Mid-turn compaction must use <code>BeforeLastUserMessage</code> because <b>the model is trained to see the compaction summary as the last item in history after mid-turn compaction</b>; we therefore inject initial context into the replacement history just above the last real user message."
+    </blockquote>
+    <p>That is a harness invariant dictated by post-training. Put the summary in the wrong slot and the model behaves differently — the layout of compacted history is part of the model's interface, not an implementation detail.</p>
+  </div>
+
+  <div class="diagram full">
+    <h4>Compaction trigger points in a turn</h4>
+    <svg class="dg" viewBox="0 0 900 210" role="img" aria-label="Timeline showing pre-turn and mid-turn compaction">
+      <line x1="40" y1="120" x2="860" y2="120" class="edge" stroke-width="2"/>
+      <circle cx="90" cy="120" r="6" fill="var(--c-core)"/><text class="sub" x="90" y="146" text-anchor="middle">turn start</text>
+      <rect class="bx" x="30" y="52" width="130" height="50" style="stroke:var(--c-model)"/>
+      <text class="sub" x="95" y="72" text-anchor="middle">run_pre_sampling</text><text class="sub" x="95" y="88" text-anchor="middle">_compact</text>
+      <path class="edge" d="M95 102 V 114"/>
+
+      <circle cx="300" cy="120" r="6" fill="var(--c-tools)"/><text class="sub" x="300" y="146" text-anchor="middle">sampling #1</text>
+      <circle cx="470" cy="120" r="6" fill="var(--c-tools)"/><text class="sub" x="470" y="146" text-anchor="middle">tools + sampling #2</text>
+      <circle cx="650" cy="120" r="6" fill="var(--c-sandbox)"/>
+      <rect class="bx" x="570" y="52" width="170" height="50" style="stroke:var(--c-sandbox)"/>
+      <text class="sub" x="655" y="72" text-anchor="middle">token_limit_reached →</text><text class="sub" x="655" y="88" text-anchor="middle">run_auto_compact(MidTurn)</text>
+      <path class="edge" d="M655 102 V 114"/>
+      <text class="sub" x="650" y="146" text-anchor="middle">continue</text>
+
+      <circle cx="840" cy="120" r="6" fill="var(--good)"/><text class="sub" x="835" y="146" text-anchor="middle">turn end</text>
+
+      <rect class="bx" x="30" y="164" width="360" height="34" style="fill:var(--surface)"/>
+      <text class="sub" x="210" y="185" text-anchor="middle">InitialContextInjection::DoNotInject — history fully re-seeded next turn</text>
+      <rect class="bx" x="500" y="164" width="360" height="34" style="fill:var(--surface)"/>
+      <text class="sub" x="680" y="185" text-anchor="middle">InitialContextInjection::BeforeLastUserMessage — required by training</text>
+    </svg>
+  </div>
+
+  <div class="note">
+    <b>Compaction is instrumented like a production system.</b> Every run emits a <code>CodexCompactionEvent</code> carrying implementation, strategy, phase (<code>PreTurn</code>/<code>MidTurn</code>), reason (<code>ContextLimit</code>/manual), trigger, and terminal status. There are <code>PreCompact</code> and <code>PostCompact</code> hooks. And <code>compact_model_fallback.rs</code> exists for when the summarizing model itself is unavailable — the failure mode of "can't compact, can't continue" was clearly hit in practice.
+  </div>
+</section>
+
+<section id="persist">
+  <p class="eyebrow">11 · remembering</p>
+  <h2>Rollouts, the state DB, and the thread store</h2>
+  <div class="prose">
+    <p>Three storage systems with three different jobs, and it's worth being precise about which is which.</p>
+  </div>
+
+  <div class="grid3 full">
+    <div class="card">
+      <h4>rollout — append-only JSONL</h4>
+      <p class="path">rollout/src/recorder.rs</p>
+      <p style="font-size:.87rem;color:var(--muted)">One <code>.jsonl</code> per session, written by a dedicated task behind an mpsc channel so the turn loop never blocks on disk. Lines are <code>RolloutLine</code>s wrapping <code>SessionMeta</code>, <code>TurnContext</code>, <code>WorldState</code>, <code>Compacted</code>, <code>ResponseItem</code>, <code>EventMsg</code>, or inter-agent traffic. Has a <em>reverse</em> JSONL scanner so "resume the last session" doesn't read the whole file.</p>
+    </div>
+    <div class="card">
+      <h4>state DB — SQLite</h4>
+      <p class="path">state/ + rollout/src/state_db.rs</p>
+      <p style="font-size:.87rem;color:var(--muted)">Versioned migrations, a log DB, an audit trail, telemetry. Backs listing, search, and indexing across sessions — the things a flat JSONL is bad at. The CLI ships a <code>state_db_recovery</code> module, which tells you it has been corrupted in the field.</p>
+    </div>
+    <div class="card">
+      <h4>thread store</h4>
+      <p class="path">thread-store/</p>
+      <p style="font-size:.87rem;color:var(--muted)">The typed API over both: <code>StoredThread</code>, <code>StoredThreadHistory</code>, <code>ThreadMetadataPatch</code>, plus a <code>live_thread</code> view and section-based reads so a client can page history without loading it all.</p>
+    </div>
+  </div>
+
+  <h3>What is deliberately <em>not</em> persisted</h3>
+  <div class="prose">
+    <p><code>rollout/src/policy.rs</code> is a small file that carries a lot of judgment. <code>should_persist_response_item</code> returns <code>false</code> for <code>AdditionalTools</code>, <code>CompactionTrigger</code>, and <code>Other</code> — transient control items that would confuse a replay. And persistence is filtered by <code>ThreadHistoryMode</code>, so an ephemeral thread can run the whole machinery while writing nothing durable.</p>
+    <p>The payoff is <code>fork</code>: <code>ForkSnapshot</code> plus rollout reconstruction lets you branch a conversation from an arbitrary point. There are 1,959 lines of tests for reconstruction alone (<span class="path">session/rollout_reconstruction_tests.rs</span>) — replaying a log into an identical live session is evidently hard to get right.</p>
+  </div>
+
+  <h3>Config is layered, not merged</h3>
+  <div class="prose">
+    <p>Nine config layer sources with explicit integer precedence (<span class="path">config/src/config_layer_source.rs</span>). Read the ordering as a statement about trust:</p>
+  </div>
+  <div class="diagram full">
+    <svg class="dg" viewBox="0 0 900 130" role="img" aria-label="Config layer precedence ladder">
+      <text class="sub" x="10" y="20">lower precedence</text><text class="sub" x="890" y="20" text-anchor="end">higher precedence</text>
+      <line x1="10" y1="30" x2="890" y2="30" class="edge"/>
+      <g id="cfgLayers"></g>
+    </svg>
+    <p style="font-size:.85rem;color:var(--muted);margin-top:8px">MDM sits at the bottom because it is overridden by more specific layers — but separately, <code>ConfigRequirements</code> lets a managed layer publish <em>constraints</em> that clamp what higher layers may set. That's why <code>TurnContext.approval_policy</code> is a <code>Constrained&lt;AskForApproval&gt;</code> rather than a plain enum: an enterprise can pin the ceiling even though session flags win on precedence.</p>
+  </div>
+</section>
+
+<section id="ext">
+  <p class="eyebrow">12 · the pluggable edges</p>
+  <h2>Five ways to change what the agent does</h2>
+
+  <div class="full">
+    <div class="acc" data-open="true">
+      <button class="acc-h" type="button"><span class="n">01</span><b>Hooks — shell out at ten lifecycle points</b><span class="chev">›</span></button>
+      <div class="acc-b">
+        <p><code>PreToolUse</code>, <code>PostToolUse</code>, <code>UserPromptSubmit</code>, <code>SessionStart</code>, <code>Stop</code>, <code>SubagentStop</code>, <code>PermissionRequest</code>, <code>PreCompact</code>, <code>PostCompact</code>, <code>Notification</code>. Hooks are configured with matchers per event and run through <code>hooks/src/engine</code> with output spilling to disk when it's large.</p>
+        <p>They are not observers. <code>PreToolUse</code> can return <code>Blocked(reason)</code> or rewrite <code>tool_input</code> — and the tool runtime must be able to reconstruct itself from the rewritten value, which is what <code>with_updated_hook_input</code> and the "stable hook contract" comments in <code>registry.rs</code> are about. <code>Stop</code> can refuse to let the turn end and supply a continuation prompt. <code>PermissionRequest</code> can answer an approval without a human.</p>
+      </div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">02</span><b>MCP — servers in, and Codex out</b><span class="chev">›</span></button>
+      <div class="acc-b">
+        <p>Inbound: external MCP servers contribute tools and resources, with prewarming (<code>mcp_prewarm.rs</code>), incremental startup events, per-server refresh, dependency installation prompts for skills, and an exposure filter. <code>required_mcp_servers_for_input</code> means a server can be started lazily because the user's message mentioned it.</p>
+        <p>Outbound: <code>codex mcp-server</code> exposes Codex itself as an MCP server over stdio, so another agent can call it as a tool. The core is symmetric about this.</p>
+      </div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">03</span><b>Skills — prompt fragments with dependencies</b><span class="chev">›</span></button>
+      <div class="acc-b">
+        <p>Loaded from layered roots (bundled, user, project, plugin), matched against the user's message by explicit <code>@mention</code> or implicit detection, and injected as prompt fragments. <code>detect_implicit_skill_invocation_for_command</code> goes further: it watches the commands the agent runs and fires a skill-invocation analytics event when a command matches a skill's signature, i.e. it notices when the model reinvented a skill by hand.</p>
+        <p>Skills can declare MCP dependencies; <code>maybe_prompt_and_install_mcp_dependencies</code> offers to install them mid-turn.</p>
+      </div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">04</span><b>Plugins &amp; marketplaces — distribution</b><span class="chev">›</span></button>
+      <div class="acc-b">
+        <p><code>core-plugins/</code> is the largest extension crate: manifests, loaders, npm sources, bundle archives, marketplace add/remove/upgrade, marketplace <em>policy</em> (an enterprise can restrict allowed source kinds), and command migration from older formats. A plugin can ship skills, MCP servers, hooks, and slash commands as one unit.</p>
+        <p>There's also a discovery loop: <code>prepare_tool_recommendations</code> asks a backend endpoint which plugins would help with the current turn, then exposes <code>list_available_plugins_to_install</code> and <code>request_plugin_install</code> as tools — the model can ask to install its own capabilities, subject to approval.</p>
+      </div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">05</span><b>Multi-agent — spawn, message, follow up</b><span class="chev">›</span></button>
+      <div class="acc-b">
+        <p>Under the <code>collaboration</code> namespace: <code>spawn_agent</code>, <code>send_message</code>, <code>followup_task</code>. A spawned agent is a real thread with its own session, inheriting config and optionally forking the parent's history (<code>spawn_forked_thread</code>). Communication flows back as <code>Op::InterAgentCommunication</code> and lands in history as messages.</p>
+        <p>Two protocol versions coexist (<code>multi_agents.rs</code> and <code>multi_agents_v2.rs</code>) with 4,538 lines of tests between them. The mailbox-preemption logic in the streaming loop exists specifically so a parent notices a child's message at a reasoning boundary instead of after it has finished a long monologue.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="note">
+    <b>One detail worth stealing.</b> <code>ToolCall::direct_source()</code> checks whether a collaboration tool call arrived with empty <code>encrypted_function_args</code> and, if so, tags it <code>DirectPlaintextMessage</code> — after which <code>tool_log_payload</code> logs the literal string <code>"[plaintext arguments]"</code> instead of the content. Inter-agent messages are treated as potentially sensitive user data at the logging layer, not just the storage layer.
+  </div>
+</section>
+
+<section id="lessons">
+  <p class="eyebrow">13 · what the code argues</p>
+  <h2>Eight things this harness believes</h2>
+
+  <div class="full">
+    <div class="acc" data-open="true">
+      <button class="acc-h" type="button"><span class="n">01</span><b>Freeze the request view, or you will dispatch against a tool list you never advertised</b><span class="chev">›</span></button>
+      <div class="acc-b">The <code>StepContext</code> pattern. MCP servers reconnect, plugins load, environments come and go — all asynchronously. Capturing tool router, MCP binding, environments, and AGENTS.md into one immutable value per sampling request eliminates an entire family of races, at the cost of one <code>Arc</code> clone.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">02</span><b>Approval and sandboxing are one mechanism, and it must live in one place</b><span class="chev">›</span></button>
+      <div class="acc-b">Every tool that touches the outside world goes through <code>ToolOrchestrator::run</code>. Not a shared helper you're encouraged to call — the actual path. That's what makes "no re-approval on escalated retry" and "guardian review substitutes for the user" implementable as single edits rather than a policy sprinkled across a dozen handlers.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">03</span><b>Fail closed, and count the failures</b><span class="chev">›</span></button>
+      <div class="acc-b">The guardian denies on timeout, on malformed JSON, on execution failure. It also breaks the circuit after 3 consecutive denials per turn and keeps a 50-entry denial window, because an agent stuck in a rejection loop is its own failure mode. Both halves matter: the safe default, and the escape from the safe default.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">04</span><b>The sandbox must be enforceable, not merely intended</b><span class="chev">›</span></button>
+      <div class="acc-b">In <code>assess_patch_safety</code>, a patch confined to writable paths is only auto-approved <em>if a platform sandbox exists</em>. No sandbox available means ask the user, because the path analysis can be defeated by hard links. Refusing to auto-approve on the basis of unenforceable reasoning is the rare correct call.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">05</span><b>Never let the model "always allow" an interpreter</b><span class="chev">›</span></button>
+      <div class="acc-b"><code>BANNED_PREFIX_SUGGESTIONS</code> blocks <code>bash -lc</code>, <code>sh -c</code>, <code>python -c</code>, <code>bun -e</code>, <code>Rscript</code> and friends from becoming saved allow-prefixes. Allow-listing by command prefix is only meaningful if the prefix constrains behaviour, and an interpreter constrains nothing.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">06</span><b>Termination is a negotiation between model, user, and hooks</b><span class="chev">›</span></button>
+      <div class="acc-b">A turn ends when the model has nothing more to say <em>and</em> no steering input is queued <em>and</em> no <code>Stop</code> hook wants to continue. Treating "assistant message with no tool call" as the sole end condition is the naive version, and this codebase has three separate overrides on top of it.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">07</span><b>The layout of compacted history is part of the model's interface</b><span class="chev">›</span></button>
+      <div class="acc-b">Mid-turn compaction must place the summary last, because that's what the model was trained on. Harness and post-training are coupled through the exact shape of the context window — a fact that's invisible from the outside and load-bearing on the inside.</div>
+    </div>
+    <div class="acc">
+      <button class="acc-h" type="button"><span class="n">08</span><b>Processes should outlive tool calls</b><span class="chev">›</span></button>
+      <div class="acc-b">Unified exec's persistent PTYs turn the shell from a request/response tool into a session the agent can hold open. That one change is why the harness needs a process manager, output ring buffers, yield-time tuning, background-terminal cleanup as an explicit <code>Op</code>, and a cap of 64 — and it's the difference between an agent that runs commands and one that uses a computer.</div>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:28px">
+    <b>Read it yourself.</b> Start at <code>codex-rs/core/src/session/turn.rs</code> and follow <code>run_turn</code> → <code>run_sampling_request</code> → <code>try_run_sampling_request</code>. Then read <code>tools/orchestrator.rs</code> top to bottom — it's 528 lines and it is the security model. Everything else is detail hanging off those two files.
+  </div>
+</section>
+
+</main>
+
+<footer>
+  Traced from <a href="https://github.com/openai/codex">github.com/openai/codex</a> at commit <code>2b5bdcf</code> · Apache-2.0 · line counts measured over <code>codex-rs/</code> excluding vendored code.<br>
+  Every file path in this page points at real code in that tree. Numbers are from the repository, not the docs.<br>
+  Built as a self-contained page — no network requests, no analytics, works offline.
+</footer>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------- theme ---------- */
+var root=document.documentElement, tb=document.getElementById('themeBtn');
+try{var saved=localStorage.getItem('codex-theme'); if(saved) root.setAttribute('data-theme',saved);}catch(e){}
+tb.addEventListener('click',function(){
+  var cur=root.getAttribute('data-theme');
+  if(!cur){ cur = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark':'light'; }
+  var next = cur==='dark'?'light':'dark';
+  root.setAttribute('data-theme',next);
+  try{localStorage.setItem('codex-theme',next);}catch(e){}
+});
+
+/* ---------- 1. stack map ---------- */
+var STACK=[
+ {layer:'frontends',color:'var(--c-front)',nodes:[
+   {n:'tui',s:'237k LOC · ratatui',t:'The interactive terminal app',d:'Full-screen ratatui UI: chat widget, diff renderer, exec cells, bottom pane with approval modals, keymap system with chords, IDE context bridge, external editor, inline visualizations, backtrack UI. It talks to core through an app-server session, so the TUI and an IDE extension use the same path.',f:['tui/src/chatwidget','bottom_pane/','history_cell/','exec_cell/']},
+   {n:'exec',s:'headless runner',t:'Non-interactive Codex',d:'codex exec runs a single prompt to completion with no TTY. Two event processors: human-readable output and JSONL for CI. This is the mode a GitHub Action or a script uses.',f:['exec/src/event_processor_with_jsonl_output.rs']},
+   {n:'app-server',s:'JSON-RPC · v1+v2',t:'The IDE / desktop protocol',d:'A JSON-RPC server exposing thread/start, turn ops, config management, file search, model refresh, and dynamic tools. Protocol v2 is generated with TS type exports and an experimental-field annotation system so clients can negotiate features. Also runs as a daemon with remote control.',f:['app-server/','app-server-protocol/ (7.8M)','app-server-daemon/']},
+   {n:'mcp-server',s:'codex as a tool',t:'Codex exposed over MCP',d:'Wraps the whole agent as an MCP server on stdio so another agent can call Codex as a tool. Same core, inverted direction.',f:['mcp-server/','codex-mcp/']},
+   {n:'sdk / cloud',s:'ts sdk · cloud tasks',t:'Programmatic and hosted surfaces',d:'A TypeScript SDK in sdk/, plus cloud-tasks for browsing and applying work done by the hosted Codex agent.',f:['sdk/','cloud-tasks/','chatgpt/']}
+ ]},
+ {layer:'protocol',color:'var(--c-core)',nodes:[
+   {n:'protocol',s:'Op · EventMsg · items',t:'The shared vocabulary',d:'Submissions, events, response items, permissions, exec output, approvals, parse_command, error taxonomy. Everything both sides of the waist agree on. Types are exported to TypeScript for clients.',f:['protocol/src/protocol.rs','protocol/src/models.rs','protocol/src/items.rs']},
+   {n:'codex-api',s:'ResponseEvent',t:'Wire types for the model API',d:'ResponseEvent variants consumed by the turn loop: Created, OutputItemAdded/Done, deltas for text/reasoning/tool-args, RateLimits, SafetyBuffering, ServerModel, Completed{response_id, token_usage, end_turn}.',f:['codex-api/src/common.rs:76']}
+ ]},
+ {layer:'core',color:'var(--c-core)',nodes:[
+   {n:'session',s:'submission_loop',t:'Session state and dispatch',d:'Owns history, active turn, MCP runtime, input queue, world state, elicitation holders, review sessions, multi-agent state. submission_loop dispatches Ops to tasks; capture_step_context freezes the per-request view.',f:['session/mod.rs (4,167)','session/turn.rs (2,731)','session/handlers.rs']},
+   {n:'tasks',s:'4 kinds',t:'Units of work',d:'RegularTask, CompactTask, ReviewTask, UserShellCommandTask. Lifecycle emits turn start/stop/abort/error events and thread-idle. Graceful interruption window is 100 ms before hard abort.',f:['tasks/mod.rs','tasks/lifecycle.rs']},
+   {n:'context',s:'history + world state',t:'What the model sees',d:'ContextManager holds history and renders it per input modality; 35+ context fragment types get diffed against a world-state baseline and injected only on change.',f:['context_manager/','context/']},
+   {n:'compact',s:'3 implementations',t:'Making room',d:'Inline local summarization, remote compaction, and remote v2 — with PreCompact/PostCompact hooks, token budget accounting, and a model fallback path.',f:['compact.rs','compact_remote_v2.rs','compact_token_budget.rs']},
+   {n:'client',s:'ws → http',t:'Model transport',d:'Responses API over WebSocket with automatic fallback to HTTP streaming; sticky routing tokens, beta-feature headers, retry budget, prewarm and preconnect, per-turn ModelClientSession that caches transport state.',f:['core/src/client.rs (2,446)','responses_retry.rs']}
+ ]},
+ {layer:'tools',color:'var(--c-tools)',nodes:[
+   {n:'spec_plan',s:'builds the menu',t:'Per-step tool planning',d:'Assembles the registry from features, model capabilities, environments, MCP servers, plugins and multi-agent mode; then finalizes model-visible specs, namespaces, and deferred tool groups.',f:['tools/spec_plan.rs (1,153)']},
+   {n:'router',s:'name → runtime',t:'Dispatch',d:'Resolves a ToolName (with optional namespace) to a CoreToolRuntime, classifies the call source, and hands off to the registry.',f:['tools/router.rs','tools/registry.rs (790)']},
+   {n:'orchestrator',s:'approval + sandbox',t:'The security seam',d:'approval → select sandbox → attempt → escalate. Also owns network approval begin/finish and OTEL sandbox-outcome metrics.',f:['tools/orchestrator.rs (528)','tools/sandboxing.rs','tools/approvals.rs']},
+   {n:'parallel',s:'FuturesOrdered',t:'Concurrent tool calls',d:'ToolCallRuntime spawns tool futures while the response stream is still open, with an RwLock gate for runtimes that cannot run in parallel, plus abort handling and timing telemetry.',f:['tools/parallel.rs (833)']},
+   {n:'handlers',s:'~25 tools',t:'The tool implementations',d:'exec_command, write_stdin, shell, apply_patch, view_image, update_plan, request_permissions, request_user_input, tool_search, MCP resources, multi-agent, plugin install, context window tools.',f:['tools/handlers/']}
+ ]},
+ {layer:'execution',color:'var(--c-sandbox)',nodes:[
+   {n:'unified_exec',s:'PTY sessions',t:'Persistent interactive processes',d:'Up to 64 live PTYs, 1 MiB head/tail output buffers, 250 ms–30 s yield windows, background terminals with a 300 s default cap.',f:['unified_exec/process_manager.rs (1,552)']},
+   {n:'exec-server',s:'local + remote',t:'Environments',d:'An environment abstraction with filesystem and process APIs, implemented locally or over a Noise-encrypted relay to a remote executor. Capability roots are discovered and cached per environment.',f:['exec-server/ (37 modules)']},
+   {n:'sandboxing',s:'4 backends',t:'OS confinement',d:'Seatbelt (SBPL), Landlock+seccomp, bubblewrap, Windows restricted token. One transform() turns a command plus a policy into a concrete sandboxed argv.',f:['sandboxing/src/manager.rs (694)','seatbelt.rs','landlock.rs','windows.rs']},
+   {n:'network-proxy',s:'MITM + policy',t:'Network confinement',d:'HTTP CONNECT and SOCKS5 proxy with generated CA, per-domain and unix-socket permissions, credential broker, connection attribution.',f:['network-proxy/ (30 modules)']},
+   {n:'code-mode',s:'V8 runtime',t:'Tools as a TS program',d:'Renders tool schemas to TypeScript and executes model-written scripts in V8; nested tool calls re-enter the same registry and the same approvals.',f:['code-mode-runtime/','code-mode-protocol/']}
+ ]},
+ {layer:'persistence',color:'var(--c-store)',nodes:[
+   {n:'rollout',s:'jsonl + index',t:'Append-only session log',d:'Written off-thread; reverse scanner for fast resume; compression; session index; explicit persistence policy per item type.',f:['rollout/src/recorder.rs','rollout/src/policy.rs']},
+   {n:'state',s:'sqlite',t:'Structured state',d:'Migrations, log DB, audit, telemetry — powers listing, search, and cross-session queries.',f:['state/src/migrations.rs','state/src/log_db.rs']},
+   {n:'thread-store',s:'typed API',t:'Threads and history',d:'StoredThread, section-based history reads, metadata sync, in-memory implementation for tests.',f:['thread-store/']},
+   {n:'config',s:'9 layers',t:'Layered configuration',d:'MDM → system → enterprise → user(+profile) → project → session flags, with constraints that clamp what higher layers may set.',f:['config/src/config_layer_source.rs']}
+ ]},
+ {layer:'extensions',color:'var(--c-ext)',nodes:[
+   {n:'hooks',s:'10 events',t:'Shell out at lifecycle points',d:'PreToolUse/PostToolUse can block or rewrite; Stop can force continuation; PermissionRequest can auto-answer approvals.',f:['hooks/src/registry.rs','core/src/hook_runtime.rs']},
+   {n:'mcp',s:'servers in/out',t:'Model Context Protocol',d:'Prewarm, incremental startup events, per-server refresh, elicitations, resources, tool exposure filtering, skill dependency install.',f:['core/src/mcp.rs','rmcp-client/']},
+   {n:'skills',s:'prompt fragments',t:'Layered skills',d:'Explicit @mentions and implicit detection from executed commands; scoped roots; remote skills; MCP dependencies.',f:['core-skills/','skills/']},
+   {n:'plugins',s:'marketplaces',t:'Distribution',d:'Manifests, npm sources, bundle archives, marketplace add/upgrade/remove with enterprise source policy; plugins ship skills + MCP + hooks + commands.',f:['core-plugins/ (1.4M)']},
+   {n:'guardian',s:'llm reviewer',t:'Automatic approvals',d:'A separate model session that answers approval requests. Fails closed, circuit-breaks at 3 denials, inherits the parent network policy.',f:['core/src/guardian/']}
+ ]}
+];
+
+var stackEl=document.getElementById('stackMap'), stackDetail=document.getElementById('stackDetail');
+STACK.forEach(function(row){
+  var r=document.createElement('div'); r.className='srow';
+  var lab=document.createElement('div'); lab.className='slab'; lab.textContent=row.layer; r.appendChild(lab);
+  var nodes=document.createElement('div'); nodes.className='snodes';
+  row.nodes.forEach(function(nd){
+    var b=document.createElement('button'); b.type='button'; b.className='node'; b.setAttribute('aria-pressed','false');
+    b.style.setProperty('--nc',row.color);
+    b.innerHTML='<span class="nn">'+nd.n+'</span><span class="ns">'+nd.s+'</span>';
+    b.addEventListener('click',function(){ selectStack(nd,row.color,b); });
+    nodes.appendChild(b);
+  });
+  r.appendChild(nodes); stackEl.appendChild(r);
+});
+function selectStack(nd,color,btn){
+  Array.prototype.forEach.call(stackEl.querySelectorAll('.node'),function(x){x.setAttribute('aria-pressed','false');});
+  btn.setAttribute('aria-pressed','true');
+  stackDetail.innerHTML='<h4 style="color:'+color+'">'+nd.t+'</h4><p>'+nd.d+'</p><div class="facts">'+
+    nd.f.map(function(f){return '<span class="fact">'+f+'</span>';}).join('')+'</div>';
+}
+selectStack(STACK[2].nodes[0],STACK[2].color,stackEl.querySelectorAll('.node')[STACK[0].nodes.length+STACK[1].nodes.length]);
+
+/* ---------- 4. turn loop stepper ---------- */
+var LOOP=[
+ {k:'guard',t:'Pre-sampling compaction',w:'run_pre_sampling_compact()',
+  d:'Before anything else, check whether history already exceeds the budget and compact if so. A TODO in the source admits the gap: this runs before the new user message and context diffs are recorded, so a turn can still be pushed over the line by its own inputs.',
+  c:'if let Err(err) = run_pre_sampling_compact(&sess, &turn_context,\n                                    &mut client_session, &cancellation_token).await {\n    if matches!(err.details(), CodexErrorDetails::TurnAborted) { … }\n}'},
+ {k:'',t:'Resolve required MCP servers',w:'required_mcp_servers_for_input()',
+  d:'Scan the user input for @mentions of tools, plugins, connectors and apps. A server that is needed but not yet running gets started now, so the tool plan built next can include its tools.',
+  c:'let (required_servers, mentioned_plugins) =\n    required_mcp_servers_for_input(&sess, turn_context, &user_input)\n        .or_cancel(&cancellation_token).await?;'},
+ {k:'',t:'Capture the step context',w:'capture_step_context_with_required_mcp_servers()',
+  d:'Freeze environments, MCP binding, capability roots, AGENTS.md and — crucially — build the finalized ToolRouter. From here on, what the model is offered and what can be dispatched are the same object.',
+  c:'let first_step_context = sess.capture_step_context_with_required_mcp_servers(\n    Arc::clone(&turn_context), &cancellation_token, &required_servers).await?;'},
+ {k:'',t:'Record context updates → world state',w:'record_context_updates_and_set_reference_context_item()',
+  d:'Diff the environment against the previous baseline and record only what changed. In parallel, resolve turn-diff display roots by walking up from each environment cwd to the nearest repo marker.',
+  c:'let (world_state, display_roots) = tokio::join!(\n    sess.record_context_updates_and_set_reference_context_item(step.as_ref()),\n    turn_diff_display_roots(step.as_ref()),\n);'},
+ {k:'',t:'Build skill and plugin injections',w:'build_skills_and_plugins()',
+  d:'Resolve explicit skill mentions, plugin mentions, connector slugs and app ids into prompt fragments, and compute which connectors the user explicitly enabled this turn. Returns items that are recorded into history one by one.',
+  c:'let Some((injection_items, explicitly_enabled_connectors)) =\n    build_skills_and_plugins(&sess, step.as_ref(), &user_input,\n                             &mentioned_plugins, &cancellation_token).await\nelse { return Ok(None) };'},
+ {k:'guard',t:'SessionStart + UserPromptSubmit hooks',w:'run_pending_session_start_hooks() / run_hooks_and_record_inputs()',
+  d:'Any pending SessionStart hooks fire, then UserPromptSubmit hooks inspect the input. Either can abort the turn outright — both call sites return early on true.',
+  c:'if run_pending_session_start_hooks(&sess, &turn_context).await { return Ok(None); }\nif run_hooks_and_record_inputs(&sess, &turn_context, &input).await { return Ok(None); }'},
+ {k:'',t:'Snapshot turn settings + analytics',w:'set_previous_turn_settings() / track_turn_resolved_config_analytics()',
+  d:'Record model slug, comp hash and realtime state so the next turn can detect a model switch and inject a warning. Emit a TurnResolvedConfigFact with everything the turn actually resolved to.',
+  c:'sess.set_previous_turn_settings(Some(PreviousTurnSettings {\n    model: turn_context.model_info.slug.clone(),\n    comp_hash: turn_context.model_info.comp_hash.clone(),\n    realtime_active: Some(turn_context.realtime_active),\n})).await;'},
+ {k:'',t:'Create the turn diff tracker',w:'TurnDiffTracker::with_environment_display_roots()',
+  d:'Wraps a shared tracker that accumulates every file change made during the turn, so the UI can show one coherent diff at the end rather than per-tool-call fragments. Note the comment: core sees a task spanning many turns; the user sees one turn.',
+  c:'let turn_diff_tracker = Arc::new(tokio::sync::Mutex::new(\n    TurnDiffTracker::with_environment_display_roots(display_roots)));'},
+ {k:'loop',t:'▸ LOOP: drain pending input',w:'input_queue.get_pending_input()',
+  d:'Messages the user typed while the model was working. Deliberately not drained on the first iteration (so the fresh input is sampled first) nor immediately after auto-compaction (so the model can resume its interrupted work before being steered).',
+  c:'let pending_input = if can_drain_pending_input {\n    sess.input_queue.get_pending_input(&sess.active_turn).await.0\n} else { Vec::new() };'},
+ {k:'loop',t:'Reminders: rollout budget + clock',w:'rollout_budget::maybe_record_reminder() / time_reminder::maybe_record_current_time_reminder()',
+  d:'Optionally inject "you are running low on session budget" and "the current time is…" fragments, keyed to the current context window id so they are injected once per window rather than once per request.',
+  c:'super::rollout_budget::maybe_record_reminder(sess, turn_context, &window_id).await;\nsuper::time_reminder::maybe_record_current_time_reminder(sess, turn_context, &window_id).await?;'},
+ {k:'loop',t:'Render history for the prompt',w:'clone_history().for_prompt(&input_modalities)',
+  d:'The history is rendered against the model\'s declared input modalities — a text-only model gets a different projection of the same conversation than a vision model. This is also where world state is re-recorded if it changed since the last step.',
+  c:'let sampling_request_input: Vec<ResponseItem> =\n    sess.clone_history().await\n        .for_prompt(&turn_context.model_info.input_modalities);'},
+ {k:'model',t:'Sampling request (with retry)',w:'run_sampling_request() → try_run_sampling_request()',
+  d:'Build the Prompt from history + tool specs + base instructions, open the stream (WebSocket, falling back to HTTP), consume ResponseEvents, and spawn tool futures into a FuturesOrdered as function calls arrive. Retryable errors loop here with backoff; ContextWindowExceeded and UsageLimitReached return immediately.',
+  c:'match try_run_sampling_request(tool_runtime.clone(), …, &prompt,\n                               cancellation_token.child_token()).await {\n    Ok(output) => return Ok((output, original_input.unwrap_or(prompt.input))),\n    Err(err) => match err.details() {\n        CodexErrorDetails::ContextWindowExceeded => { … return Err(err) }\n        CodexErrorDetails::UsageLimitReached(e)  => { … return Err(err) }\n        _ => err,\n    },\n};'},
+ {k:'loop',t:'Post-sampling accounting',w:'context_window_token_status()',
+  d:'Compute active context tokens, auto-compact scope tokens, full-window limit, and whether the limit was reached. Combine the model\'s own follow-up signal with whether new user input arrived: needs_follow_up = model_needs_follow_up || has_pending_input.',
+  c:'let needs_follow_up = model_needs_follow_up || has_pending_input;\nlet token_limit_reached = token_status.token_limit_reached;\nlet should_roll_over = needs_follow_up\n    && (sess.take_new_context_window_request().await || token_limit_reached);'},
+ {k:'guard',t:'Mid-turn auto-compaction',w:'run_auto_compact(…, ContextLimit, MidTurn)',
+  d:'If the window rolled over, summarize and replace history — injecting initial context just above the last user message, because that is the layout the model was trained to expect mid-turn. Then re-run SessionStart hooks and continue the loop.',
+  c:'run_auto_compact(&sess, step.clone(), None, &mut client_session,\n    InitialContextInjection::BeforeLastUserMessage {\n        world_state: Arc::clone(&world_state),\n        step_context: Arc::clone(&step),\n    },\n    CompactionReason::ContextLimit, CompactionPhase::MidTurn).await?;\ncan_drain_pending_input = !model_needs_follow_up;\ncontinue;'},
+ {k:'guard',t:'Stop hooks — the last veto',w:'run_turn_stop_hooks()',
+  d:'Only reached when nothing needs follow-up. A Stop hook may block termination and supply continuation fragments; the harness records them as a hook prompt message, marks the mailbox open, sets stop_hook_active, and loops again. A hook that blocks without a prompt gets a warning and is ignored.',
+  c:'if stop_outcome.should_block {\n    if let Some(msg) = build_hook_prompt_message(&stop_outcome.continuation_fragments) {\n        sess.record_response_item_and_emit_turn_item(&turn_context, msg).await;\n        stop_hook_active = true;\n        continue;\n    }\n}\nif stop_outcome.should_stop { break; }'},
+ {k:'',t:'Legacy after-agent hook, then return',w:'run_legacy_after_agent_hook()',
+  d:'One last extension point for older hook configs, then the loop breaks and run_turn returns the final assistant message. Error paths along the way emit a turn-error lifecycle event and break rather than propagate, so the user can keep talking.',
+  c:'if run_legacy_after_agent_hook(&sess, &turn_context,\n        &sampling_request_input, last_agent_message.clone()).await {\n    return Ok(None);\n}\nbreak;\n// … Ok(last_agent_message)'}
+];
+
+var stepsEl=document.getElementById('loopSteps'), bodyEl=document.getElementById('loopBody'), loopIdx=0, timer=null;
+LOOP.forEach(function(s,i){
+  var b=document.createElement('button'); b.type='button'; b.className='step'; b.setAttribute('aria-pressed','false');
+  if(s.k) b.setAttribute('data-kind',s.k);
+  b.innerHTML='<span class="sn">'+String(i+1).padStart(2,'0')+'</span><span>'+s.t+'</span>';
+  b.addEventListener('click',function(){ setLoop(i); stopAuto(); });
+  stepsEl.appendChild(b);
+});
+function setLoop(i){
+  loopIdx=(i+LOOP.length)%LOOP.length;
+  var btns=stepsEl.querySelectorAll('.step');
+  Array.prototype.forEach.call(btns,function(b,j){ b.setAttribute('aria-pressed', j===loopIdx?'true':'false'); });
+  var s=LOOP[loopIdx];
+  bodyEl.innerHTML='<h4>'+String(loopIdx+1).padStart(2,'0')+' · '+s.t+'</h4>'+
+    '<div class="where">'+s.w+'</div><p>'+s.d+'</p><pre><code>'+esc(s.c)+'</code></pre>';
+}
+function esc(x){return x.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+document.getElementById('loopPrev').addEventListener('click',function(){setLoop(loopIdx-1);stopAuto();});
+document.getElementById('loopNext').addEventListener('click',function(){setLoop(loopIdx+1);stopAuto();});
+var playBtn=document.getElementById('loopPlay');
+playBtn.addEventListener('click',function(){
+  if(timer){ stopAuto(); } else {
+    playBtn.setAttribute('aria-pressed','true'); playBtn.textContent='❚❚ pause';
+    timer=setInterval(function(){ setLoop(loopIdx+1); },3400);
+  }
+});
+function stopAuto(){ if(timer){clearInterval(timer);timer=null;} playBtn.setAttribute('aria-pressed','false'); playBtn.textContent='▶ auto'; }
+setLoop(0);
+
+/* ---------- 5. tool explorer ---------- */
+var TOOLS=[
+ {n:'exec_command',c:'shell',col:'var(--c-tools)',d:'Run a command in a persistent PTY; returns buffered output after a yield window.',g:'ConfigShellToolType::UnifiedExec'},
+ {n:'write_stdin',c:'shell',col:'var(--c-tools)',d:'Send input to a live unified-exec process and read what it prints back.',g:'registered with exec_command'},
+ {n:'shell',c:'shell',col:'var(--c-tools)',d:'Legacy one-shot command with captured output. Often registered Hidden so code-mode can still use it.',g:'single local environment'},
+ {n:'apply_patch',c:'edit',col:'var(--c-sandbox)',d:'Structured multi-file edit parsed by a Lark grammar and safety-assessed as one action.',g:'model_info.apply_patch_tool_type.is_some()'},
+ {n:'view_image',c:'edit',col:'var(--c-sandbox)',d:'Attach a local image to the conversation, optionally at original detail.',g:'any environment present'},
+ {n:'update_plan',c:'meta',col:'var(--c-core)',d:'Maintain a visible task plan; streams PlanDelta events to the UI.',g:'config.update_plan_enabled'},
+ {n:'request_permissions',c:'approval',col:'var(--c-model)',d:'The model asks for specific extra permissions rather than escalating implicitly.',g:'Feature::RequestPermissionsTool'},
+ {n:'request_user_input',c:'approval',col:'var(--c-model)',d:'Structured question to the user mid-turn; blocks on Op::UserInputAnswer.',g:'experimental_request_user_input_enabled'},
+ {n:'new_context_window',c:'meta',col:'var(--c-core)',d:'Model-initiated context roll-over. DirectModelOnly exposure.',g:'Feature::TokenBudget'},
+ {n:'get_context_remaining',c:'meta',col:'var(--c-core)',d:'Ask how much context budget is left.',g:'Feature::TokenBudget'},
+ {n:'current_time',c:'meta',col:'var(--c-core)',d:'Read the wall clock — models have no reliable sense of elapsed time.',g:'Feature::CurrentTimeReminder'},
+ {n:'sleep',c:'meta',col:'var(--c-core)',d:'Wait a bounded interval, e.g. while a server boots.',g:'current_time_reminder.sleep_tool'},
+ {n:'wait_for_environment',c:'meta',col:'var(--c-core)',d:'Block until a deferred executor environment is ready.',g:'Feature::DeferredExecutor'},
+ {n:'tool_search',c:'discovery',col:'var(--c-ext)',d:'Fetch schemas for deferred tool namespaces on demand, keeping the advertised list small.',g:'search_tool_enabled(turn_context)'},
+ {n:'list_mcp_resources',c:'mcp',col:'var(--c-ext)',d:'Enumerate resources exposed by connected MCP servers.',g:'mcp.has_servers()'},
+ {n:'list_mcp_resource_templates',c:'mcp',col:'var(--c-ext)',d:'Enumerate parameterised resource templates.',g:'mcp.has_servers()'},
+ {n:'read_mcp_resource',c:'mcp',col:'var(--c-ext)',d:'Read one MCP resource into context.',g:'mcp.has_servers()'},
+ {n:'collaboration.spawn_agent',c:'agents',col:'var(--c-front)',d:'Start a child agent thread, optionally forking parent history.',g:'collab_tools_enabled'},
+ {n:'collaboration.send_message',c:'agents',col:'var(--c-front)',d:'Message a sibling or child agent; delivered via the mailbox.',g:'collab_tools_enabled'},
+ {n:'collaboration.followup_task',c:'agents',col:'var(--c-front)',d:'Queue additional work for an existing agent.',g:'collab_tools_enabled'},
+ {n:'list_available_plugins_to_install',c:'discovery',col:'var(--c-ext)',d:'Show plugin candidates recommended for this turn.',g:'tool_suggest presentation = ListTool'},
+ {n:'request_plugin_install',c:'discovery',col:'var(--c-ext)',d:'Ask to install a plugin — the model extending its own capabilities, with approval.',g:'tool_suggest_enabled + candidates'},
+ {n:'exec (code mode)',c:'codemode',col:'var(--c-sandbox)',d:'Run a TypeScript program that calls tools as functions inside V8.',g:'code_mode_available'},
+ {n:'wait (code mode)',c:'codemode',col:'var(--c-sandbox)',d:'Await pending cells from a previously started code-mode execution.',g:'code_mode_available'},
+ {n:'web_search',c:'discovery',col:'var(--c-ext)',d:'Standalone web search when the provider advertises the capability.',g:'provider.capabilities().web_search'},
+ {n:'test_sync_tool',c:'meta',col:'var(--c-store)',d:'Synchronisation hook used only by models that declare it in experimental_supported_tools.',g:'experimental_supported_tools contains it'}
+];
+var CATS=[['all','all'],['shell','shell'],['edit','edit / files'],['approval','approvals'],['meta','turn control'],['mcp','mcp'],['agents','multi-agent'],['discovery','discovery'],['codemode','code mode']];
+var tf=document.getElementById('toolFilters'), tg=document.getElementById('toolGrid'), curCat='all';
+CATS.forEach(function(c){
+  var b=document.createElement('button'); b.type='button'; b.className='pill'; b.textContent=c[1];
+  b.setAttribute('aria-pressed', c[0]==='all'?'true':'false');
+  b.addEventListener('click',function(){
+    curCat=c[0];
+    Array.prototype.forEach.call(tf.querySelectorAll('.pill'),function(x){x.setAttribute('aria-pressed','false');});
+    b.setAttribute('aria-pressed','true'); renderTools();
+  });
+  tf.appendChild(b);
+});
+var tcount=document.createElement('span'); tcount.className='tcount'; tf.appendChild(tcount);
+function renderTools(){
+  var list=TOOLS.filter(function(t){return curCat==='all'||t.c===curCat;});
+  tcount.textContent=list.length+' of '+TOOLS.length+' tools';
+  tg.innerHTML=list.map(function(t){
+    return '<div class="tcard" style="--tc:'+t.col+'"><h4>'+t.n+'</h4><div class="tt">'+t.c+'</div><p>'+t.d+'</p><div class="gate">gate: '+esc(t.g)+'</div></div>';
+  }).join('');
+}
+renderTools();
+
+/* ---------- 6. dispatch pipeline ---------- */
+var PIPE=[
+ {n:'ResponseItem::FunctionCall',s:'from the stream',side:'stream_events_utils.rs',col:'var(--c-model)',
+  d:'The model emits a function call item. handle_output_item_done turns it into a ToolCall { tool_name, call_id, payload, encrypted_function_args } and returns a future rather than a value — nothing is awaited yet.'},
+ {n:'ToolRouter::dispatch',s:'name → runtime',side:'tools/router.rs',col:'var(--c-core)',
+  d:'Resolve the (namespace, name) pair against the registry. The call source is classified here too: a collaboration tool with empty encrypted args is DirectPlaintextMessage, which suppresses argument logging.'},
+ {n:'CoreToolRuntime::wait_until_ready',s:'per-tool readiness',side:'tools/registry.rs',col:'var(--c-core)',
+  d:'Some runtimes need to wait for a resource — an MCP server finishing startup, an environment finishing its handshake — before taking the shared execution gate. Waiting here rather than inside the gate avoids head-of-line blocking.'},
+ {n:'PreToolUse hooks',s:'block or rewrite',side:'core/src/hook_runtime.rs',col:'var(--c-ext)',
+  d:'External hooks see a stable tool_name + tool_input contract. They can return Blocked(reason), which becomes the tool output, or an updated input, which is fed back through with_updated_hook_input to rebuild the invocation.'},
+ {n:'ToolOrchestrator: approval',s:'Skip / NeedsApproval / Forbidden',side:'tools/orchestrator.rs',col:'var(--c-sandbox)',
+  d:'exec_approval_requirement() may be overridden per tool, else default_exec_approval_requirement(policy, fs_policy) decides. Forbidden returns immediately. NeedsApproval routes to the user or the guardian. Under strict auto-review even a Skip is sent to the guardian.'},
+ {n:'select sandbox',s:'should_sandbox → select_initial',side:'sandboxing/src/manager.rs',col:'var(--c-sandbox)',
+  d:'SandboxablePreference (Auto/Require/Forbid) combines with the permission profile and whether a managed network is active. Auto consults should_require_platform_sandbox on the resolved filesystem and network policies. The result is one of the four SandboxType values.'},
+ {n:'network approval',s:'immediate or deferred',side:'tools/network_approval.rs',col:'var(--c-model)',
+  d:'If a managed proxy is active, begin_network_approval attaches a cancellation token and proxy handle to the attempt. Immediate mode resolves before the tool returns; deferred mode lets the command keep running while the user is asked.'},
+ {n:'run attempt',s:'transform → spawn',side:'runtimes/*.rs',col:'var(--c-sandbox)',
+  d:'The runtime turns its request into a SandboxTransformRequest, gets back a concrete argv, and spawns — a PTY for unified exec, a pipe for shell, direct filesystem calls for apply_patch.'},
+ {n:'escalate?',s:'second attempt unsandboxed',side:'orchestrator.rs',col:'var(--c-sandbox)',
+  d:'On SandboxErr::Denied, and only if the tool opts in and the policy allows it, re-run with SandboxType::None. Approval is cached, so the user is not asked twice. Under Never/OnRequest this branch is skipped and the denial is returned verbatim.'},
+ {n:'PostToolUse hooks',s:'observe the result',side:'hook_runtime.rs',col:'var(--c-ext)',
+  d:'Receive tool_name, tool_use_id, tool_input and tool_response. Most runtimes derive tool_response from the model-facing output automatically; tools with a stable hook contract override it.'},
+ {n:'telemetry + turn diff',s:'metrics, tags, diff tracker',side:'tools/lifecycle.rs',col:'var(--c-store)',
+  d:'Emit tool-call duration, sandbox outcome, decision source, permission-profile tags. File changes are folded into the shared TurnDiffTracker so the UI can render one diff for the whole turn.'},
+ {n:'ResponseInputItem',s:'back into history',side:'parallel.rs',col:'var(--c-model)',
+  d:'The result becomes a FunctionCallOutput. Fatal errors propagate as CodexErr and kill the turn; everything else — including rejections and sandbox denials — becomes a normal tool output the model must reason about.'}
+];
+var pipeEl=document.getElementById('pipeDiagram'), pipeDetail=document.getElementById('pipeDetail');
+PIPE.forEach(function(p,i){
+  var row=document.createElement('div'); row.className='prow';
+  var b=document.createElement('button'); b.type='button'; b.className='pbox'; b.style.setProperty('--pc',p.col);
+  b.setAttribute('aria-pressed','false');
+  b.innerHTML='<div class="pn">'+esc(p.n)+'</div><div class="pd">'+p.s+'</div>';
+  b.addEventListener('click',function(){ selPipe(i,b); });
+  var side=document.createElement('div'); side.className='side'; side.textContent=p.side;
+  row.appendChild(b); row.appendChild(side); pipeEl.appendChild(row);
+  if(i<PIPE.length-1){ var g=document.createElement('div'); g.className='prow'; g.innerHTML='<div class="pgutter">↓</div>'; pipeEl.appendChild(g); }
+});
+function selPipe(i,btn){
+  Array.prototype.forEach.call(pipeEl.querySelectorAll('.pbox'),function(x){x.setAttribute('aria-pressed','false');});
+  btn.setAttribute('aria-pressed','true');
+  pipeDetail.innerHTML='<h4 style="color:'+PIPE[i].col+'">'+String(i+1).padStart(2,'0')+' · '+esc(PIPE[i].n)+'</h4><p>'+PIPE[i].d+'</p><div class="facts"><span class="fact">'+PIPE[i].side+'</span></div>';
+}
+selPipe(4, pipeEl.querySelectorAll('.pbox')[4]);
+
+/* ---------- 7. approval simulator ---------- */
+var sim={policy:'onrequest',profile:'workspace',reviewer:'user',action:'saferead',host:'macos'};
+Array.prototype.forEach.call(document.querySelectorAll('[data-sim]'),function(group){
+  var key=group.getAttribute('data-sim');
+  Array.prototype.forEach.call(group.querySelectorAll('button'),function(b){
+    b.addEventListener('click',function(){
+      sim[key]=b.getAttribute('data-v');
+      Array.prototype.forEach.call(group.querySelectorAll('button'),function(x){x.setAttribute('aria-pressed','false');});
+      b.setAttribute('aria-pressed','true'); runSim();
+    });
+  });
+});
+function runSim(){
+  var tr=[], verdict=null;
+  function line(k,cls,v){ tr.push('<div class="tline"><div class="tk '+cls+'">'+k+'</div><div class="tv">'+v+'</div></div>'); }
+
+  var platformSandbox = sim.host==='macos' ? 'MacosSeatbelt' : (sim.host==='linux' ? 'LinuxSeccomp' : null);
+  var profileSandboxes = (sim.profile==='workspace'||sim.profile==='readonly');
+  var writesOutside = (sim.action==='outside');
+  var writes = (sim.action==='wswrite'||sim.action==='outside'||sim.action==='patch');
+  var isPatch = (sim.action==='patch');
+  var isNet = (sim.action==='network');
+  var isSafe = (sim.action==='saferead');
+
+  line('policy','info','<code>AskForApproval::'+({untrusted:'UnlessTrusted',onrequest:'OnRequest',granular:'Granular{sandbox_approval:false, …}',never:'Never'})[sim.policy]+'</code>');
+  line('profile','info','<code>PermissionProfile::'+({workspace:'Managed { file_system: workspace-write, network: restricted }',readonly:'Managed { file_system: read-only, network: restricted }',disabled:'Disabled',external:'External { network }'})[sim.profile]+'</code>');
+
+  if(isPatch){
+    line('safety','info','<code>assess_patch_safety()</code> — patch confined to writable roots');
+    if(sim.profile==='disabled'||sim.profile==='external'){
+      line('safety','ok','profile is Disabled/External → <code>AutoApprove { sandbox_type: None }</code>; Codex does not add an outer sandbox');
+      verdict=['ok','Runs unsandboxed by design — isolation is the caller’s job.'];
+    } else if(!platformSandbox){
+      line('safety','ask','<code>get_platform_sandbox()</code> returned <code>None</code> — path analysis alone is not trusted (hard links)');
+      if(sim.policy==='never'||sim.policy==='granular'){
+        line('reject','no','<code>rejects_sandbox_approval</code> → <code>SafetyCheck::Reject</code>');
+        verdict=['no','Rejected: no enforceable sandbox and the policy forbids asking.'];
+      } else {
+        line('ask','ask','<code>SafetyCheck::AskUser</code>');
+        verdict=['ask','Prompts the user — auto-approval requires an enforceable sandbox.'];
+      }
+    } else {
+      line('safety','ok','<code>AutoApprove { sandbox_type: '+platformSandbox+' }</code> — still sandboxed, because a path in the patch may be a hard link');
+      verdict=['ok','Applied under '+platformSandbox+' with no prompt.'];
+    }
+    render(tr,verdict); return;
+  }
+
+  // exec path
+  var needsApproval;
+  if(sim.policy==='untrusted'){
+    needsApproval = !isSafe;
+    line('requirement', isSafe?'ok':'ask', isSafe
+      ? '<code>is_known_safe_command()</code> matched a read-only command → <code>Skip</code>'
+      : '<code>UnlessTrusted</code> → <code>NeedsApproval</code> for anything not provably read-only');
+  } else if(sim.policy==='never'){
+    needsApproval=false;
+    line('requirement','info','<code>Never</code> → <code>Skip</code>; failures return to the model instead of the user');
+  } else if(sim.policy==='granular'){
+    needsApproval=false;
+    line('requirement','info','<code>Granular</code> with <code>sandbox_approval:false</code> → escalation requests are auto-rejected, not shown');
+  } else {
+    needsApproval = writesOutside || isNet;
+    line('requirement', needsApproval?'ask':'ok', needsApproval
+      ? '<code>default_exec_approval_requirement()</code> → <code>NeedsApproval</code> (target outside writable roots / network)'
+      : '<code>Skip</code> — inside the workspace under the current fs policy');
+  }
+
+  if(needsApproval){
+    if(sim.reviewer==='guardian'){
+      line('reviewer','info','<code>ApprovalReviewer::Guardian</code> — a separate model session reviews the exact planned action (90s timeout, fail-closed)');
+      if(writesOutside){ line('guardian','no','likely <code>Deny</code>: writing to <code>~/.ssh</code> is outside the stated task scope');
+        verdict=['no','Guardian denies; the model is told not to work around it.'];
+        render(tr,verdict); return; }
+      line('guardian','ok','likely <code>Allow</code> with a recorded rationale');
+    } else {
+      line('reviewer','ask','prompt the user via <code>EventMsg::ExecApprovalRequest</code>, block on <code>Op::ExecApproval</code>');
+      verdict=['ask','User is asked. Approving caches the decision for the escalated retry.'];
+    }
+  }
+
+  // sandbox selection
+  var sandboxRequested;
+  if(sim.profile==='disabled'||sim.profile==='external'){
+    sandboxRequested=false;
+    line('sandbox','info','<code>should_sandbox()</code> → false (profile does not request an outer sandbox)');
+    line('spawn','ok','<code>SandboxType::None</code> — process runs with the caller’s privileges');
+    if(!verdict) verdict=['ok','Runs unsandboxed; confinement is delegated to the caller.'];
+    render(tr,verdict); return;
+  }
+  sandboxRequested=true;
+  if(!platformSandbox){
+    line('sandbox','ask','<code>get_platform_sandbox()</code> → <code>None</code> (Windows sandbox disabled) → falls back to <code>SandboxType::None</code>');
+    if(!verdict) verdict=['ask','No OS confinement available — the policy layer is the only guard left.'];
+    render(tr,verdict); return;
+  }
+  line('sandbox','ok','<code>select_initial()</code> → <code>SandboxType::'+platformSandbox+'</code>');
+
+  // outcome under sandbox
+  if(isSafe){
+    line('run','ok','command completes inside the sandbox');
+    if(!verdict) verdict=['ok','Runs sandboxed, no prompt.'];
+  } else if(isNet){
+    line('run','no','egress hits the managed proxy; domain not in the allowlist → <code>SandboxErr::Denied</code> with a network policy decision');
+    if(sim.policy==='never'||sim.policy==='granular'){
+      line('escalate','no','<code>wants_no_sandbox_approval()</code> false under this policy → no unsandboxed retry');
+      verdict=['no','Denied. The model sees the refusal and must adapt.'];
+    } else if(sim.policy==='onrequest'){
+      line('escalate','ask','OnRequest permits a network approval prompt — <code>begin_network_approval</code> defers and asks');
+      verdict=['ask','User is asked to allow the domain; a saved rule is injected into context.'];
+    } else {
+      line('escalate','ask','approval already granted → retry proceeds through the proxy');
+      verdict=['ask','Allowed after approval.'];
+    }
+  } else if(writesOutside || (writes && sim.profile==='readonly')){
+    line('run','no','write refused by '+platformSandbox+' → <code>is_likely_sandbox_denied()</code> → <code>SandboxErr::Denied</code>');
+    if(sim.policy==='never'||sim.policy==='granular'){
+      line('escalate','no','no unsandboxed retry under this policy');
+      verdict=['no','Denied, with the original output preserved for the model.'];
+    } else if(needsApproval && sim.reviewer==='user'){
+      line('escalate','ask','approval cached from the first prompt → attempt #2 with <code>SandboxType::None</code>');
+      verdict=['ask','Second attempt runs unsandboxed — only because the user already said yes.'];
+    } else {
+      line('escalate','ask','escalation requires an approval that has not been granted → prompt now');
+      verdict=['ask','Escalation requires explicit approval.'];
+    }
+  } else {
+    line('run','ok','write lands inside a writable root; sandbox permits it');
+    if(!verdict) verdict=['ok','Runs sandboxed, no prompt.'];
+  }
+  render(tr,verdict);
+}
+function render(tr,v){
+  document.getElementById('simTrace').innerHTML=tr.join('');
+  document.getElementById('simVerdict').innerHTML = v ? '<div class="verdict '+v[0]+'">'+v[1]+'</div>' : '';
+}
+runSim();
+
+/* ---------- 11. config layer ladder ---------- */
+var LAYERS=[['MDM',0],['System',10],['Enterprise',15],['User',20],['User+profile',21],['Project',25],['Session flags',30],['legacy file',40],['legacy MDM',50]];
+var g=document.getElementById('cfgLayers'), gx=20, gw=(860-20)/LAYERS.length;
+LAYERS.forEach(function(l,i){
+  var x=gx+i*gw;
+  g.insertAdjacentHTML('beforeend',
+    '<rect class="bx" x="'+x+'" y="46" width="'+(gw-8)+'" height="46" style="fill:var(--surface2)"/>'+
+    '<text class="sub" x="'+(x+(gw-8)/2)+'" y="70" text-anchor="middle">'+l[0]+'</text>'+
+    '<text class="sub" x="'+(x+(gw-8)/2)+'" y="86" text-anchor="middle" style="opacity:.7">'+l[1]+'</text>');
+});
+
+/* ---------- accordions ---------- */
+Array.prototype.forEach.call(document.querySelectorAll('.acc-h'),function(h){
+  h.addEventListener('click',function(){
+    var acc=h.parentElement;
+    acc.setAttribute('data-open', acc.getAttribute('data-open')==='true'?'false':'true');
+  });
+});
+
+})();
+</script>
