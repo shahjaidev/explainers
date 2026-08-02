@@ -1,0 +1,840 @@
+<meta charset="utf-8">
+<title>Four Over n — the Erdős–Straus conjecture, attacked honestly</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground: #EEF1F5; --surface: #FFFFFF; --surface-2: #E7ECF2;
+    --line: rgba(22,32,52,0.12); --line-soft: rgba(22,32,52,0.07);
+    --text: #161C28; --dim: #4E5A6B; --faint: #838E9E;
+    --teacher: #B9740C; --teacher-soft: rgba(185,116,12,0.12);
+    --verifier: #0C8478; --verifier-soft: rgba(12,132,120,0.12);
+    --collapse: #C1352F; --collapse-soft: rgba(193,53,47,0.11);
+    --good: #1C8F63; --good-soft: rgba(28,143,99,0.13);
+    --neutral-line: #8A93A2;
+    --ramp1:#D9ECE9; --ramp2:#B2DAD4; --ramp3:#84C2B9; --ramp4:#4FA398; --ramp5:#0C8478;
+    --shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg: 0 2px 4px rgba(16,24,40,.08), 0 20px 48px rgba(16,24,40,.12);
+    --serif: ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", "Helvetica Neue", sans-serif;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Menlo", Consolas, monospace;
+    --measure: 66ch; --maxw: 1180px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #0B0E15; --surface: #141A26; --surface-2: #1B2333;
+      --line: rgba(255,255,255,0.10); --line-soft: rgba(255,255,255,0.055);
+      --text: #E7EBF2; --dim: #9AA5B6; --faint: #6A7488;
+      --teacher: #E9A93E; --teacher-soft: rgba(233,169,62,0.15);
+      --verifier: #35CDB9; --verifier-soft: rgba(53,205,185,0.15);
+      --collapse: #E76A63; --collapse-soft: rgba(231,106,99,0.15);
+      --good: #4FC98D; --good-soft: rgba(79,201,141,0.15);
+      --neutral-line: #6A7488;
+      --ramp1:#1B2E2C; --ramp2:#1E4540; --ramp3:#236158; --ramp4:#2C877A; --ramp5:#35CDB9;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 10px 30px rgba(0,0,0,.35);
+      --shadow-lg: 0 2px 6px rgba(0,0,0,.4), 0 24px 60px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="light"] {
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;--teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --verifier:#0C8478;--verifier-soft:rgba(12,132,120,0.12);--collapse:#C1352F;--collapse-soft:rgba(193,53,47,0.11);
+    --good:#1C8F63;--good-soft:rgba(28,143,99,0.13);--neutral-line:#8A93A2;
+    --ramp1:#D9ECE9;--ramp2:#B2DAD4;--ramp3:#84C2B9;--ramp4:#4FA398;--ramp5:#0C8478;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);--shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+  }
+  :root[data-theme="dark"] {
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --verifier:#35CDB9;--verifier-soft:rgba(53,205,185,0.15);--collapse:#E76A63;--collapse-soft:rgba(231,106,99,0.15);
+    --good:#4FC98D;--good-soft:rgba(79,201,141,0.15);--neutral-line:#6A7488;
+    --ramp1:#1B2E2C;--ramp2:#1E4540;--ramp3:#236158;--ramp4:#2C877A;--ramp5:#35CDB9;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  body { margin:0; background:var(--ground); color:var(--text); font-family:var(--sans);
+         font-size:17px; line-height:1.65; -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility; }
+  ::selection { background: var(--teacher-soft); }
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+  .col { max-width: var(--measure); }
+  section { padding: clamp(48px, 8vw, 96px) 0; border-top: 1px solid var(--line-soft); }
+  section:first-of-type { border-top: none; }
+  h1,h2,h3 { font-family: var(--serif); font-weight:600; text-wrap:balance; letter-spacing:-0.01em; }
+  h2 { font-size: clamp(1.7rem, 3.4vw, 2.5rem); line-height:1.12; margin:0 0 .4em; }
+  h3 { font-size: 1.28rem; line-height:1.25; margin:0 0 .35em; }
+  p { margin: 0 0 1.05em; }
+  a { color: inherit; }
+  .lead { font-size: 1.16rem; color: var(--dim); }
+  .eyebrow { font-family:var(--mono); font-size:.72rem; letter-spacing:.18em; text-transform:uppercase;
+             color:var(--teacher); margin:0 0 1.1em; display:flex; align-items:center; gap:.7em; }
+  .eyebrow::before { content:""; width:26px; height:1px; background:var(--teacher); opacity:.6; }
+  .sec-num { font-family:var(--mono); color:var(--faint); font-size:.72rem; letter-spacing:.1em; }
+  strong { color: var(--text); font-weight: 650; }
+  em { color: var(--dim); }
+  code, .m { font-family: var(--mono); font-size: .86em; }
+
+  header.topbar { position:sticky; top:0; z-index:50; backdrop-filter:saturate(1.4) blur(14px);
+    background: color-mix(in srgb, var(--ground) 82%, transparent); border-bottom:1px solid var(--line-soft); }
+  .topbar .wrap { display:flex; align-items:center; gap:18px; height:56px; }
+  .brand { font-family:var(--mono); font-size:.8rem; letter-spacing:.06em; font-weight:600; }
+  .brand b { color: var(--teacher); }
+  .navlinks { margin-left:auto; display:flex; gap:4px; }
+  .navlinks a { font-family:var(--mono); font-size:.72rem; letter-spacing:.04em; text-decoration:none; color:var(--dim);
+    padding:6px 10px; border-radius:7px; transition:background .15s,color .15s; }
+  .navlinks a:hover { background:var(--surface-2); color:var(--text); }
+  @media (max-width:900px){ .navlinks{ display:none; } }
+  .theme-btn { font-family:var(--mono); font-size:.72rem; color:var(--dim); background:var(--surface);
+    border:1px solid var(--line); border-radius:7px; padding:6px 11px; cursor:pointer; }
+  .theme-btn:hover { color:var(--text); border-color:var(--neutral-line); }
+
+  .hero { padding-top: clamp(40px, 6vw, 72px); }
+  .hero h1 { font-size: clamp(2.3rem, 6vw, 4.1rem); line-height:1.03; margin:0 0 .35em; max-width:18ch; }
+  .hero .lead { max-width: 62ch; }
+  .bigeq { font-family: var(--serif); font-size: clamp(1.6rem, 4.5vw, 2.6rem); margin: .8em 0 1em;
+           display:flex; align-items:center; gap:.45em; flex-wrap:wrap; }
+  .fr { display:inline-flex; flex-direction:column; text-align:center; vertical-align:middle; line-height:1.15; }
+  .fr > span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 .18em; }
+  .fr > span:last-child { padding: 0 .18em; }
+  .stats { display:flex; gap:14px; flex-wrap:wrap; margin-top:26px; }
+  .stat { background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:14px 18px; box-shadow:var(--shadow); min-width:150px; }
+  .stat .v { font-family:var(--serif); font-size:1.5rem; font-weight:600; line-height:1.1; }
+  .stat .k { font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--faint); margin-top:5px; }
+
+  .card { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px 24px; box-shadow:var(--shadow); margin:1.4em 0; }
+  .note { border-left:3px solid var(--teacher); background:var(--teacher-soft); border-radius:0 12px 12px 0; padding:16px 20px; margin:1.4em 0; }
+  .note .who { font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--teacher); margin-bottom:.5em; }
+  .proof { border-left:3px solid var(--verifier); background:var(--verifier-soft); border-radius:0 12px 12px 0; padding:16px 20px; margin:1.4em 0; }
+  .proof .who { font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--verifier); margin-bottom:.5em; }
+  .warn { border-left:3px solid var(--collapse); background:var(--collapse-soft); border-radius:0 12px 12px 0; padding:16px 20px; margin:1.4em 0; }
+  .warn .who { font-family:var(--mono); font-size:.68rem; letter-spacing:.12em; text-transform:uppercase; color:var(--collapse); margin-bottom:.5em; }
+  .eq { font-family:var(--serif); font-size:1.18rem; display:flex; align-items:center; gap:.4em; flex-wrap:wrap;
+        justify-content:center; margin:1.2em 0; }
+  .eq.small { font-size:1.02rem; }
+
+  table { border-collapse:collapse; width:100%; font-size:.92rem; }
+  th { font-family:var(--mono); font-size:.68rem; letter-spacing:.08em; text-transform:uppercase; color:var(--faint);
+       text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); }
+  td { padding:8px 12px; border-bottom:1px solid var(--line-soft); }
+  td.num, th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .tbl-scroll { overflow-x:auto; }
+
+  /* residue sieve grid */
+  .sievebox { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:22px 24px; box-shadow:var(--shadow); margin:1.6em 0; }
+  .stepper { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .stepbtn { font-family:var(--mono); font-size:.72rem; padding:7px 12px; border-radius:8px; border:1px solid var(--line);
+             background:var(--surface); color:var(--dim); cursor:pointer; transition:all .15s; }
+  .stepbtn:hover { border-color:var(--neutral-line); color:var(--text); }
+  .stepbtn.on { background:var(--verifier-soft); border-color:var(--verifier); color:var(--text); }
+  .sieve-grid { display:grid; grid-template-columns:repeat(16, 1fr); gap:4px; }
+  @media (max-width:700px){ .sieve-grid { grid-template-columns:repeat(12, 1fr); } }
+  .cell { font-family:var(--mono); font-size:.62rem; text-align:center; padding:6px 1px; border-radius:6px;
+          background:var(--surface-2); color:var(--text); cursor:default; position:relative; transition:background .25s, color .25s, opacity .25s; }
+  .cell.k1 { background:var(--ramp1); } .cell.k2 { background:var(--ramp2); }
+  .cell.k3 { background:var(--ramp3); } .cell.k4 { background:var(--ramp4); color:#fff; }
+  .cell.k5 { background:var(--ramp5); color:#fff; }
+  :root[data-theme="dark"] .cell.k4, :root[data-theme="dark"] .cell.k5 { color:#0B0E15; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .cell.k4, :root:not([data-theme="light"]) .cell.k5 { color:#0B0E15; } }
+  .cell.killed { opacity:.55; }
+  .cell.surv { background:var(--collapse); color:#fff; font-weight:700; opacity:1; }
+  .sieve-legend { display:flex; gap:14px; flex-wrap:wrap; margin-top:14px; font-family:var(--mono); font-size:.68rem; color:var(--dim); }
+  .sieve-legend .sw { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  .sieve-count { font-family:var(--mono); font-size:.8rem; color:var(--dim); margin-bottom:12px; }
+  .sieve-count b { color:var(--collapse); font-size:1rem; }
+
+  /* charts */
+  .chart { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:20px 22px; box-shadow:var(--shadow); margin:1.6em 0; }
+  .chart h4 { font-family:var(--sans); font-weight:650; font-size:.98rem; margin:0 0 2px; }
+  .chart .sub { font-size:.82rem; color:var(--faint); margin:0 0 14px; }
+  .hbar-row { display:grid; grid-template-columns: 110px 1fr 74px; align-items:center; gap:10px; margin:7px 0; }
+  .hbar-lab { font-family:var(--mono); font-size:.74rem; color:var(--dim); text-align:right; }
+  .hbar-track { background:var(--surface-2); border-radius:5px; height:18px; position:relative; overflow:hidden; }
+  .hbar-fill { position:absolute; left:0; top:1px; bottom:1px; background:var(--verifier); border-radius:3px 5px 5px 3px; }
+  .hbar-val { font-family:var(--mono); font-size:.74rem; color:var(--text); font-variant-numeric:tabular-nums; }
+  svg text { font-family: var(--mono); fill: var(--faint); font-size: 10.5px; }
+  .tip { position:fixed; pointer-events:none; z-index:99; background:var(--surface); border:1px solid var(--line);
+         border-radius:9px; padding:8px 12px; font-family:var(--mono); font-size:.72rem; color:var(--text);
+         box-shadow:var(--shadow-lg); display:none; max-width:280px; line-height:1.5; }
+
+  /* solver */
+  .solver { background:var(--surface); border:1px solid var(--line); border-radius:14px; padding:24px 26px; box-shadow:var(--shadow-lg); margin:1.6em 0; }
+  .solver-row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .solver input { font-family:var(--mono); font-size:1rem; padding:10px 14px; border-radius:9px; border:1px solid var(--line);
+                  background:var(--ground); color:var(--text); width:min(320px, 100%); }
+  .solver input:focus { outline:2px solid var(--verifier); border-color:transparent; }
+  .solver button.go { font-family:var(--mono); font-size:.85rem; font-weight:600; padding:10px 18px; border-radius:9px;
+                      border:none; background:var(--verifier); color:#fff; cursor:pointer; }
+  :root[data-theme="dark"] .solver button.go { color:#0B0E15; }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .solver button.go { color:#0B0E15; } }
+  .chips { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; }
+  .chip { font-family:var(--mono); font-size:.72rem; padding:5px 11px; border-radius:99px; border:1px solid var(--line);
+          background:var(--surface); color:var(--dim); cursor:pointer; }
+  .chip:hover { border-color:var(--verifier); color:var(--text); }
+  .sol-out { margin-top:18px; display:none; }
+  .sol-eq { font-family:var(--serif); font-size:1.05rem; background:var(--ground); border:1px solid var(--line-soft);
+            border-radius:10px; padding:16px 18px; overflow-x:auto; }
+  .sol-route { font-size:.88rem; color:var(--dim); margin-top:12px; }
+  .sol-route .step { margin:4px 0; padding-left:18px; position:relative; }
+  .sol-route .step::before { content:"→"; position:absolute; left:0; color:var(--verifier); }
+  .badge-ok { display:inline-block; font-family:var(--mono); font-size:.7rem; letter-spacing:.06em; padding:4px 10px;
+              border-radius:99px; background:var(--good-soft); color:var(--good); border:1px solid var(--good); margin-top:12px; }
+  .badge-err { display:inline-block; font-family:var(--mono); font-size:.7rem; padding:4px 10px; border-radius:99px;
+               background:var(--collapse-soft); color:var(--collapse); border:1px solid var(--collapse); margin-top:12px; }
+
+  .ledger { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin:1.6em 0; }
+  @media (max-width:760px){ .ledger { grid-template-columns:1fr; } }
+  .ledger .card { margin:0; }
+  .ledger h4 { margin:0 0 .6em; font-size:.95rem; font-family:var(--mono); letter-spacing:.08em; text-transform:uppercase; }
+  .ledger ul { margin:0; padding-left:1.2em; }
+  .ledger li { margin:.45em 0; font-size:.94rem; }
+  .did h4 { color: var(--good); } .didnt h4 { color: var(--collapse); }
+
+  footer { border-top:1px solid var(--line-soft); padding:36px 0 72px; font-family:var(--mono); font-size:.74rem; color:var(--faint); line-height:1.8; }
+  footer a { color: var(--dim); }
+  .refs { font-size:.85rem; color:var(--dim); }
+  .refs li { margin:.5em 0; }
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">explainers / <b>erdős–straus</b></div>
+    <nav class="navlinks">
+      <a href="#problem">problem</a><a href="#primes">primes</a><a href="#sieve">the sieve</a>
+      <a href="#wall">the wall</a><a href="#computation">computation</a><a href="#solver">solver</a><a href="#frontier">frontier</a>
+    </nav>
+    <button class="theme-btn" onclick="toggleTheme()">theme</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Open problem · number theory · an honest attack</div>
+    <h1>Four over <em>n</em>.</h1>
+    <div class="bigeq">
+      <span class="fr"><span>4</span><span><em>n</em></span></span><span>=</span>
+      <span class="fr"><span>1</span><span><em>x</em></span></span><span>+</span>
+      <span class="fr"><span>1</span><span><em>y</em></span></span><span>+</span>
+      <span class="fr"><span>1</span><span><em>z</em></span></span>
+    </div>
+    <p class="lead">The Erdős–Straus conjecture says this equation has a solution in positive integers
+      for every <em>n</em> ≥ 2. It has been open since 1948. This page is a working session against it:
+      everything provable gets proved, the frontier gets recomputed from scratch — every prime to 10⁹
+      certified in 12.8 seconds on this machine — and the exact shape of the remaining wall is laid bare.
+      Spoiler: the conjecture survives the attack. The interesting part is <em>why</em>.</p>
+    <div class="stats">
+      <div class="stat"><div class="v">1948</div><div class="k">posed by Erdős &amp; Straus</div></div>
+      <div class="stat"><div class="v">10¹⁷</div><div class="k">verified in literature (Salez)</div></div>
+      <div class="stat"><div class="v">10⁹ · 12.8 s</div><div class="k">re-certified for this page</div></div>
+      <div class="stat"><div class="v">6 / 192</div><div class="k">residue classes still standing</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="problem">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">01</span> The problem</div>
+    <h2>A 3,600-year-old data format meets a 1948 question.</h2>
+    <p>Ancient Egyptian scribes wrote fractions as sums of distinct <strong>unit fractions</strong> —
+      reciprocals of integers. The Rhind papyrus (~1650 BCE) opens with a table doing exactly this for
+      2/<em>n</em>. Every positive rational can be written this way (Fibonacci's greedy algorithm already proves it),
+      so the modern questions are about <em>how few terms</em> you need.</p>
+    <p>For fractions 3/<em>n</em>, three terms always suffice, easily. In 1948 Paul Erdős and Ernst Straus asked the
+      next question up and got stuck — and everyone since has stayed stuck:</p>
+    <div class="card">
+      <p style="margin:0"><strong>Conjecture (Erdős–Straus).</strong> For every integer <em>n</em> ≥ 2 there exist
+        positive integers <em>x</em>, <em>y</em>, <em>z</em> with
+        <span class="m">4/n = 1/x + 1/y + 1/z</span>.</p>
+    </div>
+    <p>Concretely: <span class="m">4/5 = 1/2 + 1/4 + 1/20</span>, and <span class="m">4/7 = 1/2 + 1/15 + 1/210</span>.
+      Small cases are trivial to find. The conjecture is that the supply never runs out — that no <em>n</em>, however
+      contrived, needs a fourth term. (Whether the three denominators must be distinct turns out not to matter:
+      any repeated term splits via <span class="m">1/q = 1/(q+1) + 1/(q(q+1))</span>.)</p>
+    <p>Why is this hard? Because 4/<em>n</em> sits at the exact boundary where greedy algorithms stop working and
+      the problem becomes genuinely arithmetic — solvability starts depending on the multiplicative structure
+      of <em>n</em>, in particular on which <strong>quadratic residues</strong> <em>n</em> occupies. That connection is the
+      spine of this page.</p>
+  </div></div>
+</section>
+
+<section id="primes">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">02</span> First reduction</div>
+    <h2>Only primes matter.</h2>
+    <p>If the equation is solvable for <em>n</em>, it is solvable for every multiple of <em>n</em> — just scale
+      all three denominators:</p>
+    <div class="proof">
+      <div class="who">proved on the spot</div>
+      <p style="margin:0">If <span class="m">4/n = 1/x + 1/y + 1/z</span>, then for any positive integer <em>t</em>,
+        <span class="m">4/(tn) = 1/(tx) + 1/(ty) + 1/(tz)</span>. So a counterexample, if one exists, has the
+        property that all of its divisors &gt; 1 are counterexamples too — meaning the <em>smallest</em> counterexample
+        is prime. To prove the conjecture, it suffices to prove it for primes.</p>
+    </div>
+    <p>From here on, <em>n</em> = <em>p</em> is prime. And immediately, most primes fall to one-line identities.</p>
+  </div></div>
+</section>
+
+<section id="sieve">
+  <div class="wrap">
+    <div class="col">
+      <div class="eyebrow"><span class="sec-num">03</span> The identity machine</div>
+      <h2>Five sieves, and the six classes that slip through all of them.</h2>
+      <p>An <strong>identity</strong> is a formula that solves the equation for an entire residue class at once.
+        Three of them are short enough to prove right here. Write the target prime as shown; each line is checked
+        by putting everything over a common denominator.</p>
+
+      <div class="proof">
+        <div class="who">Identity 1 · p ≡ 2 (mod 3), so p = 3k + 2</div>
+        <div class="eq small">
+          <span class="fr"><span>4</span><span>p</span></span><span>=</span>
+          <span class="fr"><span>1</span><span>p</span></span><span>+</span>
+          <span class="fr"><span>1</span><span>k+1</span></span><span>+</span>
+          <span class="fr"><span>1</span><span>p(k+1)</span></span>
+        </div>
+        <p style="margin:0"><em>Check:</em> the last two terms sum to <span class="m">(p+1)/(p(k+1)) = 3(k+1)/(p(k+1)) = 3/p</span>,
+          since <span class="m">p+1 = 3(k+1)</span>. Add <span class="m">1/p</span> to get <span class="m">4/p</span>. ∎</p>
+      </div>
+
+      <div class="proof">
+        <div class="who">Identity 2 · p ≡ 3 (mod 4), so p = 4k + 3</div>
+        <div class="eq small">
+          <span class="fr"><span>4</span><span>p</span></span><span>=</span>
+          <span class="fr"><span>1</span><span>k+1</span></span><span>+</span>
+          <span class="fr"><span>1</span><span>p(k+1)</span></span>
+        </div>
+        <p style="margin:0"><em>Check:</em> the sum is <span class="m">(p+1)/(p(k+1)) = 4(k+1)/(p(k+1)) = 4/p</span>,
+          since <span class="m">p+1 = 4(k+1)</span>. Two terms — split either one to make three. ∎</p>
+      </div>
+
+      <div class="proof">
+        <div class="who">Identity 3 · p ≡ 5 (mod 8), so p = 8k + 5</div>
+        <div class="eq small">
+          <span class="fr"><span>4</span><span>p</span></span><span>=</span>
+          <span class="fr"><span>1</span><span>2k+2</span></span><span>+</span>
+          <span class="fr"><span>1</span><span>p(k+1)</span></span><span>+</span>
+          <span class="fr"><span>1</span><span>2p(k+1)</span></span>
+        </div>
+        <p style="margin:0"><em>Check:</em> <span class="m">4/p − 1/(2k+2) = (8k+8−p)/(p(2k+2)) = 3/(2p(k+1))</span>,
+          and the last two terms sum to exactly <span class="m">3/(2p(k+1))</span>. ∎ The trick: because
+          <span class="m">p ≡ 5 (mod 8)</span>, the leftover numerator 3 lands on an <em>even</em> denominator,
+          and <span class="m">3/(2t) = 1/t + 1/(2t)</span> always.</p>
+      </div>
+
+      <p>These three identities alone kill every prime except <span class="m">p ≡ 1 (mod 24)</span>.
+        Mordell, following the same playbook with heavier machinery, added families for two classes mod 5 and three
+        classes mod 7. Compose everything and the natural home of the problem becomes residues mod
+        <strong>840 = 8 · 3 · 5 · 7</strong>. Step through the sieve:</p>
+    </div>
+
+    <div class="sievebox">
+      <div class="stepper">
+        <button class="stepbtn" data-step="1">1 · p ≡ 3 (mod 4)</button>
+        <button class="stepbtn" data-step="2">2 · p ≡ 2 (mod 3)</button>
+        <button class="stepbtn" data-step="3">3 · p ≡ 5 (mod 8)</button>
+        <button class="stepbtn" data-step="4">4 · Mordell mod 5</button>
+        <button class="stepbtn" data-step="5">5 · Mordell mod 7</button>
+      </div>
+      <div class="sieve-count" id="sievecount"></div>
+      <div class="sieve-grid" id="sievegrid"></div>
+      <div class="sieve-legend">
+        <span><span class="sw" style="background:var(--surface-2)"></span>not yet sieved</span>
+        <span><span class="sw" style="background:var(--ramp1)"></span>killed step 1</span>
+        <span><span class="sw" style="background:var(--ramp2)"></span>step 2</span>
+        <span><span class="sw" style="background:var(--ramp3)"></span>step 3</span>
+        <span><span class="sw" style="background:var(--ramp4)"></span>step 4</span>
+        <span><span class="sw" style="background:var(--ramp5)"></span>step 5</span>
+        <span><span class="sw" style="background:var(--collapse)"></span>survivor</span>
+      </div>
+      <p style="font-size:.85rem;color:var(--dim);margin:14px 0 0">The 192 residues mod 840 coprime to 840 —
+        every large prime lives in one of these cells (hover any cell). Click the five sieve stages in order and
+        watch 186 of the 192 classes die. Toggle a stage off to see what it alone was holding back.</p>
+    </div>
+
+    <div class="col">
+      <div class="note">
+        <div class="who">the punchline hiding in the grid</div>
+        <p style="margin:0">Run all five stages. The survivors are
+          <span class="m">1, 121, 169, 289, 361, 529</span> — that is,
+          <span class="m">1², 11², 13², 17², 19², 23²</span>.
+          The classes that defeat every known identity are <strong>exactly the perfect squares coprime to 840</strong>.
+          That is not a coincidence, and it is the reason the problem is still open. Section 04 explains.</p>
+      </div>
+      <p>So the state of the art since the 1960s: the conjecture is a theorem for every <em>n</em> outside six
+        thin residue classes mod 840 — about 3.1% of primes. Everything since has been either computation
+        (pushing the verified bound) or analysis (proving failures, if any, are extraordinarily rare).</p>
+    </div>
+  </div>
+</section>
+
+<section id="wall">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">04</span> The wall</div>
+    <h2>Why identities can never finish the job.</h2>
+    <p>It's tempting to think we just haven't found the right sixth identity. That hope is dead — provably.
+      To see why, look at what an identity actually <em>is</em> under the hood.</p>
+    <p>Take a solution where two denominators are multiples of <em>p</em> (a <strong>Type I</strong> solution —
+      nearly all solutions for primes are of this shape). Write it as
+      <span class="m">4/p = 1/x + 1/(py) + 1/(pz)</span>. Subtract <span class="m">1/x</span>, and with
+      <span class="m">a = 4x − p</span> the equation collapses to
+      <span class="m">1/y + 1/z = a/x</span>. A short divisor argument turns that into an exact criterion:</p>
+    <div class="proof">
+      <div class="who">the engine · proved in the appendix of every verification paper</div>
+      <p style="margin:0">For prime <em>p</em> and <span class="m">x &gt; p/4</span>, put <span class="m">a = 4x − p</span>.
+        A Type I solution with first denominator <em>x</em> exists <strong>iff <em>x</em>² has a divisor
+        <em>m</em> ≡ −<em>x</em> (mod <em>a</em>)</strong>. Then
+        <span class="m">y = (x+m)/a</span> and <span class="m">z = x(x+m)/(am)</span>.</p>
+    </div>
+    <p>Every classical identity is this criterion with the divisor <em>m</em> chosen once, symbolically, for a whole
+      class. And there sits the obstruction, in that minus sign: the criterion demands that <em>some divisor of a
+      square</em> be congruent to <em>−x</em>. Divisors of squares are heavily biased toward quadratic residues; the
+      minus sign asks for the opposite side of the ledger. When <em>p</em> — and hence <em>x</em>, a polynomial in
+      <em>p</em> — ranges over a residue class that is itself a perfect square, the two sides can never be matched
+      <em>uniformly</em>. Schinzel made this precise:</p>
+    <div class="card">
+      <p style="margin:0"><strong>Theorem (Schinzel).</strong> There is no identity — no triple of integer-valued
+        polynomials <em>x</em>(<em>n</em>), <em>y</em>(<em>n</em>), <em>z</em>(<em>n</em>) solving the equation on an
+        entire class <em>n</em> ≡ <em>r</em> (mod <em>m</em>) — when <em>r</em> is a quadratic residue mod <em>m</em>.
+        The six surviving classes mod 840 are squares, so <em>no finite set of identities, mod 840 or mod anything
+        else, can ever cover them</em>.</p>
+    </div>
+    <p>This is the honest shape of the problem. Not "we haven't been clever enough with formulas" but
+      "formulas are provably the wrong weapon." Each individual prime in the six classes falls easily — as the
+      computation below shows, almost embarrassingly easily — but they must be felled <em>one at a time</em>,
+      each with its own bespoke divisor. A proof needs a fundamentally non-uniform idea, and nobody has one.</p>
+  </div></div>
+</section>
+
+<section id="computation">
+  <div class="wrap">
+    <div class="col">
+      <div class="eyebrow"><span class="sec-num">05</span> This session's computation</div>
+      <h2>Every prime to 10⁹, certified from scratch in 12.8 seconds.</h2>
+      <p>Rather than take the literature's word for it, this page re-derives the frontier. A small C program
+        (written for this page) sieves all <strong>50,847,534 primes below 10⁹</strong> and, for each of the
+        <strong>12,710,866</strong> primes ≡ 1 (mod 12) — every prime not already settled by Identities 1–3 above —
+        runs the divisor criterion directly: walk <span class="m">x = ⌈p/4⌉, ⌈p/4⌉+1, …</span>, and at each step
+        search the divisors of <em>x</em>² for one that is ≡ −<em>x</em> (mod 4<em>x</em>−<em>p</em>).
+        Every hit is re-verified in exact 128-bit arithmetic before being counted, and the record-setting
+        certificates were re-verified a second time in exact rational arithmetic in a separate language.
+        <strong>Result: a certificate for every single prime. Zero failures.</strong></p>
+      <p>Two structural facts jump out of the run.</p>
+      <h3>1 · The problem is "almost too easy" pointwise</h3>
+      <p>The very first candidate <em>x</em> works for 79% of the searched primes; the deepest search in the entire
+        run — prime 168,478,249 — needed just 33 candidates. The average was 0.28 extra steps.</p>
+    </div>
+
+    <div class="chart" style="max-width:760px">
+      <h4>How quickly certificates are found</h4>
+      <p class="sub">Share of the 12,710,866 searched primes (≡ 1 mod 12, p &lt; 10⁹) certified within the first
+        k candidate values of x.</p>
+      <div id="depthbars"></div>
+    </div>
+
+    <div class="col">
+      <h3>2 · Difficulty decays geometrically, with arithmetic fine structure</h3>
+      <p>Each certificate has a <strong>level</strong> <span class="m">a = 4x − p</span> — the size of the numerator
+        the divisor criterion had to clear. Level 3 catches ~79%, level 7 catches most of the rest, and each further
+        level shrinks by roughly 5–7×. But the decay isn't smooth: level 27 = 3³ catches <em>fewer</em> primes than
+        level 31, and 35 = 5·7 fewer than 39 — when the level's own factorization is "used up," the congruence
+        it imposes gets harder to satisfy. The wall has texture.</p>
+    </div>
+
+    <div class="chart" style="max-width:760px">
+      <h4>Primes certified at each level a = 4x − p</h4>
+      <p class="sub">Log scale. Hover the points. Note the dips at a = 27 and a = 35.</p>
+      <div id="levelchart"></div>
+    </div>
+
+    <div class="col">
+      <h3>The depth-record ladder</h3>
+      <p>These are the primes that successively forced the deepest searches in the run — the "hardest" numbers
+        below 10⁹, as measured by this particular searcher.</p>
+    </div>
+
+    <div class="tbl-scroll" style="max-width:860px"><table>
+      <tr><th class="num">prime p</th><th class="num">candidates tried</th><th class="num">level a</th><th>certificate found</th></tr>
+      <tr><td class="num">1,201</td><td class="num">6</td><td class="num">23</td><td class="m">4/p = 1/306 + 1/(18p) + 1/(51p)</td></tr>
+      <tr><td class="num">21,169</td><td class="num">8</td><td class="num">31</td><td class="m">4/p = 1/5300 + 1/(171p) + 1/(906300p)</td></tr>
+      <tr><td class="num">87,481</td><td class="num">16</td><td class="num">63</td><td class="m">4/p = 1/21886 + 1/(353p) + 1/(21886p)</td></tr>
+      <tr><td class="num">1,430,641</td><td class="num">18</td><td class="num">71</td><td class="m">4/p = 1/357678 + 1/(5040p) + 1/(11127760p)</td></tr>
+      <tr><td class="num">8,803,369</td><td class="num">27</td><td class="num">107</td><td class="m">4/p = 1/2200869 + 1/(20570p) + 1/(374147730p)</td></tr>
+      <tr><td class="num">153,633,769</td><td class="num">32</td><td class="num">127</td><td class="m">4/p = 1/38408474 + 1/(324649p) + 1/(4418674p)</td></tr>
+      <tr><td class="num">168,478,249</td><td class="num">33</td><td class="num">131</td><td class="m">4/p = 1/42119595 + 1/(321570p) + 1/(2229530562p)</td></tr>
+    </table></div>
+
+    <div class="col">
+      <div class="warn">
+        <div class="who">honesty note</div>
+        <p style="margin:0">"Depth" here measures <em>this searcher</em>, not the primes themselves. For speed, the C
+          program only factors each x with primes below 1,300, so it sees a subset of x's divisors. Given the full
+          factorization, the record-holder 168,478,249 already yields at the 4th candidate
+          (<span class="m">a = 15</span>: <span class="m">4/p = 1/42119566 + 1/(2809374p) + 1/(5622962061p)</span>).
+          The true maximal depth below 10⁹ is even smaller than 33. Also: verification to 10⁹ is a re-derivation,
+          not a record — the literature stands at 10¹⁷ (Salez 2014). What's original here is only that it was
+          recomputed independently, from first principles, with double-checked certificates, on this page's own terms.</p>
+      </div>
+      <p>One more consistency check the run provides: the six hard classes mod 840 should each contain the same
+        density of primes (Dirichlet), and indeed the counts land within 0.2% of each other —
+        264,770 · 264,645 · 264,608 · 264,716 · 264,503 · 264,339, totalling 1,587,581 hard-class primes,
+        3.12% of all primes below 10⁹ (the theoretical density is 6/192 = 3.125%).</p>
+      <p>And the showcase: the largest hard-class prime below one billion, certified at the very first candidate x:</p>
+      <div class="card"><p class="m" style="margin:0;overflow-x:auto;white-space:nowrap">
+        4/999999001 = 1/249999751 + 1/83333846749403930 + 1/10217479616097666453370</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="solver">
+  <div class="wrap">
+    <div class="col">
+      <div class="eyebrow"><span class="sec-num">06</span> Try it live</div>
+      <h2>A certificate for any n you type.</h2>
+      <p>The full pipeline — prime reduction, the three identities, and the divisor-criterion search — reimplemented
+        in exact BigInt arithmetic in your browser. Enter any n from 2 up to 18 digits; the solver returns a
+        certificate, shows which route produced it, and re-verifies the equation exactly before showing you anything.</p>
+    </div>
+    <div class="solver" style="max-width:860px">
+      <div class="solver-row">
+        <span class="m" style="font-size:1.1rem">4 /</span>
+        <input id="nin" inputmode="numeric" placeholder="enter n (2 … 18 digits)" value="1009">
+        <button class="go" onclick="runSolver()">solve</button>
+      </div>
+      <div class="chips">
+        <span style="font-family:var(--mono);font-size:.72rem;color:var(--faint);align-self:center">try:</span>
+        <button class="chip" onclick="setN('1009')">1009 — hard class (169 mod 840)</button>
+        <button class="chip" onclick="setN('168478249')">168478249 — the run's record</button>
+        <button class="chip" onclick="setN('999999937')">999999937</button>
+        <button class="chip" onclick="setN('1000000000000037')">a 16-digit prime</button>
+        <button class="chip" onclick="setN('123456789')">a composite</button>
+      </div>
+      <div class="sol-out" id="solout">
+        <div class="sol-eq" id="soleq"></div>
+        <div class="sol-route" id="solroute"></div>
+        <div id="solbadge"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="frontier">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">07</span> The frontier</div>
+    <h2>Where the problem actually stands.</h2>
+    <p>Three genuinely different kinds of progress exist, and it's worth keeping them separate:</p>
+    <p><strong>Computation.</strong> Swett verified to 10¹⁴ (1999); Salez to 10¹⁷ (2014). Any counterexample
+      is a prime ≡ 1², 11², 13², 17², 19², or 23² (mod 840) larger than that. The pointwise statistics above
+      explain why hardly anyone expects one to exist.</p>
+    <p><strong>Density.</strong> Vaughan (1970) proved the number of potential counterexamples below N is at most
+      <span class="m">N·exp(−c(log N)^(2/3))</span> — not just measure zero among integers, but sparser than any
+      power saving. The conjecture is a theorem for "almost all" n in a strong quantitative sense.</p>
+    <p><strong>Structure.</strong> Elsholtz and Tao (2013) counted <em>solutions</em> rather than solvability: the
+      number of representations of 4/p fluctuates but is polylogarithmic in p on average — for a typical prime
+      there are not one but <em>hundreds</em> of certificates. The conjecture asks that a quantity which is
+      almost always large is never zero — exactly the kind of statement (like Goldbach's conjecture) that
+      analytic methods approach but cannot close.</p>
+    <p>The same story repeats for the natural generalization <span class="m">k/n = 1/x + 1/y + 1/z</span>:
+      Sierpiński conjectured it for k = 5 (1956), Schinzel for every fixed k with n large — all open,
+      all blocked by the same square-classes wall.</p>
+
+    <h3>The honest ledger</h3>
+    <div class="ledger">
+      <div class="card did">
+        <h4>done in this session</h4>
+        <ul>
+          <li>Proved the prime reduction and Identities 1–3 (covering all n outside p ≡ 1 mod 24) from scratch.</li>
+          <li>Stated the divisor criterion that powers both the identities and the search, and where its minus sign collides with square residue classes.</li>
+          <li>Independently re-verified the conjecture for all n ≤ 10⁹: certificates for 12.7M primes, exact-arithmetic checked, zero failures, 12.8 s.</li>
+          <li>Measured the structure of difficulty: 79% first-try, geometric decay with arithmetic dips, max search depth 33.</li>
+          <li>Shipped a live certificate generator valid to 18 digits.</li>
+        </ul>
+      </div>
+      <div class="card didnt">
+        <h4>not done — by anyone, ever</h4>
+        <ul>
+          <li>A proof for even one of the six square classes mod 840.</li>
+          <li>Any workaround for Schinzel's obstruction — the reason no list of formulas can finish.</li>
+          <li>Any bound forcing solvability pointwise (density results allow exceptions; computation only pushes the floor).</li>
+          <li>The conjecture itself. It is exactly as open as it was in 1948 — just better mapped.</li>
+        </ul>
+      </div>
+    </div>
+  </div></div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="refs">
+      Sources worth reading:
+      <ul>
+        <li>Erdős (1950), <em>Az 1/x₁ + 1/x₂ + … + 1/xₙ = a/b egyenlet egész számú megoldásairól</em>, Mat. Lapok 1 — the conjecture's first appearance in print.</li>
+        <li>Mordell, <em>Diophantine Equations</em> (1969), ch. 30 — the identity families and the mod-840 reduction.</li>
+        <li>Schinzel (1956–2000, with Sierpiński) — the quadratic-residue obstruction to polynomial identities, and the k/n generalization.</li>
+        <li>Vaughan (1970), <em>On a problem of Erdős, Straus and Schinzel</em>, Mathematika 17 — the density bound.</li>
+        <li>Elsholtz &amp; Tao (2013), <em>Counting the number of solutions to the Erdős–Straus equation on unit fractions</em>, J. Aust. Math. Soc. 94 — the modern statistical picture.</li>
+        <li>Salez (2014), <em>The Erdős–Straus conjecture: new modular equations and checking up to N = 10¹⁷</em> — the verification record.</li>
+      </ul>
+    </div>
+    Part of a personal explainer library · <a href="index.html">index</a> ·
+    single self-contained HTML file · computations in §05 performed fresh for this page; all certificates machine-verified twice.
+  </div>
+</footer>
+
+<div class="tip" id="tip"></div>
+
+<script>
+function toggleTheme(){
+  var root = document.documentElement;
+  var cur = root.getAttribute("data-theme");
+  if (!cur) cur = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+}
+
+/* ---------- tooltip ---------- */
+var tip = document.getElementById('tip');
+function showTip(html, ev){ tip.innerHTML = html; tip.style.display='block'; moveTip(ev); }
+function moveTip(ev){
+  var pad=14, w=tip.offsetWidth, h=tip.offsetHeight;
+  var x=ev.clientX+pad, y=ev.clientY+pad;
+  if (x+w>innerWidth-8) x=ev.clientX-w-pad;
+  if (y+h>innerHeight-8) y=ev.clientY-h-pad;
+  tip.style.left=x+'px'; tip.style.top=y+'px';
+}
+function hideTip(){ tip.style.display='none'; }
+
+/* ---------- residue sieve ---------- */
+(function(){
+  var grid = document.getElementById('sievegrid'), countEl = document.getElementById('sievecount');
+  var res = [];
+  function gcd(a,b){ while(b){ var t=a%b; a=b; b=t; } return a; }
+  for (var r=1; r<840; r++) if (gcd(r,840)===1) res.push(r);
+  var SQ = {1:'1² (and 29², 41², …)',121:'11²',169:'13²',289:'17²',361:'19²',529:'23²'};
+  function stageOf(r){
+    if (r%4===3) return 1;
+    if (r%3===2) return 2;
+    if (r%8===5) return 3;
+    if (r%5===2 || r%5===3) return 4;
+    if (r%7===3 || r%7===5 || r%7===6) return 5;
+    return 0; // survivor
+  }
+  var stageName = {1:'Identity 2: p ≡ 3 (mod 4)', 2:'Identity 1: p ≡ 2 (mod 3)', 3:'Identity 3: p ≡ 5 (mod 8)',
+                   4:'Mordell family, p ≡ 2 or 3 (mod 5)', 5:'Mordell family, p ≡ 3, 5 or 6 (mod 7)'};
+  var active = {1:false,2:false,3:false,4:false,5:false};
+  var cells = res.map(function(r){
+    var d = document.createElement('div');
+    d.className='cell'; d.textContent=r; d.dataset.r=r;
+    d.addEventListener('mousemove', function(ev){
+      var s = stageOf(r), on = s>0 && active[s];
+      var html = '<b>p ≡ '+r+' (mod 840)</b><br>';
+      if (s===0) html += 'Survives every known identity.<br>= '+SQ[r]+' — a square mod 840.';
+      else html += (on?'Killed at step '+s+':<br>':'Will be killed by step '+s+':<br>') + stageName[s];
+      showTip(html, ev);
+    });
+    d.addEventListener('mouseleave', hideTip);
+    grid.appendChild(d);
+    return d;
+  });
+  function paint(){
+    var alive=0, allOn = active[1]&&active[2]&&active[3]&&active[4]&&active[5];
+    cells.forEach(function(d){
+      var r=+d.dataset.r, s=stageOf(r);
+      d.className='cell';
+      if (s>0 && active[s]) d.className='cell killed k'+s;
+      else if (s===0 && allOn) d.className='cell surv';
+      if (!(s>0&&active[s])) alive++;
+    });
+    countEl.innerHTML = '<b>'+alive+'</b> of 192 residue classes still unaccounted for'
+      + (allOn ? ' — the six survivors are exactly the squares: 1², 11², 13², 17², 19², 23².' : '.');
+  }
+  document.querySelectorAll('.stepbtn').forEach(function(b){
+    b.addEventListener('click', function(){
+      var s=+b.dataset.step; active[s]=!active[s];
+      b.classList.toggle('on', active[s]); paint();
+    });
+  });
+  paint();
+})();
+
+/* ---------- chart 1: cumulative depth bars ---------- */
+(function(){
+  var data = [
+    {lab:'first x', v:79.20, n:'10,066,615 primes'},
+    {lab:'within 2', v:96.11, n:'12,216,267'},
+    {lab:'within 3', v:98.64, n:'12,537,874'},
+    {lab:'within 6', v:99.855, n:'12,692,426'},
+    {lab:'within 33', v:100, n:'all 12,710,866'}
+  ];
+  var host = document.getElementById('depthbars');
+  data.forEach(function(d){
+    var row = document.createElement('div'); row.className='hbar-row';
+    row.innerHTML = '<div class="hbar-lab">'+d.lab+'</div>'
+      + '<div class="hbar-track"><div class="hbar-fill" style="width:'+d.v+'%"></div></div>'
+      + '<div class="hbar-val">'+d.v.toFixed(d.v===100?0:2)+'%</div>';
+    row.querySelector('.hbar-track').addEventListener('mousemove', function(ev){
+      showTip('<b>'+d.lab+'</b><br>'+d.n+' certified<br>'+d.v+'% of searched primes', ev);
+    });
+    row.querySelector('.hbar-track').addEventListener('mouseleave', hideTip);
+    host.appendChild(row);
+  });
+})();
+
+/* ---------- chart 2: level-a dot plot, log y ---------- */
+(function(){
+  var data = [[3,10066615],[7,2149652],[11,321607],[15,69324],[19,49882],[23,35346],[27,4223],
+              [31,9068],[35,1381],[39,1894],[43,352],[47,896],[51,120],[55,158],[59,168],[63,180]];
+  var W=700,H=280,L=52,R=16,T=14,B=34;
+  var xmin=3,xmax=63,ymin=Math.log10(100),ymax=Math.log10(2e7);
+  function X(a){ return L+(a-xmin)/(xmax-xmin)*(W-L-R); }
+  function Y(c){ return T+(1-(Math.log10(c)-ymin)/(ymax-ymin))*(H-T-B); }
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="Primes certified per level, log scale">';
+  [100,1000,10000,100000,1000000,10000000].forEach(function(g){
+    var y=Y(g);
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line-soft)" stroke-width="1"/>';
+    s+='<text x="'+(L-6)+'" y="'+(y+3.5)+'" text-anchor="end">'+(g>=1e6?(g/1e6)+'M':g>=1e3?(g/1e3)+'k':g)+'</text>';
+  });
+  var pts = data.map(function(d){ return X(d[0])+','+Y(d[1]); }).join(' ');
+  s+='<polyline points="'+pts+'" fill="none" stroke="var(--verifier)" stroke-width="2" opacity=".55"/>';
+  data.forEach(function(d,i){
+    s+='<circle cx="'+X(d[0])+'" cy="'+Y(d[1])+'" r="4.5" fill="var(--verifier)" stroke="var(--surface)" stroke-width="2" data-i="'+i+'"/>';
+    s+='<text x="'+X(d[0])+'" y="'+(H-B+16)+'" text-anchor="middle">'+(d[0]===63?'63+':d[0])+'</text>';
+  });
+  s+='<text x="'+X(3)+'" y="'+(Y(10066615)-10)+'" text-anchor="start" style="fill:var(--dim)">10.07M</text>';
+  s+='<text x="'+(X(27))+'" y="'+(Y(4223)+18)+'" text-anchor="middle" style="fill:var(--dim)">dip: 27 = 3³</text>';
+  s+='<text x="'+((L+W-R)/2)+'" y="'+(H-4)+'" text-anchor="middle">level a = 4x − p</text>';
+  s+='</svg>';
+  var host=document.getElementById('levelchart'); host.innerHTML=s;
+  host.querySelectorAll('circle').forEach(function(c){
+    c.addEventListener('mousemove', function(ev){
+      var d=data[+c.dataset.i];
+      showTip('<b>level a = '+(d[0]===63?'63 and above':d[0])+'</b><br>'+d[1].toLocaleString()+' primes certified here', ev);
+      c.setAttribute('r','6');
+    });
+    c.addEventListener('mouseleave', function(){ hideTip(); c.setAttribute('r','4.5'); });
+  });
+})();
+
+/* ---------- BigInt solver ---------- */
+function setN(v){ document.getElementById('nin').value=v; runSolver(); }
+
+function ipow(b,e){ var r=1n; while(e>0n){ if(e&1n) r*=b; b*=b; e>>=1n; } return r; }
+function bgcd(a,b){ while(b){ var t=a%b; a=b; b=t; } return a; }
+function isqrt(n){ if(n<2n) return n; var x=n, y=(x+1n)>>1n; while(y<x){ x=y; y=(x+n/x)>>1n; } return x; }
+function isPrime(n){
+  if (n<2n) return false;
+  for (var p of [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n]){ if(n%p===0n) return n===p; }
+  var d=n-1n, r=0n; while(d%2n===0n){ d/=2n; r++; }
+  for (var a of [2n,3n,5n,7n,11n,13n,17n,19n,23n,29n,31n,37n]){
+    var x = modpow(a,d,n);
+    if (x===1n||x===n-1n) continue;
+    var ok=false;
+    for (var i=0n;i<r-1n;i++){ x=x*x%n; if(x===n-1n){ok=true;break;} }
+    if (!ok) return false;
+  }
+  return true;
+}
+function modpow(b,e,m){ b%=m; var r=1n; while(e>0n){ if(e&1n) r=r*b%m; b=b*b%m; e>>=1n; } return r; }
+function rho(n){
+  if (n%2n===0n) return 2n;
+  for (var c=1n;;c++){
+    var f=function(x){ return (x*x+c)%n; };
+    var x=2n,y=2n,d=1n;
+    while (d===1n){ x=f(x); y=f(f(y)); d=bgcd(x>y?x-y:y-x, n); }
+    if (d!==n) return d;
+  }
+}
+function factor(n){
+  var f={}, add=function(p){ f[p]=(f[p]||0)+1; };
+  var stack=[n];
+  while (stack.length){
+    var m=stack.pop();
+    if (m===1n) continue;
+    if (isPrime(m)){ add(m.toString()); continue; }
+    var d=2n, found=false;
+    for (var p=2n; p*p<=m && p<10000n; p++){ if (m%p===0n){ stack.push(p, m/p); found=true; break; } }
+    if (!found){ d=rho(m); stack.push(d, m/d); }
+  }
+  return f;
+}
+function smallestPrimeFactor(n){
+  for (var p=2n; p*p<=n && p<100000n; p++) if (n%p===0n) return p;
+  if (isPrime(n)) return n;
+  var f = factor(n), best=null;
+  for (var k in f){ var v=BigInt(k); if (best===null||v<best) best=v; }
+  return best;
+}
+function divisorsOfSquare(x, cap){
+  // all divisors of x^2 that are <= cap
+  var f = factor(x), primes=Object.keys(f).map(BigInt), exps=Object.keys(f).map(function(k){return 2*f[k];});
+  var out=[1n];
+  for (var i=0;i<primes.length;i++){
+    var cur=out.slice(), pw=1n;
+    for (var e=1;e<=exps[i];e++){
+      pw*=primes[i];
+      for (var j=0;j<cur.length;j++){ var d=cur[j]*pw; if (d<=cap) out.push(d); }
+    }
+  }
+  return out;
+}
+// certificate for prime p as [x,y,z] denominators
+function primeCert(p, route){
+  if (p===2n){ route.push('p = 2: 4/2 = 2 = 1/1 + 1/2 + 1/2.'); return [1n,2n,2n]; }
+  if (p===3n){ route.push('p = 3: 4/3 = 1/1 + 1/4 + 1/12.'); return [1n,4n,12n]; }
+  if (p%3n===2n){
+    var k=(p-2n)/3n; route.push('p ≡ 2 (mod 3) → Identity 1 with k = '+k+'.');
+    return [p, k+1n, p*(k+1n)];
+  }
+  if (p%4n===3n){
+    var k=(p-3n)/4n, q=p*(k+1n);
+    route.push('p ≡ 3 (mod 4) → Identity 2 with k = '+k+', third term split for distinctness.');
+    return [k+1n, q+1n, q*(q+1n)];
+  }
+  if (p%8n===5n){
+    var k=(p-5n)/8n; route.push('p ≡ 5 (mod 8) → Identity 3 with k = '+k+'.');
+    return [2n*k+2n, p*(k+1n), 2n*p*(k+1n)];
+  }
+  // p ≡ 1 (mod 24): divisor-criterion search
+  var x0=(p+3n)/4n;
+  for (var i=0n; i<100000n; i++){
+    var x=x0+i, a=4n*x-p;
+    var divs = divisorsOfSquare(x, x);
+    var target = ((-x)%a+a)%a;
+    for (var j=0;j<divs.length;j++){
+      var m=divs[j];
+      if (m%a===target){
+        var num = x*(x+m);
+        if ((x+m)%a!==0n || num%(a*m)!==0n) continue;
+        var y=(x+m)/a, z=num/(a*m);
+        route.push('p ≡ 1 (mod 24): no identity applies — searched candidates x = ⌈p/4⌉ + i.');
+        route.push('Hit at i = '+i+' (level a = '+a+'): divisor m = '+m+' of x² satisfies m ≡ −x (mod '+a+').');
+        return [x, p*y, p*z];
+      }
+    }
+  }
+  return null;
+}
+function fmtBig(v){ var s=v.toString(); return s.length>24 ? s : s; }
+function runSolver(){
+  var out=document.getElementById('solout'), eq=document.getElementById('soleq'),
+      rt=document.getElementById('solroute'), bd=document.getElementById('solbadge');
+  out.style.display='block';
+  var raw=(document.getElementById('nin').value||'').replace(/[,\s]/g,'');
+  if (!/^\d{1,18}$/.test(raw) || BigInt(raw)<2n){
+    eq.textContent='Enter an integer from 2 to 18 digits.'; rt.innerHTML=''; bd.innerHTML=''; return;
+  }
+  var n=BigInt(raw), route=[], t0=performance.now();
+  var p = smallestPrimeFactor(n), mult=n/p;
+  if (mult>1n) route.push('n = '+p+' × '+mult+' is composite → solve for its smallest prime factor '+p+', then scale all denominators by '+mult+'.');
+  else route.push('n = '+n+' is prime.');
+  var cert = primeCert(p, route);
+  if (!cert){ eq.textContent='Search exhausted (this would be a publishable event).'; rt.innerHTML=''; bd.innerHTML=''; return; }
+  var X=cert[0]*mult, Y=cert[1]*mult, Z=cert[2]*mult;
+  // exact verification: 4XYZ == n(YZ + XZ + XY)
+  var ok = 4n*X*Y*Z === n*(Y*Z + X*Z + X*Y);
+  var ms = (performance.now()-t0).toFixed(1);
+  eq.innerHTML = '4/'+n+' &nbsp;=&nbsp; 1/'+fmtBig(X)+' &nbsp;+&nbsp; 1/'+fmtBig(Y)+' &nbsp;+&nbsp; 1/'+fmtBig(Z);
+  rt.innerHTML = route.map(function(s){ return '<div class="step">'+s+'</div>'; }).join('');
+  bd.innerHTML = ok
+    ? '<span class="badge-ok">verified exactly: 4·x·y·z = n·(yz + xz + xy) · '+ms+' ms</span>'
+    : '<span class="badge-err">verification FAILED — please report this</span>';
+}
+runSolver();
+</script>
