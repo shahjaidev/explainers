@@ -1,0 +1,24 @@
+# Verification run summary — August 2, 2026
+# Machine: 4-core x86-64 Linux container, gcc -O2, single codebase (mfrac.c)
+
+## m = 5 (Sierpinski conjecture): all 2 <= n <= 10^11 representable
+small phase   [2, 10^6]            complete decision, exceptions: 0
+prime scans   (10^6, 10^10]        primes=454,974,013  escalations=0  suspects=0  (~106 s wall, 4 cores)
+prime scans   (10^10, 10^11]       primes=3,663,002,302  escalations=0  suspects=0  (~40 min wall, 4 cores)
+prime total = 4,117,976,315 = pi(10^11) - pi(10^6) exactly (sieve cross-check)
+composites: every composite n <= 10^11 has a prime factor < 10^6; no exceptional n <= 10^6 exists
+
+## m = 6..19: complete exception sets for all n <= 10^9
+small phase   [2, 10^6] each m     complete decision (composites included)
+prime scans   (10^6, 10^9] each m  primes=50,769,036 per m; suspects: 11 (m=12, all confirmed
+                                   non-representable), 1 escalation resolved (m=16); all other m clean
+composite gap products of exceptional primes in (10^6, 10^9]: 4,769,723 candidates decided, 0 exceptions
+
+## m = 20..60: Pomerance-Weingartner window replication
+complete decision for every prime p in (m^2, 2m^2): every m has >= 1 exception; total 1,494
+
+## Double verification
+- check2.c (independent algorithm: y-iteration, no factorization): re-certified all 243
+  exceptions for m=7..19; positive controls agree
+- Python fractions brute force: agrees with both C programs for all m<=14, n<400
+- 150 random prime certificates re-verified in exact rational arithmetic

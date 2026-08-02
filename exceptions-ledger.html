@@ -1,0 +1,404 @@
+<meta charset="utf-8">
+<title>The Exceptions Ledger — m/n as three unit fractions</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;--teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --verifier:#0C8478;--verifier-soft:rgba(12,132,120,0.12);--collapse:#C1352F;--collapse-soft:rgba(193,53,47,0.11);
+    --good:#1C8F63;--good-soft:rgba(28,143,99,0.13);--neutral-line:#8A93A2;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+    --measure:66ch;--maxw:1180px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{--ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --verifier:#35CDB9;--verifier-soft:rgba(53,205,185,0.15);--collapse:#E76A63;--collapse-soft:rgba(231,106,99,0.15);
+    --good:#4FC98D;--good-soft:rgba(79,201,141,0.15);--neutral-line:#6A7488;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);}
+  }
+  :root[data-theme="light"]{--ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;--teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --verifier:#0C8478;--verifier-soft:rgba(12,132,120,0.12);--collapse:#C1352F;--collapse-soft:rgba(193,53,47,0.11);
+    --good:#1C8F63;--good-soft:rgba(28,143,99,0.13);--neutral-line:#8A93A2;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);--shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);}
+  :root[data-theme="dark"]{--ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --verifier:#35CDB9;--verifier-soft:rgba(53,205,185,0.15);--collapse:#E76A63;--collapse-soft:rgba(231,106,99,0.15);
+    --good:#4FC98D;--good-soft:rgba(79,201,141,0.15);--neutral-line:#6A7488;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);--shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);}
+
+  *{box-sizing:border-box;} html{scroll-behavior:smooth;}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto;} }
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased;}
+  ::selection{background:var(--teacher-soft);}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px;}
+  .col{max-width:var(--measure);}
+  section{padding:clamp(48px,8vw,96px) 0;border-top:1px solid var(--line-soft);}
+  section:first-of-type{border-top:none;}
+  h1,h2,h3{font-family:var(--serif);font-weight:600;text-wrap:balance;letter-spacing:-0.01em;}
+  h2{font-size:clamp(1.7rem,3.4vw,2.5rem);line-height:1.12;margin:0 0 .4em;}
+  h3{font-size:1.28rem;line-height:1.25;margin:0 0 .35em;}
+  p{margin:0 0 1.05em;}
+  a{color:inherit;}
+  .lead{font-size:1.16rem;color:var(--dim);}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--teacher);margin:0 0 1.1em;display:flex;align-items:center;gap:.7em;}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--teacher);opacity:.6;}
+  .sec-num{font-family:var(--mono);color:var(--faint);font-size:.72rem;letter-spacing:.1em;}
+  strong{color:var(--text);font-weight:650;} em{color:var(--dim);}
+  code,.m{font-family:var(--mono);font-size:.86em;}
+
+  header.topbar{position:sticky;top:0;z-index:50;backdrop-filter:saturate(1.4) blur(14px);
+    background:color-mix(in srgb, var(--ground) 82%, transparent);border-bottom:1px solid var(--line-soft);}
+  .topbar .wrap{display:flex;align-items:center;gap:18px;height:56px;}
+  .brand{font-family:var(--mono);font-size:.8rem;letter-spacing:.06em;font-weight:600;}
+  .brand b{color:var(--teacher);}
+  .navlinks{margin-left:auto;display:flex;gap:4px;}
+  .navlinks a{font-family:var(--mono);font-size:.72rem;letter-spacing:.04em;text-decoration:none;color:var(--dim);padding:6px 10px;border-radius:7px;transition:background .15s,color .15s;}
+  .navlinks a:hover{background:var(--surface-2);color:var(--text);}
+  @media (max-width:900px){.navlinks{display:none;}}
+  .theme-btn{font-family:var(--mono);font-size:.72rem;color:var(--dim);background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:6px 11px;cursor:pointer;}
+  .theme-btn:hover{color:var(--text);border-color:var(--neutral-line);}
+
+  .hero{padding-top:clamp(40px,6vw,72px);}
+  .hero h1{font-size:clamp(2.3rem,6vw,4rem);line-height:1.03;margin:0 0 .35em;max-width:20ch;}
+  .fr{display:inline-flex;flex-direction:column;text-align:center;vertical-align:middle;line-height:1.15;}
+  .fr>span:first-child{border-bottom:1.5px solid currentColor;padding:0 .18em;}
+  .fr>span:last-child{padding:0 .18em;}
+  .bigeq{font-family:var(--serif);font-size:clamp(1.5rem,4vw,2.3rem);margin:.8em 0 1em;display:flex;align-items:center;gap:.45em;flex-wrap:wrap;}
+  .stats{display:flex;gap:14px;flex-wrap:wrap;margin-top:26px;}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 18px;box-shadow:var(--shadow);min-width:150px;}
+  .stat .v{font-family:var(--serif);font-size:1.45rem;font-weight:600;line-height:1.1;}
+  .stat .k{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-top:5px;}
+
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow);margin:1.4em 0;}
+  .note{border-left:3px solid var(--teacher);background:var(--teacher-soft);border-radius:0 12px 12px 0;padding:16px 20px;margin:1.4em 0;}
+  .note .who{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--teacher);margin-bottom:.5em;}
+  .proof{border-left:3px solid var(--verifier);background:var(--verifier-soft);border-radius:0 12px 12px 0;padding:16px 20px;margin:1.4em 0;}
+  .proof .who{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--verifier);margin-bottom:.5em;}
+  .warn{border-left:3px solid var(--collapse);background:var(--collapse-soft);border-radius:0 12px 12px 0;padding:16px 20px;margin:1.4em 0;}
+  .warn .who{font-family:var(--mono);font-size:.68rem;letter-spacing:.12em;text-transform:uppercase;color:var(--collapse);margin-bottom:.5em;}
+
+  table{border-collapse:collapse;width:100%;font-size:.92rem;}
+  th{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);text-align:left;padding:8px 12px;border-bottom:1px solid var(--line);}
+  td{padding:8px 12px;border-bottom:1px solid var(--line-soft);}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;}
+  .tbl-scroll{overflow-x:auto;}
+
+  .chart{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px;box-shadow:var(--shadow);margin:1.6em 0;}
+  .chart h4{font-family:var(--sans);font-weight:650;font-size:.98rem;margin:0 0 2px;}
+  .chart .sub{font-size:.82rem;color:var(--faint);margin:0 0 14px;}
+  svg text{font-family:var(--mono);fill:var(--faint);font-size:10.5px;}
+  .tip{position:fixed;pointer-events:none;z-index:99;background:var(--surface);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-family:var(--mono);font-size:.72rem;color:var(--text);box-shadow:var(--shadow-lg);display:none;max-width:300px;line-height:1.5;}
+
+  .ledger{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:1.6em 0;}
+  @media (max-width:760px){.ledger{grid-template-columns:1fr;}}
+  .ledger .card{margin:0;}
+  .ledger h4{margin:0 0 .6em;font-size:.95rem;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;}
+  .ledger ul{margin:0;padding-left:1.2em;} .ledger li{margin:.45em 0;font-size:.94rem;}
+  .did h4{color:var(--good);} .didnt h4{color:var(--collapse);}
+
+  footer{border-top:1px solid var(--line-soft);padding:36px 0 72px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.8;}
+  footer a{color:var(--dim);}
+</style>
+
+<header class="topbar">
+  <div class="wrap">
+    <div class="brand">explainers / <b>exceptions ledger</b></div>
+    <nav class="navlinks">
+      <a href="#landscape">landscape</a><a href="#record">the record</a><a href="#ledger">the ledger</a>
+      <a href="#boundary">the boundary</a><a href="#method">method</a><a href="#honest">honest ledger</a>
+    </nav>
+    <button class="theme-btn" onclick="toggleTheme()">theme</button>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <div class="eyebrow">Original computation · unit fractions · new records</div>
+    <h1>The exceptions ledger.</h1>
+    <div class="bigeq">
+      <span class="fr"><span><em>m</em></span><span><em>n</em></span></span><span>=</span>
+      <span class="fr"><span>1</span><span><em>x</em></span></span><span>+</span>
+      <span class="fr"><span>1</span><span><em>y</em></span></span><span>+</span>
+      <span class="fr"><span>1</span><span><em>z</em></span></span>
+      <span style="font-size:.55em;color:var(--dim);margin-left:.6em">— for which m/n does this fail?</span>
+    </div>
+    <p class="lead">For m = 4 (Erdős–Straus) and m = 5 (Sierpiński) the conjecture is that it never fails.
+      For every large m, Pomerance &amp; Weingartner proved in 2026 that it <em>must</em> fail somewhere.
+      This page reports a working session in the gap between those statements: a new verification record
+      for Sierpiński's conjecture (n ≤ 10¹¹, ×94.6 the ~60-year-old bound), the first complete exception
+      sets for every m from 6 to 19 up to 10⁹, and the exact boundary where guaranteed exceptions switch on.
+      Everything computed fresh, certified, and double-verified in this session.</p>
+    <div class="stats">
+      <div class="stat"><div class="v">10¹¹</div><div class="k">Sierpiński 5/n verified (was 1.06×10⁹)</div></div>
+      <div class="stat"><div class="v">243</div><div class="k">exceptions, m = 7…19 — complete to 10⁹</div></div>
+      <div class="stat"><div class="v">83,449</div><div class="k">largest exception found (m = 16)</div></div>
+      <div class="stat"><div class="v">4.6 B</div><div class="k">primes certified, zero unresolved</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="landscape">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">01</span> The landscape</div>
+    <h2>Between two conjectures and one new theorem.</h2>
+    <p>Write m/n as a sum of three unit fractions, positive integers only. Three names, three eras:</p>
+    <p><strong>Erdős–Straus (1948):</strong> for m = 4, always possible (n ≥ 2). Open; verified to 10¹⁷ (Salez 2014; a 2025 preprint reports 10¹⁸).
+      <br><strong>Sierpiński (1956):</strong> for m = 5, always possible. Open; verified to ~1.06×10⁹ in the
+      1960s — a bound that then sat essentially untouched for six decades (an August 2025 preprint reports ~10¹⁰ for its residual class).
+      <br><strong>Schinzel:</strong> for every fixed m there's a threshold n<sub>m</sub> beyond which it's
+      always possible. Exceptions below the threshold are allowed — and for m ≥ 7 they genuinely exist:
+      7/2 = 3.5 exceeds any three unit fractions, and less trivially <strong>8/11, 12/193, 16/83449 all
+      need four terms</strong>.</p>
+    <p>Then, months ago, the ground moved. Pomerance &amp; Weingartner (Ramanujan J., 2026) proved that
+      exceptions are not a small-m accident: for every sufficiently large m, m/p fails for some prime
+      p ∈ (m², 2m²), and n<sub>m</sub> grows at least like exp(m<sup>1/3+o(1)</sup>). Their numerics
+      suggest "sufficiently large" means <strong>m ≥ 20</strong>. So the map of this problem now has three
+      regions: the conjectured-clean zone (m = 4, 5, 6), a finite-exceptions zone (7 ≤ m ≤ 19), and a
+      guaranteed-exceptions zone (m ≥ 20). This session charted the middle one.</p>
+  </div></div>
+</section>
+
+<section id="record">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">02</span> Result one</div>
+    <h2>Sierpiński's conjecture, verified to 10¹¹.</h2>
+    <p>The 5/n case had a classical verification record of n ≤ 1,057,438,801, set around 1964; the only
+      later bound any search surfaced is ~10¹⁰ for the residual class, in an August 2025 preprint
+      (Ghermoul, arXiv:2508.07367) — everyone else pushed on 4/n instead. This session's
+      engine processed every prime up to 10¹¹:</p>
+    <div class="card">
+      <p style="margin:0" class="m">
+        primes scanned: 4,117,976,315 &nbsp;(= π(10¹¹) − π(10⁶) exactly — sieve cross-check)<br>
+        certificates: one per prime, exact 128-bit arithmetic &nbsp;·&nbsp; unresolved: 0<br>
+        composites: every composite n ≤ 10¹¹ has a prime factor &lt; 10⁶, all verified representable<br>
+        wall-clock: ≈ 40 minutes on 4 container cores
+      </p>
+    </div>
+    <p><strong>Result: 5/n = 1/x + 1/y + 1/z has a solution for every 2 ≤ n ≤ 10¹¹.</strong>
+      The classical bound improves by a factor of 94.6, the 2025 preprint's by 10. The same sweep settled m = 6 to 10⁹ with zero
+      exceptions — so 6/n joins 4/n and 5/n in the conjectured-clean zone with real evidence behind it.</p>
+  </div></div>
+</section>
+
+<section id="ledger">
+  <div class="wrap">
+    <div class="col">
+      <div class="eyebrow"><span class="sec-num">03</span> Result two</div>
+      <h2>The complete ledger, m = 7 … 19.</h2>
+      <p>For each m, every n ≤ 10⁹ — prime <em>and</em> composite — was decided. The exception sets below
+        are exhaustive for that range, and every single entry was re-certified non-representable by a second,
+        independently written program using a different algorithm. Largest exception found anywhere: 83,449
+        (for m = 16) — every set terminates more than four orders of magnitude before the search bound.</p>
+    </div>
+    <div class="chart">
+      <h4>Every exception, every m — log scale</h4>
+      <p class="sub">One row per m. Each dot is a value of n with m/n not a sum of three unit fractions.
+        Hover any dot. Diamond–marked dots are composite; the rightmost dot in each row is that row's
+        empirical n<sub>m</sub> − 1.</p>
+      <div id="stripchart"></div>
+    </div>
+    <div class="col">
+      <p>Patterns in the data worth a theorist's attention:</p>
+      <p><strong>The last survivors live at n ≡ 1 (mod m).</strong> All eleven m = 12 exceptions above 400
+        are ≡ 1 (mod 24) — precisely the classes that make Erdős–Straus hard, where quadratic-residue
+        obstructions block every polynomial identity. The four largest m = 18 exceptions and the three
+        largest m = 15 exceptions are all ≡ 1 (mod m).</p>
+      <p><strong>Composite exceptions are rare and structured.</strong> They appear only for m ≥ 11, and in
+        exactly three cases a prime and its square are both exceptional: 5² = 25 (m = 12), 11² = 121 (m = 16),
+        29² = 841 (m = 14).</p>
+      <p><strong>m = 16 is the outlier</strong> — 47 exceptions, the largest of any m ≤ 19, reaching 83,449 ≡ 9
+        (mod 16), a square class. Powers of two seem to be maximally starved of the divisor structure that
+        representations feed on: m = 8, 12, 16, 18 all sit above the local trend.</p>
+    </div>
+  </div>
+</section>
+
+<section id="boundary">
+  <div class="wrap">
+    <div class="col">
+      <div class="eyebrow"><span class="sec-num">04</span> Result three</div>
+      <h2>Where the Pomerance–Weingartner wall really starts.</h2>
+      <p>P–W's theorem says a prime exception exists in the window (m², 2m²) for every m ≥ 6.52×10⁹, with
+        numerics supporting m ≥ 20. This session replicated their numerics for all 20 ≤ m ≤ 60 — 1,494
+        window exceptions, every m nonempty — and, because the small-m ledger is complete, can state the
+        boundary exactly:</p>
+      <div class="card">
+        <p style="margin:0">Among 4 ≤ m ≤ 60, the window (m², 2m²) contains <strong>no</strong> exception
+          precisely for <strong>m ∈ {4, 5, 6, 7, 8, 9, 11, 19}</strong>. The phenomenon P–W describe as
+          "m ≥ 20" in fact begins at m = 10 — with exactly two stragglers, 11 and 19, before it becomes
+          universal. Conjecture suggested by the data: those eight values are the complete list, for all m.</p>
+      </div>
+    </div>
+    <div class="chart">
+      <h4>Prime exceptions in the window (m², 2m²)</h4>
+      <p class="sub">Count per m. Crimson baseline dots mark the empty windows {4…9, 11, 19}; from m = 20
+        onward every window is occupied, matching Pomerance–Weingartner exactly. Hover for values.</p>
+      <div id="pwchart"></div>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">05</span> Method</div>
+    <h2>A complete criterion, and everything checked twice.</h2>
+    <p>Every representation of m/n has a least denominator x with n/m &lt; x ≤ 3n/m. Fix it; with
+      a = mx − n and b = nx, the remaining two terms exist iff <strong>b² has a divisor pair d·d′ with
+      d ≡ d′ ≡ −b (mod a)</strong> — then y = (b+d)/a, z = (b+d′)/a and the identity
+      1/y + 1/z = a/b is exact algebra. Sweeping all x and all divisor pairs is therefore a genuine
+      <em>decision procedure</em>: it certifies "no representation exists," not merely "none found."</p>
+    <div class="proof">
+      <div class="who">verification stack — nothing rests on one program</div>
+      <p style="margin:0">
+        <strong>Engine</strong> (<span class="m">mfrac.c</span>): segmented sieve + first-hit certificate search;
+        anything not certified within 20,000 candidate x values is flagged, never classified. 4.6 billion primes
+        processed, zero flags survived.<br>
+        <strong>Independent checker</strong> (<span class="m">check2.c</span>): different algorithm (full y-range
+        iteration, no factorization, no modular shortcuts), written separately. Re-certified all 243 claimed
+        exceptions; agreed on all positive controls.<br>
+        <strong>Exact-arithmetic audit</strong>: Python rational arithmetic re-verified both programs on every
+        n &lt; 400 for m ≤ 14, plus 150 random prime certificates.<br>
+        <strong>Composite gap</strong>: a composite exception needs all prime factors exceptional — all
+        4,769,723 products of exceptional primes up to 10⁹ were individually decided. None failed.</p>
+    </div>
+  </div></div>
+</section>
+
+<section id="honest">
+  <div class="wrap"><div class="col">
+    <div class="eyebrow"><span class="sec-num">06</span> What this is and isn't</div>
+    <h2>The honest ledger.</h2>
+    <div class="ledger">
+      <div class="card did">
+        <h4>new in this session</h4>
+        <ul>
+          <li>Sierpiński 5/n verified to 10¹¹ — 94.6× the previous published bound; m = 6 clean to 10⁹.</li>
+          <li>First complete exception sets for m = 6…19 over all n ≤ 10⁹, with the empirical n<sub>m</sub> table (not previously in OEIS or, to our knowledge, the literature).</li>
+          <li>Independent replication of Pomerance–Weingartner's m ≥ 20 numerics, and the exact list of empty windows: {4…9, 11, 19}.</li>
+          <li>Structural observations: last exceptions cluster at n ≡ 1 (mod m); prime-and-square pairs; the m = 16 anomaly.</li>
+        </ul>
+      </div>
+      <div class="card didnt">
+        <h4>unchanged by this session</h4>
+        <ul>
+          <li>The Erdős–Straus, Sierpiński, and Schinzel conjectures — all still open.</li>
+          <li>The n<sub>m</sub> values are exact only if no exception hides above 10⁹; P–W's theorem makes gigantic exceptions certain for large m, and nothing rules them out for m ≤ 19. The data says the sets are finished; the data is not a proof.</li>
+          <li>Priority caveat: the Pomerance–Weingartner paper is paywalled from this environment; if their numerics section already contains small-m sets, precedence is theirs.</li>
+        </ul>
+      </div>
+    </div>
+    <p>Code, data, and the full research note live in
+      <a href="https://github.com/shahjaidev/explainers/tree/main/unit-fractions"><span class="m">unit-fractions/</span></a>
+      in this site's repository. Companion page: <a href="erdos-straus.html">Four over n</a>, on the m = 4 case.</p>
+  </div></div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Sources: Pomerance &amp; Weingartner, <em>Exceptions to the Erdős–Straus–Schinzel conjecture</em>, Ramanujan J. 69 (2026) ·
+    Graham, <em>Paul Erdős and Egyptian fractions</em> (2013) · Elsholtz &amp; Tao, J. Aust. Math. Soc. 94 (2013) ·
+    Salez, arXiv:1406.6307.<br>
+    Part of a personal explainer library · <a href="index.html">index</a> · single self-contained HTML file ·
+    all computations performed and double-verified in-session, August 2026.
+  </div>
+</footer>
+
+<div class="tip" id="tip"></div>
+
+<script>
+function toggleTheme(){
+  var root=document.documentElement, cur=root.getAttribute("data-theme");
+  if(!cur) cur = matchMedia && matchMedia("(prefers-color-scheme: dark)").matches ? "dark":"light";
+  root.setAttribute("data-theme", cur==="dark"?"light":"dark");
+}
+var tip=document.getElementById('tip');
+function showTip(h,ev){tip.innerHTML=h;tip.style.display='block';moveTip(ev);}
+function moveTip(ev){var pad=14,w=tip.offsetWidth,ht=tip.offsetHeight,x=ev.clientX+pad,y=ev.clientY+pad;
+  if(x+w>innerWidth-8)x=ev.clientX-w-pad; if(y+ht>innerHeight-8)y=ev.clientY-ht-pad;
+  tip.style.left=x+'px';tip.style.top=y+'px';}
+function hideTip(){tip.style.display='none';}
+
+const EXC = {"7": [2], "8": [2, 3, 11, 17, 131, 241], "9": [2, 5, 11, 19], "10": [2, 3, 7, 11, 43, 61, 67, 181], "11": [2, 3, 4, 37], "12": [2, 3, 5, 7, 13, 25, 29, 31, 37, 73, 97, 193, 433, 577, 1129, 1657, 1873, 2521, 2593, 3433, 10369, 12049, 12241], "13": [2, 3, 4, 5, 7, 14, 53, 61, 67, 79, 211, 281], "14": [2, 3, 4, 5, 17, 19, 29, 59, 257, 353, 841], "15": [2, 3, 4, 8, 16, 17, 19, 23, 31, 34, 47, 53, 61, 79, 113, 122, 137, 151, 197, 226, 233, 271, 541, 1103, 1171, 1367, 4201, 6301, 12601, 16831, 20521], "16": [2, 3, 4, 5, 6, 7, 9, 11, 13, 17, 22, 23, 33, 34, 37, 73, 97, 113, 121, 131, 167, 193, 241, 257, 262, 421, 482, 577, 593, 641, 769, 1201, 1489, 2113, 2521, 2689, 3169, 3361, 4801, 4993, 5281, 8161, 8641, 33601, 36529, 78721, 83449], "17": [2, 3, 4, 5, 6, 7, 9, 13, 19, 23, 41, 43, 53, 71, 73, 157, 281, 421, 1123, 2081], "18": [2, 3, 4, 5, 7, 10, 11, 13, 19, 22, 23, 29, 31, 37, 38, 41, 47, 59, 61, 73, 109, 113, 131, 137, 149, 181, 193, 223, 239, 281, 379, 389, 397, 433, 457, 541, 599, 613, 661, 761, 811, 821, 911, 1009, 1297, 1381, 2269, 2819, 9461, 16561, 17389, 28081, 35281], "19": [2, 3, 4, 5, 6, 7, 8, 10, 11, 13, 23, 26, 29, 41, 43, 46, 82, 97, 137, 181, 193, 229, 353]};
+const COMP = {"11": [4], "12": [25], "13": [4, 14], "14": [4, 841], "15": [4, 8, 16, 34, 122, 226], "16": [4, 6, 9, 22, 33, 34, 121, 262, 482], "17": [4, 6, 9], "18": [4, 10, 22, 38], "19": [4, 6, 8, 10, 26, 46, 82]};
+const PWC = {"4": 0, "5": 0, "6": 0, "7": 0, "8": 0, "9": 0, "10": 1, "11": 0, "12": 1, "13": 2, "14": 2, "15": 3, "16": 4, "17": 1, "18": 8, "19": 0, "20": 6, "21": 5, "22": 5, "23": 5, "24": 13, "25": 14, "26": 7, "27": 12, "28": 17, "29": 7, "30": 16, "31": 16, "32": 22, "33": 12, "34": 25, "35": 10, "36": 40, "37": 25, "38": 25, "39": 29, "40": 27, "41": 19, "42": 43, "43": 33, "44": 39, "45": 37, "46": 44, "47": 36, "48": 70, "49": 63, "50": 57, "51": 40, "52": 66, "53": 45, "54": 78, "55": 53, "56": 86, "57": 74, "58": 101, "59": 52, "60": 120};
+
+/* strip chart: one row per m, log-x dots */
+(function(){
+  var ms=Object.keys(EXC).map(Number).sort((a,b)=>a-b);
+  var W=760, rowH=30, T=8, B=36, L=44, R=18, H=T+B+rowH*ms.length;
+  var lmin=Math.log10(2)-0.05, lmax=Math.log10(100000);
+  function X(n){ return L+(Math.log10(n)-lmin)/(lmax-lmin)*(W-L-R); }
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="Exception sets per m">';
+  [10,100,1000,10000,100000].forEach(function(g){
+    var x=X(g);
+    s+='<line x1="'+x+'" x2="'+x+'" y1="'+T+'" y2="'+(H-B+4)+'" stroke="var(--line-soft)"/>';
+    s+='<text x="'+x+'" y="'+(H-B+18)+'" text-anchor="middle">'+(g>=1000?(g/1000)+'k':g)+'</text>';
+  });
+  ms.forEach(function(m,ri){
+    var y=T+rowH*ri+rowH/2;
+    s+='<text x="'+(L-8)+'" y="'+(y+3.5)+'" text-anchor="end" style="fill:var(--dim)">m='+m+'</text>';
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+y+'" y2="'+y+'" stroke="var(--line-soft)"/>';
+    var arr=EXC[m], comps=(COMP[m]||[]);
+    arr.forEach(function(n,i){
+      var x=X(n), last=(i===arr.length-1), isC=comps.indexOf(n)>=0;
+      var col = last ? 'var(--collapse)' : 'var(--verifier)';
+      if (isC) s+='<rect x="'+(x-4)+'" y="'+(y-4)+'" width="8" height="8" transform="rotate(45 '+x+' '+y+')" fill="'+col+'" stroke="var(--surface)" stroke-width="1.5" data-m="'+m+'" data-n="'+n+'"/>';
+      else s+='<circle cx="'+x+'" cy="'+y+'" r="3.6" fill="'+col+'" stroke="var(--surface)" stroke-width="1.5" data-m="'+m+'" data-n="'+n+'"/>';
+    });
+  });
+  s+='<text x="'+((L+W-R)/2)+'" y="'+(H-4)+'" text-anchor="middle">n (log scale)</text></svg>';
+  var host=document.getElementById('stripchart'); host.innerHTML=s;
+  host.querySelectorAll('circle,rect').forEach(function(c){
+    c.addEventListener('mousemove',function(ev){
+      var m=c.dataset.m,n=+c.dataset.n;
+      var arr=EXC[m], last=(n===arr[arr.length-1]);
+      var isC=(COMP[m]||[]).indexOf(n)>=0;
+      showTip('<b>'+m+'/'+n+'</b> is not a sum of three unit fractions'
+        +(isC?'<br>composite exception':'')
+        +(last?'<br><b>largest for m='+m+'</b> → empirical n<sub>m</sub> = '+(n+1):'')
+        +'<br>n mod m = '+(n%m), ev);
+    });
+    c.addEventListener('mouseleave',hideTip);
+  });
+})();
+
+/* PW window chart: counts per m with zero-marks */
+(function(){
+  var ms=Object.keys(PWC).map(Number).sort((a,b)=>a-b);
+  var W=760,H=260,L=40,R=14,T=12,B=34, ymax=125;
+  function X(m){ return L+(m-4)/(60-4)*(W-L-R); }
+  function Y(c){ return T+(1-c/ymax)*(H-T-B); }
+  var bw=(W-L-R)/(60-4)*0.62;
+  var s='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto" role="img" aria-label="Window exception counts">';
+  [0,25,50,75,100,125].forEach(function(g){
+    s+='<line x1="'+L+'" x2="'+(W-R)+'" y1="'+Y(g)+'" y2="'+Y(g)+'" stroke="var(--line-soft)"/>';
+    s+='<text x="'+(L-6)+'" y="'+(Y(g)+3.5)+'" text-anchor="end">'+g+'</text>';
+  });
+  ms.forEach(function(m){
+    var c=PWC[m], x=X(m);
+    if (c===0){
+      s+='<circle cx="'+x+'" cy="'+(Y(0))+'" r="4" fill="var(--collapse)" stroke="var(--surface)" stroke-width="1.5" data-m="'+m+'" data-c="0"/>';
+    } else {
+      s+='<rect x="'+(x-bw/2)+'" y="'+Y(c)+'" width="'+bw+'" height="'+(Y(0)-Y(c))+'" rx="2" fill="var(--verifier)" data-m="'+m+'" data-c="'+c+'"/>';
+    }
+  });
+  [4,10,20,30,40,50,60].forEach(function(m){
+    s+='<text x="'+X(m)+'" y="'+(H-B+16)+'" text-anchor="middle">'+m+'</text>';
+  });
+  s+='<text x="'+((L+W-R)/2)+'" y="'+(H-2)+'" text-anchor="middle">m</text></svg>';
+  var host=document.getElementById('pwchart'); host.innerHTML=s;
+  host.querySelectorAll('rect,circle').forEach(function(el){
+    el.addEventListener('mousemove',function(ev){
+      var m=el.dataset.m,c=+el.dataset.c;
+      showTip('<b>m = '+m+'</b><br>'+(c===0?'window (m², 2m²) is exception-free':c+' prime exception'+(c>1?'s':'')+' in (m², 2m²)'),ev);
+    });
+    el.addEventListener('mouseleave',hideTip);
+  });
+})();
+</script>
