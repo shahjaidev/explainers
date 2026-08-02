@@ -1,0 +1,396 @@
+\documentclass[11pt]{amsart}
+\usepackage[margin=1.2in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\definecolor{linkblue}{RGB}{25,60,130}
+\usepackage[colorlinks=true,linkcolor=linkblue,citecolor=linkblue,urlcolor=linkblue]{hyperref}
+
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{conjecture}[theorem]{Conjecture}
+\theoremstyle{remark}
+\newtheorem{remark}[theorem]{Remark}
+\theoremstyle{definition}
+\newtheorem{observation}[theorem]{Observation}
+
+\newcommand{\N}{\mathbb{N}}
+
+\title[Exception sets for $m/n = 1/x+1/y+1/z$]{A verification of Sierpi\'nski's conjecture to $10^{11}$ and complete exception sets for $m/n = 1/x + 1/y + 1/z$, $4 \le m \le 19$}
+
+\author{Jaidev Shah}
+\address{}
+\email{shahjaidevn@gmail.com}
+
+\subjclass[2020]{11D68 (primary), 11Y50, 11D72 (secondary)}
+\keywords{Egyptian fractions, unit fractions, Erd\H{o}s--Straus conjecture, Sierpi\'nski conjecture, Schinzel conjecture}
+
+\begin{document}
+
+\begin{abstract}
+Call $n \ge 2$ an \emph{exception for} $m$ if $m/n$ is not a sum of three
+unit fractions. Erd\H{o}s and Straus conjectured that $m=4$ has no
+exceptions, Sierpi\'nski conjectured the same for $m=5$, and Schinzel
+conjectured that every $m \ge 4$ has only finitely many. Pomerance and
+Weingartner recently proved that exceptions must exist for every
+sufficiently large $m$, with numerical evidence that every $m \ge 20$
+has a prime exception in $(m^2, 2m^2)$. We contribute the complementary
+small-$m$ data. First, Sierpi\'nski's conjecture holds for all
+$2 \le n \le 10^{11}$, extending the classical bound $1{,}057{,}438{,}801$
+by a factor of $94.6$. Second, we determine the complete exception sets
+for every $6 \le m \le 19$ over all $n \le 10^9$, primes and composites
+alike: $243$ exceptions in total, the largest being $83{,}449$ (for
+$m=16$), giving empirical values of Schinzel's threshold $n_m$. Third,
+we replicate the Pomerance--Weingartner computation for $20 \le m \le 60$
+and determine the exact boundary of their window phenomenon: among
+$4 \le m \le 60$, the interval $(m^2, 2m^2)$ contains no exception
+precisely for $m \in \{4,5,6,7,8,9,11,19\}$. All exceptional values were
+certified non-representable by two independently written programs, and
+representability certificates were re-verified in exact rational
+arithmetic. Code and data accompany the paper.
+\end{abstract}
+
+\maketitle
+
+\section{Introduction}
+
+For an integer $m \ge 4$, consider the Diophantine equation
+\begin{equation}\label{eq:main}
+\frac{m}{n} \;=\; \frac{1}{x} + \frac{1}{y} + \frac{1}{z},
+\qquad x, y, z \in \N.
+\end{equation}
+We say $n \ge 2$ is an \emph{exception for} $m$ if \eqref{eq:main} has no
+solution. Erd\H{o}s and Straus \cite{erdos1950} conjectured in 1948 that
+$m = 4$ has no exceptions; the conjecture has been verified for
+$n \le 10^{17}$ by Salez \cite{salez2014}, with a recent preprint
+reporting $10^{18}$ \cite{mihnea2025}. Sierpi\'nski \cite{sierpinski1956}
+conjectured the same for $m = 5$, and Schinzel (see \cite{sierpinski1956})
+conjectured that for every $m \ge 4$ there is a threshold $n_m$ such that
+no $n \ge n_m$ is an exception. Vaughan \cite{vaughan1970} proved that for
+fixed $m$ the number of exceptions up to $N$ is
+$O\!\left(N \exp(-c(\log N)^{2/3})\right)$, and Elsholtz and Tao
+\cite{elsholtztao2013} obtained detailed statistics for the number of
+solutions of \eqref{eq:main} when $m = 4$ and $n$ is prime.
+
+The landscape changed recently: Pomerance and Weingartner
+\cite{pomeranceweingartner2026} proved that if $n_m$ exists then
+$n_m \ge \exp(m^{1/3+o(1)})$ --- exceptions \emph{must} occur for every
+sufficiently large $m$ --- and, in explicit form, that for
+$m \ge 6.52 \times 10^9$ some prime $p \in (m^2, 2m^2)$ is an exception
+for $m$. Their numerical computations support the much stronger assertion
+that every $m \ge 20$ has a prime exception in this window.
+
+The map of problem \eqref{eq:main} thus has three regions: a
+conjecturally exception-free zone ($m = 4, 5$, and, as our data suggests,
+$6$), a zone of nonempty but apparently finite exception sets
+($7 \le m \le 19$), and a zone of guaranteed exceptions ($m \ge 20$,
+provably for large $m$). This note charts the middle region and pushes
+the verification frontier of the first. Our contributions:
+
+\begin{enumerate}
+\item Sierpi\'nski's conjecture holds for all $2 \le n \le 10^{11}$
+  (Theorem~\ref{thm:sierpinski}). The best bounds we could locate are the
+  classical $n \le 1{,}057{,}438{,}801$ (mid-1960s; cited in Graham's
+  survey \cite{graham2013}) and, for the residual class
+  $n \equiv 1 \pmod 5$, roughly $10^{10}$ in the recent preprint
+  \cite{ghermoul2025}.
+\item The complete exception sets for $6 \le m \le 19$ over all
+  $n \le 10^9$ (Theorem~\ref{thm:sets}), yielding empirical values of
+  $n_m$ that we could not locate in the literature or in the OEIS.
+\item An independent replication of the Pomerance--Weingartner window
+  computation for $20 \le m \le 60$, together with the exact boundary of
+  the phenomenon: among $4 \le m \le 60$ the window $(m^2, 2m^2)$ is
+  exception-free precisely for $m \in \{4,5,6,7,8,9,11,19\}$
+  (Section~\ref{sec:window}).
+\end{enumerate}
+
+\begin{remark}\label{rem:priority}
+We were unable to consult the numerical section of
+\cite{pomeranceweingartner2026} beyond its abstract while preparing this
+note. Should it or its references already contain exception sets for
+$m \le 19$, priority for the overlap of course belongs there; the
+$10^9$-exhaustiveness (including composite $n$), the $n_m$ table, and the
+Sierpi\'nski bound appear in any case to be new.
+\end{remark}
+
+\section{The decision criterion}\label{sec:criterion}
+
+All computations rest on the following elementary and well-known
+reduction, which we state with proof to make the note self-contained.
+The essential point is that it is a \emph{decision procedure}: it can
+certify non-representability, not merely fail to find solutions.
+
+\begin{lemma}\label{lem:criterion}
+Let $m \ge 4$ and $n \ge 2$ with $m \nmid n$. Then \eqref{eq:main} is
+solvable if and only if there exist an integer $x$ with
+$n/m < x \le 3n/m$ and a divisor pair $d \cdot d' = b^2$, where
+$a = mx - n$ and $b = nx$, such that
+\[
+d \equiv d' \equiv -b \pmod{a}.
+\]
+In that case $y = (b+d)/a$ and $z = (b+d')/a$ solve \eqref{eq:main}
+together with $x$. If $m \mid n$, then \eqref{eq:main} is solvable, e.g.\
+$m/n = 1/(2q) + 1/(3q) + 1/(6q)$ with $q = n/m$.
+\end{lemma}
+
+\begin{proof}
+Suppose \eqref{eq:main} holds with $x \le y \le z$. Then
+$1/x < m/n \le 3/x$, so $n/m < x \le 3n/m$, and subtracting $1/x$ gives
+$1/y + 1/z = a/b$ with $a = mx - n \ge 1$, $b = nx$. From
+$ayz = b(y+z)$ we get $(ay - b)(az - b) = b^2$; put $d = ay - b$ and
+$d' = az - b$, both positive and congruent to $-b$ modulo $a$, with
+$dd' = b^2$.
+
+Conversely, given such a pair, $y = (b+d)/a$ and $z = (b+d')/a$ are
+positive integers, and
+\[
+\frac{1}{y} + \frac{1}{z}
+= \frac{a\,(2b + d + d')}{(b+d)(b+d')}
+= \frac{a\,(2b + d + d')}{b\,(2b + d + d')}
+= \frac{a}{b},
+\]
+using $(b+d)(b+d') = b^2 + b(d+d') + dd' = b(2b + d + d')$. Adding $1/x$
+recovers \eqref{eq:main}.
+\end{proof}
+
+Enumerating all $x$ in the stated range and, for each $x$, all divisors
+$d \le b$ of $b^2$ (obtained from the full factorization of $b = nx$)
+therefore decides \eqref{eq:main} for any given pair $(m, n)$.
+
+Two standard reductions structure the search over $n$. First, if
+\eqref{eq:main} is solvable for $n$ then it is solvable for every
+multiple of $n$ (scale the denominators); hence a composite exception
+must have \emph{all} of its divisors $> 1$ exceptional, and in particular
+all of its prime factors. Second, $n < m/3$ is trivially an exception
+since then $m/n > 3$; we therefore only report exceptions with
+$n \ge m/3$, in line with the convention of \cite{pomeranceweingartner2026}.
+
+\section{Computations}\label{sec:computations}
+
+\subsection{Production engine}
+A C program (\texttt{mfrac.c} in the accompanying repository) combines a
+segmented sieve of Eratosthenes with a first-hit certificate search for
+each prime $p$: candidate least denominators
+$x = \lfloor p/m \rfloor + 1, \lfloor p/m \rfloor + 2, \dots$ are tried
+in order, and for each $x$ the divisor condition of
+Lemma~\ref{lem:criterion} is tested over divisors $d = p^{j} f$
+($j \in \{0,1,2\}$, $f \mid x^2$) built from a partial factorization of
+$x$, with all congruence arithmetic exact in 64/128-bit integers. A prime
+not certified within $96$ candidate values of $x$ escalates to $20{,}000$
+candidates; anything still uncertified is flagged as a suspect and
+\emph{never} silently classified. Suspects are then settled by the full
+decision procedure of Section~\ref{sec:criterion}. Across all runs
+reported here ($4.6$ billion primes) every suspect was resolved; for
+$m = 12$, for instance, the eleven suspects raised by the scan are
+precisely the eleven exceptions $433, \dots, 12241$ of
+Theorem~\ref{thm:sets}.
+
+For every $m$ the range $n \le 10^6$ (primes \emph{and} composites) was
+settled by the complete decision procedure directly. The composite gap
+above $10^6$ was closed by the divisor reduction: all
+$4{,}769{,}723$ products of exceptional primes lying in $(10^6, 10^9]$
+across $7 \le m \le 19$ were decided individually; none is an exception.
+For $m = 5$ the composite case is immediate: every composite
+$n \le 10^{11}$ has a prime factor below $\sqrt{10^{11}} < 10^6$, and no
+$n \le 10^6$ is an exception for $m=5$.
+
+\subsection{Independent verification}
+Because a claimed exception is a negative statement, we re-verified every
+one with a second program (\texttt{check2.c}) written independently around
+a different algorithm: for each admissible $x$ it iterates $y$ over the
+full interval $(b/a,\, 2b/a]$ and tests integrality of
+$z = by/(ay - b)$, with no divisor enumeration, no factorization, and no
+modular shortcuts. All $243$ claimed exceptions were re-certified, with
+representable neighbours as positive controls. In addition, a brute-force
+checker over exact rationals (Python \texttt{fractions}) was run against
+both C programs for all $m \le 14$, $n < 400$ (perfect agreement), and
+$200$ randomly sampled prime certificates with $m \in [5,19]$,
+$p \le 10^9$ were re-verified in exact rational arithmetic ($200/200$
+valid). As a further consistency check, the number of primes processed in
+the Sierpi\'nski run, $4{,}117{,}976{,}315$, equals
+$\pi(10^{11}) - \pi(10^6)$ exactly.
+
+The total computational cost of all results in this note is under one
+CPU-hour on four cores of a commodity cloud container.
+
+\section{Results}\label{sec:results}
+
+\begin{theorem}\label{thm:sierpinski}
+For every integer $2 \le n \le 10^{11}$ there exist positive integers
+$x, y, z$ with $5/n = 1/x + 1/y + 1/z$.
+\end{theorem}
+
+\begin{theorem}\label{thm:sets}
+For $6 \le m \le 19$, the exceptions $n \le 10^9$ (with $n \ge m/3$) of
+equation \eqref{eq:main} are exactly the following; there are none for
+$m = 6$.
+\begin{center}
+\small
+\begin{tabular}{r p{0.78\textwidth}}
+\hline
+$m$ & exceptions $n \le 10^9$ \\
+\hline
+$6$ & none \\
+$7$ & 2 \\
+$8$ & 2, 3, 11, 17, 131, 241 \\
+$9$ & 2, 5, 11, 19 \\
+$10$ & 2, 3, 7, 11, 43, 61, 67, 181 \\
+$11$ & 2, 3, 4, 37 \\
+$12$ & 2, 3, 5, 7, 13, 25, 29, 31, 37, 73, 97, 193, 433, 577, 1129, 1657, 1873, 2521, 2593, 3433, 10369, 12049, 12241 \\
+$13$ & 2, 3, 4, 5, 7, 14, 53, 61, 67, 79, 211, 281 \\
+$14$ & 2, 3, 4, 5, 17, 19, 29, 59, 257, 353, 841 \\
+$15$ & 2, 3, 4, 8, 16, 17, 19, 23, 31, 34, 47, 53, 61, 79, 113, 122, 137, 151, 197, 226, 233, 271, 541, 1103, 1171, 1367, 4201, 6301, 12601, 16831, 20521 \\
+$16$ & 2, 3, 4, 5, 6, 7, 9, 11, 13, 17, 22, 23, 33, 34, 37, 73, 97, 113, 121, 131, 167, 193, 241, 257, 262, 421, 482, 577, 593, 641, 769, 1201, 1489, 2113, 2521, 2689, 3169, 3361, 4801, 4993, 5281, 8161, 8641, 33601, 36529, 78721, 83449 \\
+$17$ & 2, 3, 4, 5, 6, 7, 9, 13, 19, 23, 41, 43, 53, 71, 73, 157, 281, 421, 1123, 2081 \\
+$18$ & 2, 3, 4, 5, 7, 10, 11, 13, 19, 22, 23, 29, 31, 37, 38, 41, 47, 59, 61, 73, 109, 113, 131, 137, 149, 181, 193, 223, 239, 281, 379, 389, 397, 433, 457, 541, 599, 613, 661, 761, 811, 821, 911, 1009, 1297, 1381, 2269, 2819, 9461, 16561, 17389, 28081, 35281 \\
+$19$ & 2, 3, 4, 5, 6, 7, 8, 10, 11, 13, 23, 26, 29, 41, 43, 46, 82, 97, 137, 181, 193, 229, 353 \\
+\hline
+\end{tabular}
+\end{center}
+\end{theorem}
+
+Under Schinzel's conjecture that each exception set is finite, and on the
+evidence that each set above terminates more than four orders of
+magnitude below the search bound, the resulting empirical thresholds are
+\[
+\begin{array}{c|cccccccccccccc}
+m & 6 & 7 & 8 & 9 & 10 & 11 & 12 & 13 & 14 & 15 & 16 & 17 & 18 & 19\\
+\hline
+n_m & 2 & 3 & 242 & 20 & 182 & 38 & 12242 & 282 & 842 & 20522 & 83450 & 2082 & 35282 & 354
+\end{array}
+\]
+These values are exact if and only if no exception exceeds $10^9$;
+Pomerance--Weingartner's lower bound $n_m \ge \exp(m^{1/3+o(1)})$
+concerns large $m$ and does not by itself preclude further exceptions
+for $m \le 19$, so the values above should be read as conjectural.
+
+\begin{observation}\label{obs:structure}
+(i) Composite exceptions occur only for $m \ge 11$, and in exactly three
+cases a prime and its square are both exceptional for the same $m$:
+$(5, 25)$ for $m = 12$, $(29, 841)$ for $m = 14$, and $(11, 121)$ for
+$m = 16$.
+
+(ii) The largest exceptions concentrate in the residue class
+$n \equiv 1 \pmod m$. All eleven exceptions above $400$ for $m = 12$ are
+$\equiv 1 \pmod{24}$ --- the classes in which the Erd\H{o}s--Straus
+equation resists all polynomial identities --- and the four largest
+exceptions for $m = 18$, as well as the three largest for $m = 15$, are
+all $\equiv 1 \pmod m$. The largest exception overall, $83449$ for
+$m = 16$, satisfies $83449 \equiv 9 \pmod{16}$, again a square class.
+This is consistent with the quadratic-residue obstruction of Schinzel in
+the $m = 4$ theory (see \cite{mordell1969, elsholtztao2013}).
+\end{observation}
+
+\section{The window boundary}\label{sec:window}
+
+Running the complete decision procedure over all primes
+$p \in (m^2, 2m^2)$ for $20 \le m \le 60$ reproduces the numerical claim
+of \cite{pomeranceweingartner2026}: every such $m$ has at least one prime
+exception in its window, $1494$ in total. (The counts grow roughly
+linearly, from $6$ at $m = 20$ to $120$ at $m = 60$.) Since
+Theorem~\ref{thm:sets} determines the small-$m$ exception sets
+completely, the boundary of the phenomenon can be stated exactly.
+
+\begin{theorem}\label{thm:window}
+Among $4 \le m \le 60$, the interval $(m^2, 2m^2)$ contains no exception
+for $m$ precisely when
+\[
+m \in \{4,\ 5,\ 6,\ 7,\ 8,\ 9,\ 11,\ 19\}.
+\]
+\end{theorem}
+
+In particular the window phenomenon described in
+\cite{pomeranceweingartner2026} for $m \ge 20$ in fact begins at
+$m = 10$, with exactly two later gaps at $m = 11$ and $m = 19$. The data
+suggests:
+
+\begin{conjecture}\label{conj:window}
+For every $m \ge 4$ outside $\{4,5,6,7,8,9,11,19\}$, the interval
+$(m^2, 2m^2)$ contains a prime exception for $m$.
+\end{conjecture}
+
+For $m \ge 20$ this is supported by \cite{pomeranceweingartner2026} (and
+proved there for $m \ge 6.52\times 10^9$); the content added by our data
+is that the eight listed values are the \emph{only} failures.
+
+\section{Data and code availability}
+
+The two C programs (\texttt{mfrac.c}, \texttt{check2.c}), the complete
+exception lists, the window-exception lists for $20 \le m \le 60$, and a
+run-by-run verification summary are available at
+\begin{center}
+\url{https://github.com/shahjaidev/explainers/tree/main/unit-fractions}
+\end{center}
+Every claimed representation can be re-verified from the published
+witnesses in exact arithmetic, and every claimed exception is
+reproducible with either program in seconds.
+
+\section*{Acknowledgments}
+
+The computations, code, and a draft of this note were produced with the
+assistance of an AI system (Claude, Anthropic), working under the
+author's direction; the author reviewed and takes responsibility for all
+claims. We thank the authors of \cite{pomeranceweingartner2026}, whose
+theorem motivated this computation.
+
+\begin{thebibliography}{10}
+
+\bibitem{elsholtztao2013}
+C.~Elsholtz and T.~Tao,
+\emph{Counting the number of solutions to the Erd\H{o}s--Straus equation
+on unit fractions},
+J. Aust. Math. Soc. \textbf{94} (2013), 50--105.
+
+\bibitem{erdos1950}
+P.~Erd\H{o}s,
+\emph{Az $1/x_1 + 1/x_2 + \dots + 1/x_n = a/b$ egyenlet eg\'esz sz\'am\'u
+megold\'asair\'ol},
+Mat. Lapok \textbf{1} (1950), 192--210.
+
+\bibitem{ghermoul2025}
+B.~Ghermoul,
+\emph{Almost a complete proof of the generalized Erd\H{o}s--Straus
+conjecture: $5/a = 1/b + 1/c + 1/d$},
+arXiv:2508.07367 (2025).
+
+\bibitem{graham2013}
+R.~L. Graham,
+\emph{Paul Erd\H{o}s and Egyptian fractions},
+in: Erd\H{o}s Centennial, Bolyai Soc. Math. Stud. \textbf{25},
+Springer, 2013, 289--309.
+
+\bibitem{mihnea2025}
+S.~Mihnea and D.~C. Bogdan,
+\emph{Further verification and empirical evidence for the
+Erd\H{o}s--Straus conjecture},
+arXiv:2509.00128 (2025).
+
+\bibitem{mordell1969}
+L.~J. Mordell,
+\emph{Diophantine Equations},
+Academic Press, London, 1969.
+
+\bibitem{pomeranceweingartner2026}
+C.~Pomerance and A.~Weingartner,
+\emph{Exceptions to the Erd\H{o}s--Straus--Schinzel conjecture},
+Ramanujan J. \textbf{69} (2026); arXiv:2511.16817.
+
+\bibitem{salez2014}
+S.~E. Salez,
+\emph{The Erd\H{o}s--Straus conjecture: new modular equations and
+checking up to $N = 10^{17}$},
+arXiv:1406.6307 (2014).
+
+\bibitem{sierpinski1956}
+W.~Sierpi\'nski,
+\emph{Sur les d\'ecompositions de nombres rationnels en fractions
+primaires},
+Mathesis \textbf{65} (1956), 16--32.
+
+\bibitem{vaughan1970}
+R.~C. Vaughan,
+\emph{On a problem of Erd\H{o}s, Straus and Schinzel},
+Mathematika \textbf{17} (1970), 193--198.
+
+\end{thebibliography}
+
+\end{document}
