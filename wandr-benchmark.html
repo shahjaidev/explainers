@@ -1,0 +1,830 @@
+<meta charset="utf-8">
+<title>WANDR — Wide and Deep Research, Graded</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;
+    --wide:#0C8478;--wide-soft:rgba(12,132,120,0.12);
+    --deep:#B9740C;--deep-soft:rgba(185,116,12,0.12);
+    --fail:#C1352F;--fail-soft:rgba(193,53,47,0.11);
+    --good:#1C8F63;--good-soft:rgba(28,143,99,0.13);
+    --blue:#2F62C4;--blue-soft:rgba(47,98,196,0.12);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+    --measure:66ch;--maxw:1180px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+      --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+      --wide:#35CDB9;--wide-soft:rgba(53,205,185,0.15);
+      --deep:#E9A93E;--deep-soft:rgba(233,169,62,0.15);
+      --fail:#E76A63;--fail-soft:rgba(231,106,99,0.15);
+      --good:#4FC98D;--good-soft:rgba(79,201,141,0.15);
+      --blue:#7EA2F0;--blue-soft:rgba(126,162,240,0.15);
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+      --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="light"]{
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;--wide:#0C8478;--wide-soft:rgba(12,132,120,0.12);
+    --deep:#B9740C;--deep-soft:rgba(185,116,12,0.12);--fail:#C1352F;--fail-soft:rgba(193,53,47,0.11);
+    --good:#1C8F63;--good-soft:rgba(28,143,99,0.13);--blue:#2F62C4;--blue-soft:rgba(47,98,196,0.12);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--wide:#35CDB9;--wide-soft:rgba(53,205,185,0.15);
+    --deep:#E9A93E;--deep-soft:rgba(233,169,62,0.15);--fail:#E76A63;--fail-soft:rgba(231,106,99,0.15);
+    --good:#4FC98D;--good-soft:rgba(79,201,141,0.15);--blue:#7EA2F0;--blue-soft:rgba(126,162,240,0.15);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .col{max-width:var(--measure)}
+  a{color:var(--wide)}
+  h1,h2,h3{font-family:var(--serif);letter-spacing:-0.015em;text-wrap:balance}
+  h2{font-size:clamp(1.7rem,3.4vw,2.3rem);line-height:1.12;margin:.1em 0 .5em}
+  h3{font-size:1.18rem;margin:0 0 .4em}
+  p{margin:0 0 1.05em}
+  code,.mono{font-family:var(--mono);font-size:.86em}
+  code{background:var(--surface-2);padding:.12em .38em;border-radius:5px;border:1px solid var(--line-soft)}
+  section{padding:clamp(52px,7vw,86px) 0;border-top:1px solid var(--line-soft)}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--wide);margin-bottom:1.1em;display:flex;align-items:center;gap:.7em}
+  .sec-num{background:var(--wide-soft);padding:3px 7px;border-radius:5px}
+  .lede{font-size:1.12rem;color:var(--dim)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(230px,1fr))}
+  .g4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .n{font-family:var(--serif);font-size:2.1rem;line-height:1;letter-spacing:-0.02em}
+  .stat .l{font-family:var(--mono);font-size:.68rem;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:.7em}
+  .stat .s{font-size:.87rem;color:var(--dim);margin-top:.4em}
+  .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.07em;text-transform:uppercase;padding:3px 7px;border-radius:5px;white-space:nowrap;display:inline-block}
+  .t-wide{color:var(--wide);background:var(--wide-soft)}
+  .t-deep{color:var(--deep);background:var(--deep-soft)}
+  .t-fail{color:var(--fail);background:var(--fail-soft)}
+  .t-good{color:var(--good);background:var(--good-soft)}
+  .t-blue{color:var(--blue);background:var(--blue-soft)}
+  .t-neutral{color:var(--faint);background:var(--surface-2)}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{padding:8px 10px;text-align:right;border-bottom:1px solid var(--line-soft)}
+  th:first-child,td:first-child{text-align:left}
+  th{font-family:var(--mono);font-size:.66rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:400;vertical-align:bottom}
+  td.num{font-family:var(--mono);font-size:.84rem}
+  tr.best td{background:var(--wide-soft)}
+  .scroller{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .bar{height:7px;border-radius:4px;background:var(--surface-2);overflow:hidden;min-width:52px}
+  .bar>i{display:block;height:100%;background:var(--wide);border-radius:4px}
+  button,select,input{font:inherit;color:inherit}
+  .btn{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 12px;cursor:pointer;font-size:.86rem;transition:.15s}
+  .btn:hover{border-color:var(--wide)}
+  .btn.on{background:var(--wide);border-color:var(--wide);color:#fff}
+  :root[data-theme="dark"] .btn.on,@media (prefers-color-scheme:dark){.btn.on{color:#0B0E15}}
+  .chip{font-family:var(--mono);font-size:.7rem;padding:4px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface);cursor:pointer;transition:.15s}
+  .chip.on{background:var(--wide);border-color:var(--wide);color:#fff}
+  .note{border-left:3px solid var(--deep);background:var(--deep-soft);padding:14px 18px;border-radius:0 10px 10px 0;font-size:.94rem}
+  .warn{border-left:3px solid var(--fail);background:var(--fail-soft);padding:14px 18px;border-radius:0 10px 10px 0;font-size:.94rem}
+  .kv{font-family:var(--mono);font-size:.8rem;color:var(--dim)}
+  .hero{padding:clamp(60px,11vw,110px) 0 clamp(30px,5vw,50px);border:0}
+  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--wide);margin-bottom:1.5em;display:flex;align-items:center;gap:.7em}
+  .kicker::before{content:"";width:26px;height:1px;background:var(--wide);opacity:.6}
+  h1{font-size:clamp(2.5rem,6.6vw,4rem);line-height:1.02;margin:0 0 .3em}
+  .sub{font-size:1.2rem;color:var(--dim);max-width:60ch}
+  nav.toc{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--ground) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
+  nav.toc .inner{display:flex;gap:4px;overflow-x:auto;padding:9px 24px;max-width:var(--maxw);margin:0 auto;align-items:center}
+  nav.toc a{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);text-decoration:none;padding:5px 9px;border-radius:6px;white-space:nowrap}
+  nav.toc a:hover{color:var(--text);background:var(--surface-2)}
+  #themeBtn{margin-left:auto;flex:none}
+  footer{border-top:1px solid var(--line-soft);padding:34px 0 70px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.8}
+  footer a{color:var(--dim)}
+  .tree{font-family:var(--mono);font-size:.83rem;line-height:1.9}
+  .tree .lvl{display:inline-block;padding:2px 9px;border-radius:7px;border:1px solid var(--line)}
+  .tree .k{color:var(--wide)}
+  .tree .r{color:var(--deep)}
+  .flowrow{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch}
+  .flowrow .step{flex:1 1 190px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow);position:relative}
+  .flowrow .step .n{font-family:var(--mono);font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .flowrow .step h4{font-family:var(--serif);font-size:1.05rem;margin:.35em 0 .3em}
+  .flowrow .step p{font-size:.85rem;color:var(--dim);margin:0}
+  .pat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;box-shadow:var(--shadow)}
+  .pat h4{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--wide);margin:0 0 .5em}
+  .pat p{font-size:.83rem;color:var(--dim);margin:.6em 0 0}
+  .pat svg{display:block;width:100%;height:78px}
+  .heat td{font-family:var(--mono);font-size:.78rem;text-align:center;color:#fff;border:1px solid var(--ground);border-radius:0}
+  .heat td:first-child{text-align:left;color:var(--text);font-family:var(--sans);font-size:.85rem;background:transparent!important}
+  .sw{display:flex;align-items:center;gap:8px}
+  .toggle{width:40px;height:22px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);position:relative;cursor:pointer;flex:none;transition:.16s}
+  .toggle::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--faint);transition:.16s}
+  .toggle.on{background:var(--good-soft);border-color:var(--good)}
+  .toggle.on::after{left:20px;background:var(--good)}
+  .verdictBox{font-family:var(--mono);font-size:1.05rem;padding:12px 16px;border-radius:10px;border:1px solid var(--line);text-align:center}
+  input[type=range]{width:100%;accent-color:var(--wide)}
+  .memberChip{display:inline-flex;align-items:center;gap:5px;font-family:var(--mono);font-size:.74rem;padding:4px 8px;border-radius:7px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;user-select:none}
+  .leafdot{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid var(--line)}
+  .leafdot.on{background:var(--good);border-color:var(--good)}
+  .leafdot.off{background:var(--fail-soft);border-color:var(--fail)}
+  .ranked{display:flex;gap:3px;flex-wrap:wrap;margin-top:8px}
+  .ranked i{width:20px;height:26px;border-radius:4px;display:block;font-style:normal;font-family:var(--mono);font-size:.6rem;display:flex;align-items:center;justify-content:center;color:var(--dim)}
+  .taskrow{display:grid;grid-template-columns:minmax(180px,1.4fr) 74px 90px minmax(200px,2fr) 90px;gap:10px;align-items:center;padding:9px 10px;border-bottom:1px solid var(--line-soft);font-size:.84rem}
+  .taskrow:hover{background:var(--surface-2)}
+  .taskrow .slug{font-family:var(--mono);font-size:.76rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .taskrow .sig{font-family:var(--mono);font-size:.71rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  @media(max-width:780px){.taskrow{grid-template-columns:1fr 70px;grid-auto-rows:auto}.taskrow .sig,.taskrow .lvcell{grid-column:1/-1}}
+  .histo{display:flex;align-items:flex-end;gap:4px;height:90px}
+  .histo .b{flex:1;background:var(--wide);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+  .histo .b span{position:absolute;top:-17px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:.6rem;color:var(--dim)}
+  .axis{display:flex;gap:4px;margin-top:5px}
+  .axis div{flex:1;text-align:center;font-family:var(--mono);font-size:.6rem;color:var(--faint)}
+  details{border:1px solid var(--line);border-radius:10px;background:var(--surface);padding:0 16px;margin-bottom:10px}
+  details>summary{cursor:pointer;padding:12px 0;font-weight:600;font-size:.95rem;list-style:none}
+  details>summary::-webkit-details-marker{display:none}
+  details>summary::before{content:"▸ ";color:var(--wide)}
+  details[open]>summary::before{content:"▾ "}
+  details .body{padding-bottom:14px;font-size:.92rem;color:var(--dim)}
+  ul.tight{margin:.2em 0 1em;padding-left:1.2em}
+  ul.tight li{margin-bottom:.35em}
+</style>
+
+<nav class="toc"><div class="inner">
+  <a href="#what">01 Shape</a><a href="#patterns">02 Topologies</a><a href="#corpus">03 The 500</a>
+  <a href="#grading">04 Verdict</a><a href="#rollup">05 Rollup</a><a href="#results">06 Results</a>
+  <a href="#failure">07 Failure</a><a href="#run">08 My run</a><a href="#read">09 Caveats</a>
+  <button class="btn" id="themeBtn" title="Toggle theme">◐</button>
+</div></nav>
+
+<section class="hero"><div class="wrap">
+  <div class="col">
+    <div class="kicker">Perplexity · WANDR · July 2026</div>
+    <h1>Search wide. Search deep. Prove every row.</h1>
+    <p class="sub">WANDR asks an agent to build a large collection — 245 evidence-backed records for a median task — where every single row cites a live page and quotes it verbatim. Nothing is checked against a gold answer key. The grader re-fetches your citations and reads them.</p>
+  </div>
+  <div class="grid g4" style="margin-top:34px">
+    <div class="stat"><div class="n">500</div><div class="l">tasks</div><div class="s">plus a 6-record smoke task, all Apache-2.0</div></div>
+    <div class="stat"><div class="n">170,495</div><div class="l">required records</div><div class="s">30 to 2,750 per task</div></div>
+    <div class="stat"><div class="n" style="color:var(--wide)">0.363</div><div class="l">best soft F1</div><div class="s">Perplexity Search&nbsp;as&nbsp;Code</div></div>
+    <div class="stat"><div class="n" style="color:var(--fail)">0.133</div><div class="l">best hard F1</div><div class="s">≈ 1 in 7 members fully correct</div></div>
+  </div>
+  <div style="margin-top:26px" class="col">
+    <p class="kv">Paper: <em>WANDR: A Benchmark for Wide and Deep Research</em>, Polshkov, Pitera, Yang et&nbsp;al., Perplexity, 16 July 2026. Code &amp; tasks: <a href="https://github.com/perplexityai/wandr">github.com/perplexityai/wandr</a>. Every corpus statistic on this page was recomputed directly from the released task packages — see §03.</p>
+  </div>
+</div></section>
+
+<section id="what"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">01</span> The task shape</div>
+    <h2>A task is a tree of quotas that bottoms out in URLs.</h2>
+    <p>Most research benchmarks pick one of two shapes: find <em>one</em> hard answer (BrowseComp, GAIA), or write <em>one</em> long report (DRACO). WANDR picks a third: return a structured collection, where discovery and per-item depth multiply.</p>
+    <p>The representation is a <strong>qualification key hierarchy</strong>. Each level names a kind of item; each edge means <em>for each parent, find this many children</em>; every branch terminates in a <code>url</code>. The counts are <em>per parent</em>, not global — that single detail is what makes the tasks expensive.</p>
+  </div>
+
+  <div class="card" style="margin-top:26px">
+    <div class="kv" style="margin-bottom:12px">RUNNING EXAMPLE — <span class="mono">ceo_cfo_appointments</span></div>
+    <div class="tree">
+      <span class="lvl"><span class="k">company</span>(<span class="r">70</span>)</span> →
+      <span class="lvl"><span class="k">company_appointee</span>{company,&nbsp;appointee}(<span class="r">1</span>)</span> →
+      <span class="lvl"><span class="k">url</span>(<span class="r">1</span>)</span>
+      <div style="margin-top:8px;padding-left:14px;border-left:2px solid var(--deep)">
+        <span class="tag t-deep">subtask</span>
+        <span class="lvl"><span class="k">company</span>(<span class="r">70</span>)</span> →
+        <span class="lvl"><span class="k">url</span>(<span class="r">1</span>)</span>
+        <span style="color:var(--faint)">— listing-authority evidence, same companies</span>
+      </div>
+    </div>
+    <p style="margin:16px 0 0;font-size:.92rem;color:var(--dim)">“For at least 70 US-based companies, find a CEO or CFO appointment first announced in March–April 2026, cite an authoritative announcement page — and separately prove each company's US exchange listing.” <strong>140 records.</strong> The composite key <span class="mono">{company, appointee}</span> exists so the same person appointed at two companies doesn't collapse into one entity.</p>
+  </div>
+
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card">
+      <h3>One record = one root-to-leaf path</h3>
+      <pre class="mono" style="font-size:.76rem;overflow-x:auto;background:var(--surface-2);padding:12px;border-radius:9px;border:1px solid var(--line-soft)">{"item":    {"company":"...","appointee":"..."},
+ "url":     "https://...",
+ "excerpts":["verbatim quote", "..."],
+ "answer":  { ...free-form claim fields... }}</pre>
+      <p style="font-size:.88rem;color:var(--dim);margin:.8em 0 0">The record is the atomic unit of grading. <code>item</code> carries the identifying keys, <code>url</code> the page, <code>excerpts</code> the proof, <code>answer</code> the claim. Everything the task asks must be visible <em>inside the excerpts</em> — not merely nearby on the page.</p>
+    </div>
+    <div class="card">
+      <h3>Wide × deep, quantified</h3>
+      <p style="font-size:.92rem;color:var(--dim)">Across the released set the medians are <strong>100 members</strong>, <strong>3.00 records per member</strong>, <strong>245 records per task</strong>. Breadth and depth are separately dialled: 18.4% of tasks need under 50 members, 16.6% need 200+; 21.6% need a single record per member, 3.4% need ten or more.</p>
+      <p style="font-size:.92rem;color:var(--dim);margin-bottom:0">A flat list and a fixed-schema table are both special cases of the hierarchy — 13% of tasks are flat, the rest add one or more intermediate key levels.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="patterns"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">02</span> Structural variations</div>
+    <h2>Six ways to bend the tree.</h2>
+    <p>Changing what a level represents, how many children it demands, or where a branch attaches covers a surprising range of real workflows without inventing a new output format each time.</p>
+  </div>
+  <div class="grid g3" style="margin-top:24px">
+    <div class="pat"><h4>Flat list</h4>
+      <svg viewBox="0 0 120 60"><g stroke="currentColor" stroke-width="1" fill="none" opacity=".45"><line x1="30" y1="18" x2="30" y2="40"/><line x1="60" y1="18" x2="60" y2="40"/><line x1="90" y1="18" x2="90" y2="40"/></g>
+      <g fill="var(--wide)"><circle cx="30" cy="14" r="6"/><circle cx="60" cy="14" r="6"/><circle cx="90" cy="14" r="6"/></g>
+      <g fill="var(--deep)"><rect x="25" y="40" width="10" height="10" rx="2"/><rect x="55" y="40" width="10" height="10" rx="2"/><rect x="85" y="40" width="10" height="10" rx="2"/></g></svg>
+      <p>One entity level over URL leaves. <span class="mono">company(n)→url(1)</span>.</p></div>
+    <div class="pat"><h4>Nesting</h4>
+      <svg viewBox="0 0 120 60"><g stroke="currentColor" stroke-width="1" fill="none" opacity=".45"><line x1="60" y1="14" x2="35" y2="32"/><line x1="60" y1="14" x2="85" y2="32"/><line x1="35" y1="38" x2="35" y2="44"/><line x1="85" y1="38" x2="85" y2="44"/></g>
+      <circle cx="60" cy="12" r="6" fill="var(--wide)"/><circle cx="35" cy="34" r="5" fill="var(--wide)" opacity=".7"/><circle cx="85" cy="34" r="5" fill="var(--wide)" opacity=".7"/>
+      <rect x="30" y="44" width="10" height="10" rx="2" fill="var(--deep)"/><rect x="80" y="44" width="10" height="10" rx="2" fill="var(--deep)"/></svg>
+      <p>Containment: countries → cities → evidence.</p></div>
+    <div class="pat"><h4>Fan-out</h4>
+      <svg viewBox="0 0 120 60"><g stroke="currentColor" stroke-width="1" stroke-dasharray="3 2" fill="none" opacity=".45"><line x1="60" y1="14" x2="35" y2="32"/><line x1="60" y1="14" x2="85" y2="32"/></g><g stroke="currentColor" stroke-width="1" opacity=".45"><line x1="35" y1="38" x2="35" y2="44"/><line x1="85" y1="38" x2="85" y2="44"/></g>
+      <circle cx="60" cy="12" r="6" fill="var(--wide)"/><circle cx="35" cy="34" r="5" fill="var(--blue)"/><circle cx="85" cy="34" r="5" fill="var(--blue)"/>
+      <rect x="30" y="44" width="10" height="10" rx="2" fill="var(--deep)"/><rect x="80" y="44" width="10" height="10" rx="2" fill="var(--deep)"/></svg>
+      <p>Related-but-not-contained children: a quote fans out to attributed authors.</p></div>
+    <div class="pat"><h4>Dispatch</h4>
+      <svg viewBox="0 0 120 60"><g stroke="currentColor" stroke-width="1" fill="none" opacity=".45"><line x1="60" y1="14" x2="35" y2="32"/><line x1="60" y1="14" x2="85" y2="32"/><line x1="35" y1="38" x2="35" y2="44"/><line x1="85" y1="38" x2="85" y2="44"/></g>
+      <circle cx="60" cy="12" r="6" fill="var(--wide)"/>
+      <circle cx="35" cy="34" r="5" fill="none" stroke="var(--deep)" stroke-dasharray="2 2"/><circle cx="85" cy="34" r="5" fill="none" stroke="var(--deep)" stroke-dasharray="2 2"/>
+      <rect x="30" y="44" width="10" height="10" rx="2" fill="var(--deep)"/><rect x="80" y="44" width="10" height="10" rx="2" fill="var(--deep)"/></svg>
+      <p>A fixed label set instead of discovered entities — forces facet coverage.</p></div>
+    <div class="pat"><h4>Corroboration</h4>
+      <svg viewBox="0 0 120 60"><g stroke="currentColor" stroke-width="1" fill="none" opacity=".45"><line x1="60" y1="20" x2="40" y2="40"/><line x1="60" y1="20" x2="80" y2="40"/></g>
+      <circle cx="60" cy="16" r="6" fill="var(--wide)"/>
+      <rect x="35" y="40" width="10" height="10" rx="2" fill="var(--deep)"/><rect x="75" y="40" width="10" height="10" rx="2" fill="var(--deep)"/></svg>
+      <p>Two independent pages must <em>each</em> satisfy the whole claim.</p></div>
+    <div class="pat"><h4>Matrix</h4>
+      <svg viewBox="0 0 120 60"><g stroke="currentColor" stroke-width="1" fill="none" opacity=".45"><line x1="30" y1="16" x2="18" y2="32"/><line x1="30" y1="16" x2="42" y2="32"/><line x1="85" y1="16" x2="73" y2="32"/><line x1="85" y1="16" x2="97" y2="32"/></g>
+      <circle cx="30" cy="13" r="6" fill="var(--wide)"/><circle cx="85" cy="13" r="6" fill="var(--wide)"/>
+      <g fill="none" stroke="var(--deep)" stroke-dasharray="2 2"><circle cx="18" cy="35" r="5"/><circle cx="42" cy="35" r="5"/><circle cx="73" cy="35" r="5"/><circle cx="97" cy="35" r="5"/></g>
+      <g fill="var(--deep)"><rect x="13" y="45" width="9" height="9" rx="2"/><rect x="37" y="45" width="9" height="9" rx="2"/><rect x="68" y="45" width="9" height="9" rx="2"/><rect x="92" y="45" width="9" height="9" rx="2"/></g></svg>
+      <p>The same child set repeated under every parent — every model × every benchmark.</p></div>
+  </div>
+  <div class="note col" style="margin-top:22px;max-width:none">
+    <strong>Anchors and partitions do quiet work.</strong> An anchor is a count-one intermediate key that binds downstream children to one selected value: in <span class="mono">company(n)→product(1)→distributor(2)</span> both distributors must refer to <em>the same</em> product. Flatten it and you lose the guarantee. A partition — <span class="mono">country(3)→company(m)</span> — forces geographic spread a flat list would never produce. <strong>Subtasks</strong> reuse a parent key and attach a whole second hierarchy: another source family, another angle, or a chain into a further entity.
+  </div>
+</div></section>
+
+<section id="corpus"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">03</span> The released set</div>
+    <h2>All 500 tasks, from the actual packages.</h2>
+    <p>The numbers below are not copied from the paper. Each of the 500 released task packages was loaded with its own vendored evaluator, its key hierarchy read off the config, and its required volume computed as the product of per-level quotas plus each subtask's own product. The total comes to <strong>170,495</strong> — matching the paper exactly.</p>
+  </div>
+
+  <div class="grid g4" style="margin-top:24px">
+    <div class="stat"><div class="n" id="cNum">500</div><div class="l">tasks shown</div></div>
+    <div class="stat"><div class="n" id="cVol">170,495</div><div class="l">required records</div></div>
+    <div class="stat"><div class="n" id="cMed">245</div><div class="l">median volume</div></div>
+    <div class="stat"><div class="n" id="cLv">1.4</div><div class="l">mean hierarchy levels</div></div>
+  </div>
+
+  <div class="card" style="margin-top:20px">
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1 1 220px">
+        <div class="kv" style="margin-bottom:6px">SEARCH</div>
+        <input id="q" placeholder="task name or key…" style="width:100%;padding:8px 11px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2)">
+      </div>
+      <div>
+        <div class="kv" style="margin-bottom:6px">SORT</div>
+        <select id="sortSel" class="btn"><option value="v">volume ↓</option><option value="d">difficulty ↓</option><option value="lv">levels ↓</option><option value="s">name A–Z</option></select>
+      </div>
+    </div>
+    <div style="margin-top:14px"><div class="kv" style="margin-bottom:6px">VERTICAL</div><div id="vertChips" style="display:flex;gap:6px;flex-wrap:wrap"></div></div>
+    <div style="margin-top:12px;display:flex;gap:22px;flex-wrap:wrap">
+      <div><div class="kv" style="margin-bottom:6px">DIFFICULTY</div><div id="diffChips" style="display:flex;gap:6px"></div></div>
+      <div><div class="kv" style="margin-bottom:6px">TOPOLOGY</div><div id="topoChips" style="display:flex;gap:6px"></div></div>
+      <div><div class="kv" style="margin-bottom:6px">LEVELS</div><div id="lvChips" style="display:flex;gap:6px"></div></div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:18px">
+    <div class="card"><div class="kv" style="margin-bottom:16px">REQUIRED RECORDS PER TASK</div>
+      <div class="histo" id="histVol"></div><div class="axis" id="axVol"></div></div>
+    <div class="card"><div class="kv" style="margin-bottom:16px">HIERARCHY LEVELS (non-member, non-url keys)</div>
+      <div class="histo" id="histLv"></div><div class="axis" id="axLv"></div></div>
+  </div>
+
+  <div class="card" style="margin-top:18px;padding:0;overflow:hidden">
+    <div class="taskrow" style="border-bottom:1px solid var(--line);background:var(--surface-2)">
+      <div class="kv">TASK</div><div class="kv" style="text-align:right">RECORDS</div><div class="kv" style="text-align:right">DIFFICULTY</div><div class="kv">KEY HIERARCHY</div><div class="kv lvcell" style="text-align:right">LEVELS</div>
+    </div>
+    <div id="taskList" style="max-height:520px;overflow-y:auto"></div>
+  </div>
+  <p class="kv" style="margin-top:10px">Difficulty is the package's own <span class="mono">metadata.difficulty</span> label, alongside separate discovery / enrichment / extraction / url-nonreuse / domain-dispersion axes each task ships. Hover a row to see all five.</p>
+</div></section>
+
+<section id="grading"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">04</span> Grading a record</div>
+    <h2>No answer key. The grader re-reads your sources.</h2>
+    <p>This is the design choice that makes the rest possible. There is no gold collection to match against — so tasks can be about current, changing facts, and task production can scale without exhaustive expert annotation. In exchange, grading inherits fetch and judge uncertainty, and a page that drifts between solving and grading can fail an otherwise correct record.</p>
+    <p>Every leaf verdict is a <strong>product of binary checks</strong>. Not a rubric score — a conjunction. One zero anywhere and the record is worth nothing.</p>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <div class="grid g2">
+      <div>
+        <div class="kv" style="margin-bottom:10px">UNIVERSAL BLOCK — same for every task</div>
+        <div id="uChecks"></div>
+        <div class="kv" style="margin:18px 0 10px">TASK-SPECIFIC BLOCK</div>
+        <div id="tChecks"></div>
+        <p style="font-size:.84rem;color:var(--faint);margin-top:14px">The judge also emits a confidence. Leaves below confidence 2 are treated as <em>missing</em>: they never enter precision, but their absence can still starve recall.</p>
+      </div>
+      <div>
+        <div class="verdictBox" id="vFull" style="margin-bottom:12px"></div>
+        <div class="verdictBox" id="vRet" style="margin-bottom:16px"></div>
+        <div style="font-size:.88rem;color:var(--dim)">
+          <p><strong>verdict_full</strong> grades the whole submitted record — the page <em>and</em> your excerpts. It is the headline metric.</p>
+          <p style="margin-bottom:0"><strong>verdict_retrieval</strong> asks only whether the fetched page satisfies every substantive requirement, ignoring how well you quoted it. The gap between them is the cost of evidence rendering — how much credit you lose to excerpt selection rather than to search.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flowrow" style="margin-top:22px">
+    <div class="step"><div class="n">Stage 1</div><h4>Solve</h4><p>Any system, normalized into one record format so grading is identical across providers.</p></div>
+    <div class="step"><div class="n">Stage 2</div><h4>Fetch</h4><p>Re-fetch every cited page. Triage routes bot-walls and JS-only pages to a heavier browser — fail on evidence, not on our crawler.</p></div>
+    <div class="step"><div class="n">Stage 3</div><h4>Judge</h4><p>Canonicalize closed key axes, semantically dedupe open ones, then one structured verdict per record.</p></div>
+    <div class="step"><div class="n">Stage 4</div><h4>Score</h4><p>Bottom-up rollup into soft and hard precision, recall, F1 — per task.</p></div>
+  </div>
+</div></section>
+
+<section id="rollup"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">05</span> The rollup</div>
+    <h2>Why hard F1 collapses to a third of soft F1.</h2>
+    <p>One universal aggregation, parameterized on two axes. <strong>Precision</strong> averages every supplied child. <strong>Recall</strong> first collapses duplicate identities by <em>taking the worst</em> score per entity, sorts what remains descending, keeps the top <em>k</em> where <em>k</em> is the required count, and zero-pads any shortfall. <strong>Soft</strong> passes the aggregate through; <strong>hard</strong> thresholds it at exactly 1.0 at every level except the root — so only fully-qualified subtrees propagate.</p>
+    <p>Play with it. Each member below needs 3 leaf records; the task requires 8 members.</p>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
+      <div style="flex:1 1 200px">
+        <div class="kv">REQUIRED MEMBERS (k) — <span id="kVal">8</span></div>
+        <input type="range" id="kReq" min="3" max="14" value="8">
+      </div>
+      <button class="btn" id="addM">+ member</button>
+      <button class="btn" id="preset1">preset: broad &amp; shallow</button>
+      <button class="btn" id="preset2">preset: few &amp; perfect</button>
+    </div>
+    <div class="kv" style="margin-bottom:8px">SUBMITTED MEMBERS — click a leaf to flip its verdict, click ✕ to drop the member</div>
+    <div id="members" style="display:flex;gap:8px;flex-wrap:wrap"></div>
+
+    <div class="grid g2" style="margin-top:20px">
+      <div>
+        <div class="kv">RECALL LADDER — take-worst, sort ↓, truncate to k, zero-pad</div>
+        <div class="ranked" id="rankSoft"></div>
+        <div class="kv" style="margin-top:12px">HARD LADDER — every member thresholded at 1.0 first</div>
+        <div class="ranked" id="rankHard"></div>
+      </div>
+      <div class="scroller">
+        <table><thead><tr><th></th><th>Precision</th><th>Recall</th><th>F1</th></tr></thead>
+        <tbody>
+          <tr><td>Soft</td><td class="num" id="sp"></td><td class="num" id="sr"></td><td class="num" id="sf"></td></tr>
+          <tr><td>Hard</td><td class="num" id="hp"></td><td class="num" id="hr"></td><td class="num" id="hf"></td></tr>
+        </tbody></table>
+        <div id="rollNote" style="font-size:.86rem;color:var(--dim);margin-top:14px"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card"><h3>Where the gaps come from</h3>
+      <ul class="tight" style="font-size:.92rem;color:var(--dim)">
+        <li><strong>Precision → recall</strong> is mostly a breadth signal. Recall zero-pads unmet quota; precision only averages what you handed in. Submit three perfect members out of seventy and precision is 1.0 while recall is 0.04.</li>
+        <li><strong>Soft → hard</strong> is a completeness signal. It removes all partial credit from members whose required subtree isn't finished.</li>
+        <li><strong>Full → retrieval</strong> is an evidence-rendering signal: found the right page, quoted it incompletely.</li>
+      </ul>
+    </div>
+    <div class="card"><h3>Composition, and the equal-weight convention</h3>
+      <p style="font-size:.92rem;color:var(--dim)">A subtask that shares a parent key <em>multiplies</em> into the parent entity's score — a weak listing branch drags down an otherwise perfect appointment record. A dispatch fan-out is <em>averaged</em> instead: three of four evidence families is 0.75. And the benchmark headline is a plain unweighted mean over tasks, so a 30-record task counts exactly as much as a 2,750-record one.</p>
+    </div>
+  </div>
+</div></section>
+
+<section id="results"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">06</span> Results</div>
+    <h2>Six production systems. Nobody is close.</h2>
+    <p>One run per system over all 500 tasks, scored under <code>verdict_full</code>, using each system's second-highest effort setting (Gemini at speed, Anthropic at its only setting). Errored trials are zero-filled.</p>
+  </div>
+
+  <div class="card scroller" style="margin-top:24px">
+    <table id="mainTable"><thead><tr>
+      <th>System</th><th>Done</th><th>Soft P</th><th>Soft R</th><th>Soft F1</th><th>Hard P</th><th>Hard R</th><th>Hard F1</th><th>$/task</th><th>Med min</th>
+    </tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card">
+      <h3>Effort buys score, unevenly</h3>
+      <p style="font-size:.9rem;color:var(--dim)">A matched 45-task sweep across every available setting. Perplexity, Gemini and Exa improve monotonically; OpenAI peaks at <em>high</em> and regresses at <em>xhigh</em>.</p>
+      <div style="margin:14px 0 8px;display:flex;gap:6px;flex-wrap:wrap" id="sweepChips"></div>
+      <div class="scroller"><table id="sweepTable"><thead><tr><th>Setting</th><th>Soft F1</th><th></th><th>Hard F1</th><th>$/task</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="card">
+      <h3>Cost buys nothing reliably</h3>
+      <p style="font-size:.9rem;color:var(--dim)">Resource use spans four orders of magnitude — Exa <em>low</em> at $0.03/task, Gemini <em>max</em> at $324.83/task for 0.074 soft F1. Anthropic is second on score and last on every resource axis: $46/task, 74-minute median, 52M input tokens. Perplexity leads at $5.20 and 15 minutes.</p>
+      <div class="note" style="margin-top:14px;font-size:.88rem">The ceiling anywhere in the paper is <strong>0.447 soft F1 / 0.224 hard F1</strong> — Perplexity at <em>xhigh</em>, on the 45-task subset, not the full 500.</div>
+    </div>
+  </div>
+</div></section>
+
+<section id="failure"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">07</span> Failure anatomy</div>
+    <h2>The bottleneck is not search. It is proof.</h2>
+    <p>Solving a WANDR task is executing a retrieval program: discover enough members, enrich every branch, qualify the pages, render source-backed records. The score tree lets you localize which of those four stages ate the credit.</p>
+  </div>
+
+  <div class="card" style="margin-top:24px">
+    <div class="kv" style="margin-bottom:16px">FULL SOFT RECALL DECOMPOSED — share of total loss per stage</div>
+    <div id="funnel"></div>
+    <p style="font-size:.9rem;color:var(--dim);margin:16px 0 0">Extraction removes 31–73% of whatever score reaches it, yet it is the <em>smallest</em> contributor for five of six systems — because discovery and enrichment have already destroyed 48–89% of the opportunity. OpenAI is the clean counterexample: it retains 83.9% through discovery and then loses 68.2% of the remainder in enrichment.</p>
+  </div>
+
+  <div class="card scroller" style="margin-top:20px">
+    <div class="kv" style="margin-bottom:14px">ROW-LEVEL FAILURE PROBES — % of submitted records failing each check (lower is better)</div>
+    <table class="heat" id="heatTable"><thead><tr>
+      <th>System</th><th>Page unusable</th><th>Invalid / wrong type</th><th>Page req. unmet</th><th>Excerpt unfaithful</th><th>Excerpt req. unmet</th><th>Final verdict</th>
+    </tr></thead><tbody></tbody></table>
+    <p style="font-size:.9rem;color:var(--dim);margin:14px 0 0">Read it left to right. Fetching a usable, broadly in-scope page is nearly solved — 3–9% failure for five systems. Then it falls apart: <strong>34–68% of records cite a page that doesn't actually satisfy every substantive requirement</strong>, and the excerpt bar is harsher still.</p>
+  </div>
+
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card">
+      <h3>Partial proof is the signature failure</h3>
+      <p style="font-size:.92rem;color:var(--dim)">Condition on records where the fetched page <em>does</em> satisfy everything, and where the excerpts <em>are</em> faithful. Those excerpts support <em>at least one</em> requirement 97–99% of the time — and <em>all</em> requirements only 56–80% of the time.</p>
+      <div class="scroller" style="margin-top:12px"><table id="renderTable"><thead><tr><th>System</th><th>Faithful</th><th>Any supported</th><th>All supported</th></tr></thead><tbody></tbody></table></div>
+      <p style="font-size:.86rem;color:var(--faint);margin:12px 0 0">The gap widens with more required checks (−7 to −22 points from 2 checks to 5) and with longer source pages, in five of six systems.</p>
+    </div>
+    <div class="card">
+      <h3>Scale hurts in two different ways</h3>
+      <ul class="tight" style="font-size:.92rem;color:var(--dim)">
+        <li><strong>Target volume</strong> erodes mostly <em>before</em> extraction. From the smallest to largest volume bin, retrieval-only hard recall falls 0.376 → 0.172 (Perplexity), 0.267 → 0.117 (Anthropic), 0.191 → 0.056 (OpenAI).</li>
+        <li><strong>Hierarchy depth</strong> hurts everything. From flat to 3+ levels, Perplexity's retrieval-only hard precision falls 0.578 → 0.105 and recall 0.523 → 0.072. Averaged across systems that's −34 and −35 points.</li>
+        <li><strong>Identity collapse</strong> is rare but sharp: only 2.4–8.0% of tasks contain a merged duplicate, costing 0.02–0.13 points of soft recall on average — but 0.8–4.5 points on the tasks it touches.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div style="margin-top:22px">
+    <details><summary>Volume collapse</summary><div class="body">Incomplete query decomposition and insufficient retrieval at scale, sometimes followed by hallucinated values to fill the quota. Recall zero-padding makes this expensive; hallucination then also costs precision.</div></details>
+    <details><summary>Snippet reliance</summary><div class="body">Using a search-result snippet without opening the source to check that it supports the submitted claim. Shows up as <span class="mono">page req. unmet</span> or unfaithful excerpts.</div></details>
+    <details><summary>Non-systematic constraint application</summary><div class="body">Applying the eligibility filter to the first few entities and silently dropping it thereafter — precision decays with position in the output.</div></details>
+    <details><summary>Cross-reference skips &amp; missing enrichment</summary><div class="body">Asserting a claim without corroborating it across the required sources; or finding an entity and never gathering its required facts. Both are hard-metric killers: the member's subtree never completes, so it contributes zero to every hard score.</div></details>
+    <details><summary>Premature stopping &amp; context overflow</summary><div class="body">Giving up after an initial search returns too little, or exhausting context on a long trajectory. These are why the paper argues wide research is a <em>systems</em> problem — state persistence, quota tracking, and backfilling matter as much as the model.</div></details>
+  </div>
+</div></section>
+
+<section id="run"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">08</span> Running it myself</div>
+    <h2 id="runHead">One task, honestly graded.</h2>
+  </div>
+  <div id="runBody"></div>
+</div></section>
+
+<section id="read"><div class="wrap">
+  <div class="col">
+    <div class="eyebrow"><span class="sec-num">09</span> Before you cite it</div>
+    <h2>Caveats that change the reading.</h2>
+  </div>
+  <div class="grid g2" style="margin-top:24px">
+    <div class="card"><h3 style="color:var(--fail)">The grader shares infrastructure with one contestant</h3>
+      <p style="font-size:.92rem;color:var(--dim)">Cited pages are re-fetched through an agentic fetch backend that is also available to the Perplexity solver. The authors say so plainly: the grading path may be better aligned with pages the Perplexity solver can reach. Internal ablations that disable it lower <em>every</em> system's score while leaving the ranking mostly stable — so absolute numbers are affected, ordering apparently less so. It's a disclosed structural conflict, not a hidden one, but it belongs in any citation.</p></div>
+    <div class="card"><h3 style="color:var(--fail)">One run per system, no variance</h3>
+      <p style="font-size:.92rem;color:var(--dim)">The main table is a single production run per endpoint. Systems differ simultaneously in model, search infrastructure, agent harness, tool interface and provider implementation — so the ranking is observational and isolates no component. An earlier, separately configured evaluation reproduced the same ordering, also without repeated trials.</p></div>
+    <div class="card"><h3>Reference-free grading has its own error bars</h3>
+      <p style="font-size:.92rem;color:var(--dim)">No gold table means no annotation bottleneck — and also LLM-judge error, page drift between solving and grading, extraction gaps on dynamic or JS-rendered content, and canonicalization boundary calls on ambiguous identities. The judge audit blocks a task if the automated judge's error rate exceeds roughly 10% of a hand-regraded sample, which bounds but does not eliminate this.</p></div>
+    <div class="card"><h3>The task set is deliberately not representative</h3>
+      <p style="font-size:.92rem;color:var(--dim)">Admission favors high-volume, feasible, discriminative tasks with independently verifiable web evidence. It's a stress test, engineered so that primitive baselines score near zero and stronger systems separate. Don't read 0.363 soft F1 as "research agents fail 64% of real requests."</p></div>
+  </div>
+  <div class="warn col" style="margin-top:22px;max-width:none">
+    <strong>If you're building on it:</strong> the released split is an evaluation set. The paper's own RL section says training should use generated sibling tasks or newly generated tasks from held-out seeds — and should test explicitly for reward hacking via over-submission, evidence templating, and exploitation of judge or cache artifacts.
+  </div>
+</div></section>
+
+<footer><div class="wrap">
+  Sources — <a href="https://research.perplexity.ai/articles/wandr-benchmark-evaluating-research-agents-that-must-search-wide-and-deep">Perplexity Research announcement</a> ·
+  <a href="https://github.com/perplexityai/wandr">github.com/perplexityai/wandr</a> (Apache 2.0) ·
+  <em>WANDR: A Benchmark for Wide and Deep Research</em>, technical report shipped in the repo.<br>
+  Corpus statistics in §03 and the run in §08 were computed locally from the repository at the commit noted in §08. Tables in §06–§07 are transcribed from the technical report.<br>
+  Part of a <a href="index.html">personal library of explainers</a>.
+</div></footer>
+
+<script id="corpusData" type="application/json">[["brazil-ev-claim-audit",2750,"claim_family(5)\u2192canonical_claim(275)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["events","legal","e-com"],"high",0.907,0.93,0.382,0.743,0.125,0.553],["rental-property-bookkeeping-provider-evidence",2430,"provider(810)\u2192url(1)",["provider(810)\u2192evidence_area(2)\u2192url(1)"],1,"composite",["general"],"medium",0.414,0.815,0.27,0.613,0.367,0.955],["pgh-cle-tech-company-provenance",1800,"region(2)\u2192company(300)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.817,0.787,0.449,0.459,0.185,0.427],["misquotation-instances",1600,"quote(160)\u2192author(2)\u2192url(5)",[],1,"hierarchical",["wikis"],"high",0.909,0.794,0.381,0.233,0.868,0.418],["restomod-builders",1600,"builder(800)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.589,0.686,0.331,0.643,0.396,0.955],["singapore-event-venues",1500,"venue_family(5)\u2192venue(300)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.801,0.902,0.197,0.355,0.264,0.568],["canada-bottle-packaging",1440,"supplier(60)\u2192supplier_product(3)\u2192product_axis(3)\u2192url(2)",["supplier(60)\u2192canada_service_proof(3)\u2192url(2)"],3,"composite",["e-com"],"high",0.89,0.576,0.831,0.895,0.247,0.266],["forbes-250-claims",1400,"person(200)\u2192claim(7)\u2192url(1)",[],1,"composite",["general","wikis"],"medium",0.5,0.55,0.321,0.484,0.146,0.024],["community-cards",1273,"program(67)\u2192program_facet(3)\u2192url(1)",["program(67)\u2192merchant(8)\u2192merchant_evidence_side(2)\u2192url(1)"],3,"composite",["general","e-com"],"high",0.716,0.248,0.859,0.781,0.524,0.551],["document-ai-product-evidence-facets",1200,"vendor_product(120)\u2192evidence_facet(5)\u2192product_finding(2)\u2192url(1)",[],2,"hierarchical",["tech"],"high",0.724,0.718,0.501,0.42,0.351,0.367],["drill-tool-tubular-capabilities",1200,"company(400)\u2192capability_facet(3)\u2192url(1)",[],1,"hierarchical",["e-com"],"high",0.745,0.635,0.441,0.494,0.47,0.843],["ev-charging-host-sites",1200,"site_name_location_region(150)\u2192provenance_role(4)\u2192url(1)",["site_name_location_region(150)\u2192evidence_role(4)\u2192url(1)"],2,"composite",["general","legal"],"high",0.98,0.448,0.927,0.657,0.549,0.312],["freight-ai-vendors",1200,"vendor(600)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.489,0.706,0.311,0.521,0.99,0.604],["webai-platform-customer-sector-public-scout",1200,"company(150)\u2192evidence_facet(4)\u2192url(2)",[],1,"hierarchical",["events","tech"],"low",0.307,0.678,0.471,0.427,0.811,0.444],["restaurant-matting-product-roles",1152,"restaurant_zone(6)\u2192supplier(8)\u2192supplier_offering(3)\u2192source_role(8)\u2192url(1)",[],3,"hierarchical",["e-com"],"high",0.769,0.502,0.71,0.707,0.115,0.418],["ambient-food-3pl",1050,"provider(350)\u2192capability_axis(3)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.859,0.728,0.499,0.761,0.379,0.936],["b2b-integration-reciprocity",1050,"provider(150)\u2192counterpart(3)\u2192reference_type(2)\u2192url(1)",["provider(150)\u2192url(1)"],1,"composite",["tech"],"medium",0.518,0.64,0.297,0.847,0.895,0.293],["commerce-integrator-evidence",1000,"agency(250)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"low",0.269,0.311,0.488,0.591,0.514,0.434],["multinational-office-presence",1000,"company(100)\u2192country(5)\u2192info(2)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.638,0.7,0.568,0.224,0.609,0.262],["portugal-parishes",1000,"parish_municipality(1000)\u2192url(1)",[],0,"flat",["wikis"],"low",0.0,0.469,0.542,0.335,0.996,0.022],["solar-rri-providers",1000,"provider(500)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.279,0.746,0.307,0.442,0.96,0.617],["uk-foam-company-provenance",1000,"company(250)\u2192provenance_facet(4)\u2192url(1)",[],1,"hierarchical",["general","legal"],"medium",0.501,0.432,0.535,0.487,0.473,0.118],["specialty-input-behavior-atlas",990,"system_or_library(55)\u2192component_or_control(3)\u2192behavior_facet(3)\u2192behavior_finding(2)\u2192url(1)",[],3,"hierarchical",["tech"],"high",0.685,0.511,0.495,0.344,0.223,0.354],["atlantic-canada-tech-company-ecosystem-evidence",960,"company(120)\u2192ecosystem_facet(4)\u2192url(2)",[],1,"hierarchical",["general","events","legal","finance"],"low",0.214,0.0,0.585,0.526,0.64,0.463],["dfw-cabling-contractors",960,"contractor(120)\u2192evidence_facet(4)\u2192source_role(2)\u2192url(1)",[],2,"composite",["general"],"medium",0.45,0.299,0.611,0.543,0.289,0.673],["independent-pharmacy-ai-vendor-solution-evidence",960,"vendor_solution(120)\u2192evidence_facet(4)\u2192evidence_signal(2)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.803,0.647,0.702,0.59,0.583,0.449],["industrial-automation-public-presence-evidence",960,"company(120)\u2192presence_facet(4)\u2192source_role(2)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.379,0.328,0.602,0.434,0.695,0.482],["hdd-fiber-contractors",900,"contractor(450)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.724,0.788,0.402,0.454,0.901,0.72],["muscat-engineering-consultancies",900,"firm(150)\u2192evidence_facet(3)\u2192url(2)",[],1,"hierarchical",["general","legal"],"high",0.722,0.603,0.647,0.526,0.188,0.569],["nsw-heavy-vehicle-access",900,"instrument_or_event(900)\u2192url(1)",[],0,"flat",["legal"],"high",0.979,0.892,0.802,0.511,0.6,0.065],["singapore-minimart-outlet-provenance",900,"retailer_or_store(150)\u2192public_outlet(1)\u2192evidence_facet(3)\u2192url(2)",[],2,"hierarchical",["general"],"high",0.875,0.581,0.738,0.594,0.436,0.716],["us-pfas-projects",900,"state_or_territory(25)\u2192pfas_response_unit(4)\u2192evidence_axis(3)\u2192source_role(3)\u2192url(1)",[],3,"hierarchical",["legal"],"low",0.353,0.468,0.69,0.595,0.212,0.706],["time-tracking-product-provenance",880,"time_tracking_product(220)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general","tech"],"low",0.383,0.401,0.586,0.654,0.867,0.454],["diligence-workflow-profiles",840,"company(140)\u2192company_claim(3)\u2192attestation(2)\u2192url(1)",[],2,"hierarchical",["general","events"],"low",0.329,0.421,0.652,0.441,0.96,0.505],["annual-report-compliance-calendar",816,"jurisdiction(51)\u2192entity_category(4)\u2192evidence_facet(4)\u2192url(1)",[],2,"hierarchical",["legal"],"medium",0.541,0.329,0.392,0.644,0.102,0.814],["fractional-executive-services",810,"function_family(6)\u2192provider_function(45)\u2192evidence_mode(3)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.779,0.592,0.61,0.854,0.353,0.872],["agency-platform-partnerships",800,"agency(200)\u2192partner_program(2)\u2192reference_type(2)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"low",0.251,0.598,0.321,0.381,0.506,0.721],["construction-saas-public-evidence",800,"platform(200)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["tech"],"low",0.138,0.351,0.299,0.461,0.728,0.496],["fca-advisers",800,"firm(80)\u2192firm_adviser(5)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["finance"],"high",0.904,0.919,0.443,0.486,0.647,0.171],["industrial-parts-distributor-cage-award-traceability",800,"part_category(4)\u2192distributor(40)\u2192evidence_axis(5)\u2192url(1)",[],2,"hierarchical",["legal"],"medium",0.625,0.603,0.49,0.472,0.263,0.271],["open-source-firmware-service-providers",800,"provider(200)\u2192evidence_aspect(4)\u2192url(1)",[],1,"hierarchical",["tech"],"high",0.667,0.336,0.596,0.443,0.371,0.52],["pitch-deck-providers",800,"provider(100)\u2192evidence_facet(4)\u2192evidence_signal(2)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.661,0.207,0.78,0.537,0.426,0.838],["adult-guardianship-programs",780,"jurisdiction(30)\u2192jurisdiction_guardian_arrangement(1)\u2192url(1)",["jurisdiction(30)\u2192comparison_area(5)\u2192jurisdiction_legal_signal(5)\u2192url(1)"],3,"composite",["legal"],"medium",0.569,0.16,0.757,0.38,0.283,0.527],["agri-solar-channels",750,"company(375)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.263,0.597,0.37,0.446,0.958,0.552],["ai-ml-deeptech-program-pathway-atlas",750,"program_type(6)\u2192organization_program(25)\u2192evidence_facet(5)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.773,0.594,0.53,0.541,0.386,0.717],["llm-presence",720,"company(10)\u2192month(12)\u2192site(3)\u2192url(2)",[],2,"composite",["community"],"high",0.869,0.067,0.934,0.584,0.781,0.105],["low-code-workflow-company-public-source-locator-table",720,"company_project(120)\u2192source_class(6)\u2192url(1)",[],1,"hierarchical",["general","e-com","tech"],"low",0.212,0.117,0.306,0.602,0.981,0.389],["southeast-asia-broadcast-media",720,"country(6)\u2192country_media_entity(30)\u2192evidence_facet(4)\u2192url(1)",[],2,"hierarchical",["general","events"],"medium",0.578,0.559,0.496,0.581,0.652,0.654],["voss-evanger-place-paths",720,"farm_place(180)\u2192evidence_kind(4)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.195,0.379,0.481,0.317,0.399,0.389],["data-import-vendor-public-evidence-atlas",700,"vendor_product(70)\u2192evidence_facet(5)\u2192url(2)",[],1,"hierarchical",["general","tech"],"medium",0.411,0.39,0.593,0.603,0.855,0.359],["faa-ad-document-provenance",700,"document_status(2)\u2192ad_document(175)\u2192evidence_role(2)\u2192url(1)",[],2,"flat",["legal"],"low",0.117,0.619,0.17,0.642,0.501,0.01],["us-military-and-us-flagged-vessel-registry",700,"registry_panel(14)\u2192vessel(50)\u2192vessel_fact(1)\u2192url(1)",[],2,"composite",["legal"],"medium",0.507,0.345,0.365,0.294,0.065,0.457],["alaska-food-producers",675,"source_family(3)\u2192producer(225)\u2192url(1)",[],1,"hierarchical",["general","legal","e-com"],"medium",0.567,0.435,0.676,0.554,0.686,0.262],["generation-transactions",675,"generation_transaction_event(225)\u2192affected_asset_or_entity(1)\u2192evidence_role(3)\u2192url(1)",[],2,"hierarchical",["legal"],"medium",0.536,0.446,0.558,0.566,0.5,0.188],["ai-home-operations-platforms",640,"platform(80)\u2192evidence_role(8)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"medium",0.644,0.188,0.682,0.617,0.463,0.546],["japan-telephony-provider-capabilities",640,"provider(80)\u2192capability_facet(8)\u2192url(1)",[],1,"hierarchical",["general","tech"],"medium",0.542,0.256,0.619,0.463,0.228,0.808],["strategic-hiring-demand",640,"provider(80)\u2192provider_platform(2)\u2192relationship_side(2)\u2192url(1)",["provider_platform(160)\u2192provider_platform_opening(2)\u2192url(1)"],3,"hierarchical",["general","e-com"],"high",0.903,0.651,0.65,0.667,0.987,0.344],["wa-grocery-distributor-capability-provenance",630,"distributor(210)\u2192capability_facet(3)\u2192url(1)",[],1,"hierarchical",["general","legal"],"medium",0.521,0.524,0.318,0.618,0.169,0.619],["biglaw-ai-practice-public-signal-evidence-panel",625,"law_firm(125)\u2192ai_signal_facet(5)\u2192url(1)",[],1,"hierarchical",["legal"],"medium",0.506,0.328,0.536,0.356,0.772,0.483],["logistics-software-use",605,"software_product(55)\u2192evidence_facet(4)\u2192source_role(2)\u2192url(1)",["software_product(55)\u2192client_org(3)\u2192url(1)"],3,"composite",["general","community","e-com","tech"],"high",0.665,0.136,0.895,0.528,0.835,0.341],["aerospace-authorized-distribution-reciprocity",600,"distributor(100)\u2192oem(3)\u2192reference_type(2)\u2192url(1)",[],1,"hierarchical",["e-com"],"high",0.901,0.915,0.487,0.307,0.342,0.803],["ai-builder-vendor-evidence",600,"vendor(100)\u2192evidence_facet(6)\u2192url(1)",[],1,"hierarchical",["general","tech"],"low",0.186,0.292,0.317,0.643,0.748,0.409],["cosmetic-manufacturers",600,"manufacturer(150)\u2192evidence_aspect(4)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.571,0.316,0.603,0.591,0.81,0.541],["devtools-partnerships",600,"company(100)\u2192other_company(3)\u2192reference_type(2)\u2192url(1)",[],1,"hierarchical",["e-com","tech"],"medium",0.556,0.718,0.273,0.455,0.924,0.323],["embedded-finance-evidence",600,"company(300)\u2192url(2)",[],0,"flat",["general"],"medium",0.453,0.359,0.272,0.867,0.994,0.647],["fda-device-udi-510k-recall-public-crosswalk-table",600,"recalled_or_alerted_product(150)\u2192recall_or_alert_record_type(1)\u2192url(1)",["recalled_or_alerted_product(150)\u2192udi_identity(1)\u2192url(1)","recalled_or_alerted_product(150)\u2192pathway_type(1)\u2192pathway_record(1)\u2192url(1)","recalled_or_alerted_product(150)\u2192identity_note_type(1)\u2192identity_conflict_or_note(1)\u2192url(1)"],6,"composite",["legal"],"medium",0.5,0.361,0.764,0.758,0.109,0.563],["fleet-telematics-signals",600,"platform(100)\u2192signal_family(2)\u2192operational_signal(3)\u2192url(1)",[],2,"hierarchical",["tech"],"high",0.73,0.284,0.829,0.799,0.485,0.49],["food-transport-ops",600,"operator(150)\u2192operating_axis(4)\u2192url(1)",[],1,"hierarchical",["general","legal"],"medium",0.608,0.315,0.623,0.643,0.622,0.661],["german-medtech-services",600,"firm(150)\u2192capability_facet(3)\u2192url(1)",["firm(150)\u2192url(1)"],1,"composite",["health"],"high",0.699,0.432,0.649,0.706,0.413,0.744],["germany-industrial-project-source-evidence",600,"project(150)\u2192evidence_side(4)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.154,0.336,0.468,0.614,0.384,0.348],["hkex-ipo-pipeline-market-map",600,"application(200)\u2192pipeline_axis(3)\u2192application_finding(1)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.311,0.689,0.488,0.533,0.543,0.071],["india-marketplace-seller-terms",600,"marketplace(150)\u2192seller_facet(4)\u2192url(1)",[],1,"hierarchical",["e-com"],"high",0.667,0.491,0.561,0.681,0.63,0.622],["israeli-us-presence",600,"us_market_area(5)\u2192area_company(40)\u2192url(1)",["area_company(200)\u2192url(1)","area_company(200)\u2192url(1)"],1,"composite",["general","events"],"high",0.812,0.45,0.722,0.611,0.382,0.548],["neo-compensation",600,"company(60)\u2192fiscal_year(2)\u2192neo_person(5)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.363,0.638,0.739,0.157,0.19,0.014],["uae-current-transformers",600,"entity(100)\u2192product_family(2)\u2192evidence_axis(3)\u2192support_level(1)\u2192url(1)",[],3,"hierarchical",["general","e-com"],"medium",0.605,0.708,0.417,0.552,0.181,0.549],["warehouse-automation-public-evidence",600,"company(50)\u2192public_automation_case(3)\u2192evidence_side(4)\u2192url(1)",[],2,"hierarchical",["general","events"],"medium",0.571,0.541,0.582,0.493,0.734,0.542],["powersports-finance-provenance",580,"organization(290)\u2192evidence_surface(2)\u2192url(1)",[],1,"hierarchical",["finance"],"low",0.0,0.373,0.296,0.326,0.38,0.956],["steel-service-providers",576,"service_line(4)\u2192provider_service(18)\u2192evidence_facet(4)\u2192source_role(2)\u2192url(1)",[],3,"hierarchical",["general"],"high",0.687,0.264,0.808,0.612,0.215,0.723],["airline-pss-relationships",560,"airline_platform(280)\u2192url(1)",["airline_platform(280)\u2192url(1)"],0,"composite",["general","events"],"high",0.848,0.623,0.722,0.31,0.899,0.414],["passive-speaker-specs",560,"brand(35)\u2192speaker_type(2)\u2192brand_model(4)\u2192source_role(2)\u2192url(1)",[],3,"hierarchical",["e-com"],"medium",0.555,0.51,0.462,0.621,0.751,0.191],["infrastructure-sitework-bids",550,"opportunity(550)\u2192url(1)",[],0,"flat",["legal"],"low",0.0,0.382,0.302,0.424,1.0,0.069],["cisa-ics-cve-provenance-reconciliation",540,"comparison_surface_family(3)\u2192cve_id(90)\u2192cisa_advisory_id(1)\u2192provenance_axis(1)\u2192comparison_source(1)\u2192source_side(2)\u2192url(1)",[],5,"hierarchical",["legal","tech"],"low",0.343,0.478,0.417,0.533,0.475,0.021],["eu-ftl-trucking-carrier-landscape",540,"country(15)\u2192haulage_type(3)\u2192carrier(6)\u2192carrier_market_scope(2)\u2192url(1)",[],3,"composite",["general"],"high",0.869,0.37,0.903,0.846,0.321,0.391],["india-cloud-telephony-provider-public-capability-source-table",540,"provider(90)\u2192provenance_facet(6)\u2192url(1)",[],1,"hierarchical",["general","tech"],"low",0.29,0.261,0.503,0.7,0.873,0.526],["specialty-hardwood-offering-provenance",540,"supplier(90)\u2192wood_type(3)\u2192source_role(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.556,0.47,0.545,0.529,0.405,0.422],["member-portal-capabilities",520,"platform(130)\u2192evidence_role(2)\u2192url(1)",["platform(130)\u2192deployment_context(2)\u2192url(1)"],2,"hierarchical",["general","tech"],"high",0.852,0.388,0.837,0.745,0.973,0.574],["healthy-building-firms",504,"credential_family(6)\u2192firm_or_practice(42)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general","legal"],"medium",0.512,0.326,0.422,0.558,0.456,0.691],["abm-provider-commercial-provenance",500,"provider(100)\u2192evidence_facet(3)\u2192url(1)",["provider(100)\u2192commercial_source_side(2)\u2192url(1)"],2,"composite",["e-com"],"high",0.704,0.523,0.651,0.656,0.726,0.499],["camera-module-sources",500,"supplier_or_brand(50)\u2192supplier_or_brand_module_or_part(2)\u2192spec_facet(5)\u2192url(1)",[],2,"hierarchical",["e-com","tech"],"high",0.702,0.367,0.659,0.693,0.262,0.493],["cookware-provenance",500,"company_or_brand(100)\u2192provenance_facet(5)\u2192url(1)",[],1,"hierarchical",["general","legal","e-com"],"medium",0.624,0.25,0.7,0.697,0.52,0.605],["cornish-art-school-website-content-inventory",500,"school(100)\u2192surface(5)\u2192url(1)",[],1,"hierarchical",["general","academic"],"low",0.289,0.376,0.587,0.549,0.967,0.501],["data-center-power-advisors",500,"advisor_org(250)\u2192evidence_role(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.341,0.41,0.448,0.425,0.951,0.658],["digital-agency-terms",500,"service_category(5)\u2192agency(25)\u2192evidence_facet(4)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"medium",0.526,0.411,0.612,0.527,0.853,0.392],["final-mile-carriers",500,"carrier_company(250)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"medium",0.458,0.377,0.508,0.46,0.583,0.439],["chennai-trucking",480,"geography_bucket(3)\u2192operator(80)\u2192evidence_type(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"low",0.148,0.603,0.407,0.581,0.51,0.154],["fed-it-primes",480,"vehicle(8)\u2192prime_awardee(20)\u2192evidence_side(3)\u2192url(1)",[],2,"hierarchical",["general","legal"],"low",0.357,0.385,0.503,0.522,0.528,0.548],["fund-vehicles",480,"firm(80)\u2192fund_vehicle(2)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["legal","finance"],"low",0.29,0.276,0.568,0.486,0.497,0.167],["home-depot-supplier-links",480,"supplier_or_brand(160)\u2192evidence_side(3)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"medium",0.565,0.003,0.639,0.418,0.229,0.433],["legal-ai-platform-claim-provenance",480,"legal_ai_platform(120)\u2192claim_facet(4)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.282,0.375,0.408,0.278,0.886,0.472],["lsv-product-evidence",480,"brand(40)\u2192brand_model(3)\u2192evidence_facet(4)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.581,0.414,0.57,0.531,0.475,0.579],["restaurant-voice-ai-vendor-evidence-atlas",480,"restaurant_voice_ai_company(60)\u2192evidence_facet(4)\u2192url(2)",[],1,"hierarchical",["general"],"medium",0.407,0.283,0.579,0.423,0.681,0.553],["sff-book-creators",480,"creator(160)\u2192evidence_role(3)\u2192url(1)",[],1,"hierarchical",["general","social"],"high",0.783,0.534,0.417,0.661,0.69,0.526],["south-africa-ict-integrators",480,"company(120)\u2192url(1)",["company(120)\u2192credential_facet(1)\u2192url(1)","company(120)\u2192hard_evidence_facet(2)\u2192url(1)"],2,"composite",["general","events","legal"],"high",0.831,0.218,0.803,0.876,0.517,0.709],["startup-support-program-public-profile-evidence",480,"program(120)\u2192evidence_role(4)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.333,0.336,0.513,0.479,0.836,0.679],["uk-flexible-packaging-manufacturer",480,"company(120)\u2192evidence_axis(4)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.259,0.511,0.244,0.384,0.517,0.418],["uk-fragrance-house-capability-atlas",480,"fragrance_house(120)\u2192capability_facet(4)\u2192url(1)",[],1,"hierarchical",["general","legal"],"high",0.794,0.714,0.423,0.396,0.406,0.689],["wealthtech-platform-claims",480,"platform(120)\u2192claim_axis(4)\u2192url(1)",[],1,"hierarchical",["events","legal","finance"],"medium",0.417,0.21,0.569,0.615,0.616,0.573],["resilient-power-projects",460,"resilient_power_project(230)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"high",0.773,0.664,0.537,0.29,0.51,0.426],["european-sovereign-cloud-relationships",455,"provider(65)\u2192relationship(6)\u2192url(1)",["provider(65)\u2192url(1)"],1,"hierarchical",["general"],"medium",0.619,0.318,0.617,0.821,0.448,0.667],["algae-saf-efforts",450,"project_owned_algal_aviation_effort(150)\u2192evidence_role(2)\u2192url(1)",["project_owned_algal_aviation_effort(150)\u2192url(1)"],1,"composite",["legal"],"high",0.885,0.674,0.636,0.755,0.62,0.634],["email-security-claim-corroboration",450,"vendor_product(50)\u2192claim_topic(4)\u2192product_claim(1)\u2192evidence_side(2)\u2192url(1)",["vendor_product(50)\u2192url(1)"],3,"composite",["e-com","tech"],"high",0.875,0.244,0.821,0.771,0.324,0.559],["furniture-maker-object-attributions",450,"maker(90)\u2192object_source_type(2)\u2192maker_object(2)\u2192url(1)",["maker(90)\u2192url(1)"],2,"composite",["general","e-com"],"medium",0.499,0.692,0.363,0.566,0.784,0.091],["italian-dc-evidence",450,"provider_site(75)\u2192evidence_facet(3)\u2192source_mode(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.598,0.391,0.429,0.512,0.314,0.494],["knowledge-product-metric-disclosure-evidence",450,"organization_product(150)\u2192disclosure_facet(3)\u2192url(1)",[],1,"hierarchical",["general","academic","tech"],"high",0.698,0.585,0.514,0.392,0.652,0.422],["norway-agm-board-remuneration",450,"issuer(150)\u2192fee_line(3)\u2192url(1)",[],1,"hierarchical",["finance"],"medium",0.414,0.657,0.098,0.471,0.223,0.188],["pediatric-philanthropy-disclosures",450,"evidence_facet(3)\u2192pediatric_health_org(150)\u2192url(1)",[],1,"hierarchical",["general","health"],"medium",0.48,0.558,0.314,0.386,0.886,0.804],["reddit-workflow-tool-capability-provenance-atlas",450,"product_category(6)\u2192product(25)\u2192evidence_role(3)\u2192url(1)",[],2,"hierarchical",["general","tech"],"low",0.402,0.483,0.423,0.442,0.435,0.716],["gta-recycling-facility-material-evidence-atlas",440,"facility_or_operation(110)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["legal"],"low",0.164,0.415,0.332,0.613,0.238,0.272],["medica-2026-western-europe-exhibitor-evidence",440,"company(110)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general","health"],"medium",0.487,0.316,0.601,0.599,0.86,0.302],["southern-africa-helicopter-operators",440,"operator(110)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general","events","legal","wikis"],"high",0.694,0.445,0.541,0.459,0.621,0.615],["australian-university-representation-architecture",432,"university(36)\u2192seat_type(6)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general","legal"],"low",0.234,0.25,0.639,0.741,0.151,0.247],["adventure-resort-hiring-provenance",420,"operator_type(4)\u2192operator(35)\u2192hiring_evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.542,0.401,0.513,0.516,0.645,0.622],["ai-gtm-deployability-provenance",420,"tool(70)\u2192url(1)",["tool(70)\u2192url(1)","tool(70)\u2192integration_side(2)\u2192url(1)","tool(70)\u2192operational_surface(2)\u2192url(1)"],2,"composite",["tech"],"medium",0.52,0.14,0.839,0.88,0.965,0.363],["ai-humanizer-public-claim-provenance",420,"tool(70)\u2192evidence_facet(5)\u2192url(1)",["tool(70)\u2192url(1)"],1,"hierarchical",["general","e-com"],"high",0.656,0.149,0.63,0.821,0.675,0.575],["bar-restaurant-ops-software-catalog-source-table",420,"ecosystem_band(6)\u2192vendor_or_source(35)\u2192evidence_surface(2)\u2192url(1)",[],2,"hierarchical",["legal","e-com","tech"],"medium",0.642,0.439,0.419,0.736,0.688,0.785],["counter-uas-developments",420,"lead_company(35)\u2192development_case(3)\u2192development_leg(4)\u2192url(1)",[],2,"flat",["general","events","legal"],"medium",0.612,0.51,0.621,0.389,0.34,0.572],["dach-courier-provenance",420,"country(3)\u2192courier_brand(35)\u2192provenance_facet(4)\u2192url(1)",[],2,"hierarchical",["general","legal"],"high",0.79,0.529,0.544,0.5,0.225,0.793],["domain-corporate-linkage-public-evidence",420,"domain(140)\u2192linkage_facet(3)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.149,0.212,0.44,0.478,0.639,0.584],["music-management-roster-source-cleanup-map",420,"management_company(70)\u2192artist(3)\u2192reference_type(2)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.562,0.781,0.315,0.333,0.744,0.839],["offshore-wind-om",420,"role_family(7)\u2192organization_capability(30)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.398,0.278,0.536,0.413,0.83,0.707],["beverage-expert-topic-provenance",408,"topic_area(8)\u2192topic_expert(17)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.602,0.519,0.47,0.416,0.5,0.708],["singapore-expat-insurance-plans",405,"provider_plan(45)\u2192facet(9)\u2192url(1)",[],1,"hierarchical",["finance"],"medium",0.617,0.08,0.695,0.811,0.075,0.6],["australia-food-equipment",400,"facility_case(400)\u2192equipment_application(1)\u2192url(1)",[],1,"flat",["general"],"high",0.874,0.685,0.518,0.451,0.718,0.365],["bachir-doha-brand-competitors",400,"brand(100)\u2192analysis_facet(4)\u2192url(1)",[],1,"composite",["general","e-com"],"low",0.334,0.156,0.489,0.541,0.328,0.117],["board-portal-governance-content-tool",400,"topic_category(4)\u2192content_artifact(100)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.829,0.506,0.805,0.949,0.922,0.697],["data-center-power-disclosures",400,"operator(40)\u2192disclosure_facet(5)\u2192evidence_side(2)\u2192operator_power_signal(1)\u2192url(1)",[],3,"hierarchical",["general","legal","finance"],"high",0.844,0.058,0.852,0.748,0.422,0.775],["doj-antitrust-document-provenance",400,"case(100)\u2192case_document(3)\u2192url(1)",["case(100)\u2192url(1)"],1,"composite",["legal"],"high",0.925,0.424,0.909,0.719,0.825,0.071],["exterior-cleaning-operator-video-presence",400,"operator(100)\u2192evidence_role(4)\u2192url(1)",[],1,"hierarchical",["general","social"],"high",0.677,0.462,0.614,0.432,0.587,0.562],["facade-platforms",400,"facade_platform(100)\u2192evidence_aspect(4)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.67,0.45,0.608,0.629,0.439,0.664],["fractional-cfo-provenance",400,"provider(100)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.131,0.0,0.535,0.599,0.275,0.869],["french-environmental-credential-provenance",400,"segment(4)\u2192firm_siren(20)\u2192evidence_axis(3)\u2192url(1)",["firm_siren(80)\u2192credential_claim(1)\u2192credential_side(2)\u2192url(1)"],4,"composite",["general","legal"],"high",0.69,0.34,0.763,0.672,0.325,0.222],["mid-atlantic-data-center-service-provider-evidence",400,"provider(100)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.463,0.27,0.543,0.497,0.75,0.629],["mobile-provider-caps",400,"provider_brand(100)\u2192capability_area(4)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.364,0.352,0.597,0.466,0.591,0.586],["programmatic-publisher-ad-stack-signal-atlas",400,"publisher_domain(80)\u2192signal_type(5)\u2192url(1)",[],1,"hierarchical",["tech"],"medium",0.61,0.315,0.669,0.387,0.517,0.496],["reading-app-capability-provenance",400,"capability(5)\u2192app_capability(40)\u2192source_role(2)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"low",0.205,0.413,0.183,0.472,0.846,0.562],["ria-signals",400,"firm(100)\u2192signal_facet(4)\u2192url(1)",[],1,"hierarchical",["general","events","finance"],"low",0.384,0.22,0.544,0.625,0.676,0.472],["southeast-geospatial-uav-lidar-service-evidence",400,"firm(100)\u2192evidence_facet(3)\u2192url(1)",["firm(100)\u2192url(1)"],1,"composite",["general","people"],"low",0.388,0.438,0.575,0.561,0.685,0.498],["va-provider-pricing",400,"provider(50)\u2192service_segment(4)\u2192url(1)",["provider(50)\u2192policy_family(4)\u2192url(1)"],2,"composite",["general"],"medium",0.514,0.38,0.69,0.774,0.657,0.268],["trinidad-security-product-channels",390,"supplier_channel(65)\u2192supplier_product_line(3)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"low",0.387,0.297,0.54,0.621,0.215,0.67],["azerbaijan-transport-climate",384,"source_family(8)\u2192source_record(48)\u2192url(1)",[],1,"hierarchical",["legal"],"high",0.678,0.687,0.421,0.329,0.268,0.552],["housing-funding-awards",384,"program_cycle(32)\u2192award_project(8)\u2192url(1)",["program_cycle(32)\u2192terms_facet(4)\u2192url(1)"],2,"composite",["legal"],"medium",0.491,0.449,0.516,0.839,0.092,0.144],["last-mile-parcel-providers",378,"country(42)\u2192country_provider(3)\u2192evidence_type(3)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.377,0.026,0.656,0.74,0.594,0.418],["uli-council-footprints",378,"uli_region(3)\u2192uli_council(21)\u2192evidence_type(6)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.63,0.61,0.677,0.389,0.515,0.264],["acnc-kmp-consistency",360,"charity_year(180)\u2192acnc_ais_dataset_row(1)\u2192url(1)",["charity_year(180)\u2192financial_report_kmp_note(1)\u2192url(1)"],2,"composite",["legal"],"low",0.292,0.381,0.661,0.525,0.854,0.314],["acumatica-distribution-partner-evidence",360,"partner(90)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.279,0.302,0.376,0.445,0.332,0.246],["agricultural-supplier-sources",360,"country_commodity(24)\u2192supplier_entity(6)\u2192entity_facet(2)\u2192url(1)",["country_commodity(24)\u2192context_facet(3)\u2192url(1)"],3,"composite",["general","legal"],"medium",0.466,0.25,0.587,0.809,0.147,0.568],["construction-lifecycle-capabilities",360,"lifecycle_topic(8)\u2192product_capability_signal(45)\u2192url(1)",[],1,"hierarchical",["tech"],"medium",0.46,0.191,0.445,0.647,0.813,0.752],["dubai-fitness-brand-competitors",360,"brand(90)\u2192analysis_facet(4)\u2192url(1)",[],1,"flat",["e-com"],"low",0.058,0.033,0.437,0.692,0.265,0.298],["financial-media-monetization",360,"publisher(120)\u2192artifact_role(3)\u2192publisher_artifact_surface(1)\u2192url(1)",[],2,"hierarchical",["general","finance"],"medium",0.456,0.197,0.507,0.728,0.95,0.469],["greece-ready-koufomata",360,"supplier(120)\u2192supplier_product(1)\u2192evidence_axis(3)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.436,0.618,0.357,0.448,0.348,0.883],["industrial-tanks",360,"manufacturer(30)\u2192manufacturer_product(3)\u2192source_role(2)\u2192claim_facet(2)\u2192url(1)",[],3,"hierarchical",["e-com"],"medium",0.59,0.256,0.605,0.488,0.302,0.561],["intumescent-claim-provenance-atlas",360,"product_or_system(120)\u2192claim_facet(3)\u2192url(1)",[],1,"hierarchical",["patents","e-com"],"low",0.314,0.243,0.384,0.538,0.285,0.32],["london-maritime-company-operator-fleet",360,"role_claim(3)\u2192company(40)\u2192evidence_axis(3)\u2192url(1)",[],2,"hierarchical",["general","wikis"],"low",0.144,0.417,0.19,0.427,0.261,0.587],["lossless-compression-entity-provenance",360,"data_modality(10)\u2192compression_entity_product(12)\u2192provenance_facet(3)\u2192url(1)",[],2,"hierarchical",["tech"],"high",0.85,0.824,0.25,0.528,0.648,0.685],["massachusetts-zoning-changes",360,"municipality(60)\u2192municipal_zoning_change(2)\u2192evidence_side(3)\u2192url(1)",[],2,"hierarchical",["legal"],"high",0.924,0.74,0.692,0.571,0.498,0.612],["neurovascular-open-payments",360,"publication_author(120)\u2192evidence_layer(3)\u2192url(1)",[],1,"hierarchical",["legal","academic"],"low",0.263,0.457,0.598,0.547,0.763,0.023],["saas-customer-partnerships",360,"company(60)\u2192other_company(3)\u2192source_type(2)\u2192url(1)",[],1,"flat",["e-com","tech"],"low",0.286,0.524,0.22,0.428,0.892,0.365],["solar-storage-disclosures",360,"project_context(120)\u2192disclosure_facet(3)\u2192url(1)",[],1,"hierarchical",["general","events","legal"],"medium",0.59,0.335,0.498,0.481,0.601,0.522],["sony-label-artist-affiliations",360,"label(60)\u2192artist(2)\u2192affiliation_side(2)\u2192url(1)",["label(60)\u2192provenance_side(2)\u2192url(1)"],2,"composite",["general","events"],"high",0.967,0.569,0.884,0.437,0.561,0.551],["student-logistics",360,"service(120)\u2192evidence_axis(3)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.374,0.672,0.471,0.35,0.5,0.716],["uk-leisure-projects",360,"facility_project(120)\u2192project_facet(3)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.478,0.453,0.266,0.743,0.365,0.324],["us-brand-executive-role-evidence",352,"role_family(4)\u2192executive(44)\u2192evidence_axis(2)\u2192url(1)",[],2,"hierarchical",["general","events"],"high",0.801,0.74,0.393,0.478,0.905,0.814],["california-hydrogen-public-events",350,"public_actor_group(5)\u2192public_event(35)\u2192evidence_role(2)\u2192url(1)",[],2,"flat",["legal"],"medium",0.547,0.629,0.644,0.445,0.605,0.258],["claude-public-relationship-evidence-graph",350,"relationship_family(5)\u2192family_counterparty(35)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["tech"],"low",0.271,0.144,0.453,0.412,0.468,0.561],["mn-environmental-health-agencies",350,"agency(175)\u2192public_role(1)\u2192url(1)",["agency(175)\u2192url(1)"],1,"composite",["legal"],"high",0.817,0.434,0.729,0.759,0.4,0.837],["productivity-monitoring-product-capability-evidence",350,"vendor(50)\u2192vendor_product(1)\u2192product_source_role(4)\u2192url(1)",["vendor_product(50)\u2192outside_proof_role(3)\u2192product_outside_organization(1)\u2192url(1)"],4,"composite",["general","tech"],"high",0.796,0.252,0.831,0.62,0.948,0.364],["property-software-provenance",350,"product(70)\u2192evidence_facet(5)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.346,0.15,0.512,0.493,0.313,0.717],["agentic-ai-soc-vendor-public-capability-source-table",340,"vendor_or_company(85)\u2192claim_axis(4)\u2192url(1)",[],1,"hierarchical",["tech"],"low",0.362,0.04,0.534,0.512,0.664,0.607],["earnings-qna-themes",330,"ticker_company(55)\u2192ticker_company_question_theme(3)\u2192company_call(2)\u2192company_qna_exchange(1)\u2192url(1)",[],3,"hierarchical",["finance"],"medium",0.468,0.164,0.782,0.475,0.425,0.056],["healthcare-edi-api-developer-capability-evidence",330,"vendor_product(55)\u2192capability_bucket(3)\u2192url(2)",[],1,"hierarchical",["health","tech"],"medium",0.602,0.497,0.491,0.441,0.588,0.456],["packaging-change-provenance-atlas",330,"packaging_change(110)\u2192evidence_facet(3)\u2192url(1)",[],1,"hierarchical",["general","events"],"high",0.841,0.715,0.522,0.513,0.747,0.729],["au-member-state-policy-actions",324,"country(54)\u2192area(6)\u2192country_area_action(1)\u2192url(1)",[],2,"composite",["legal"],"high",0.753,0.641,0.504,0.343,0.776,0.377],["ai-roleplay-ecosystem",320,"segment(4)\u2192product(20)\u2192evidence_facet(4)\u2192url(1)",[],2,"hierarchical",["general","community","tech"],"medium",0.586,0.403,0.57,0.536,0.841,0.399],["consumer-accessory-product-provenance",320,"category(8)\u2192brand_product(10)\u2192url(1)",["brand_product(80)\u2192url(2)","brand_product(80)\u2192url(1)"],1,"composite",["events","e-com"],"high",0.738,0.417,0.837,0.721,0.944,0.307],["container-shipping-providers",320,"stage(4)\u2192stage_provider(80)\u2192url(1)",[],1,"hierarchical",["general","legal"],"high",0.797,0.718,0.38,0.303,0.331,0.765],["equipment-dealer-dms",320,"vendor_product(80)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.562,0.403,0.374,0.607,0.612,0.512],["film-festival-comedy-thriller-archive-map",320,"film(80)\u2192festival(2)\u2192film_festival_appearance(1)\u2192url(1)",["film(80)\u2192url(2)"],1,"composite",["general","wikis"],"high",0.7,0.449,0.691,0.751,0.819,0.065],["onsite-power-deployments",320,"onsite_power_deployment(160)\u2192evidence_role(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"high",0.802,0.468,0.737,0.217,0.435,0.34],["steel-suppliers",320,"product_family(8)\u2192supplier(40)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.062,0.161,0.236,0.522,0.394,0.809],["us-robotics-ai-seed-funding",320,"company(160)\u2192funding_event(1)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["events"],"high",0.752,0.499,0.664,0.707,0.967,0.413],["xactimate-esx-public-tool-claim-provenance-atlas",320,"product(80)\u2192claim_facet(4)\u2192url(1)",[],1,"hierarchical",["general","e-com","tech"],"high",0.691,0.358,0.571,0.533,0.518,0.599],["portugal-municipalities",308,"municipality_district(308)\u2192url(1)",[],0,"flat",["wikis"],"low",0.308,0.417,0.369,0.324,1.0,0.214],["local-service-platform-adoption",302,"platform(60)\u2192customer_business(2)\u2192url(1)",["platform(60)\u2192feature_facet(3)\u2192url(1)","customer_business(2)\u2192url(1)"],2,"composite",["general"],"medium",0.553,0.347,0.622,0.833,0.815,0.551],["ai-mlops-vendor-claims",300,"vendor(50)\u2192claim_family(3)\u2192vendor_claim(1)\u2192evidence_side(2)\u2192url(1)",[],3,"hierarchical",["general","tech"],"medium",0.605,0.434,0.582,0.685,0.786,0.585],["alternative-protein-signals",300,"company(100)\u2192signal_facet(3)\u2192url(1)",[],1,"hierarchical",["general","events","finance","e-com"],"medium",0.565,0.104,0.759,0.525,0.885,0.495],["audio-gear",300,"product(50)\u2192sentiment(2)\u2192url(3)",[],1,"hierarchical",["general","community"],"high",0.79,0.567,0.661,0.695,1.0,0.486],["audio-gear-relaxed",300,"product(50)\u2192sentiment(2)\u2192url(3)",[],1,"composite",["general"],"medium",0.487,0.497,0.541,0.493,0.953,0.416],["automotive-ai-sales-workflows",300,"workflow(5)\u2192vendor_workflow(30)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.387,0.218,0.482,0.509,0.754,0.592],["bess-warranty-sources",300,"company(100)\u2192company_product(1)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["tech"],"medium",0.462,0.287,0.478,0.633,0.441,0.873],["business-restraint-decision-event-provenance",300,"restraint_mode(5)\u2192company_decision(20)\u2192evidence_role(3)\u2192url(1)",[],2,"hierarchical",["events"],"low",0.322,0.57,0.309,0.547,0.953,0.567],["chrome-rod-disclosures",300,"supplier(75)\u2192disclosure_facet(4)\u2192url(1)",[],1,"hierarchical",["e-com"],"medium",0.615,0.568,0.487,0.508,0.311,0.904],["data-center-heat-offtake-relationships",300,"heat_offtake_relationship(150)\u2192evidence_side(2)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.762,0.703,0.464,0.357,0.693,0.776],["emilia-electrical-firms",300,"firm(100)\u2192evidence_facet(3)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.228,0.388,0.419,0.518,0.607,0.606],["energy-consultant-claims",300,"firm(75)\u2192public_claim(2)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general","legal"],"low",0.242,0.109,0.539,0.494,0.661,0.601],["game-meat-exporter-provenance",300,"provenance_actor(50)\u2192provenance_facet(6)\u2192url(1)",[],1,"hierarchical",["general","legal","e-com"],"medium",0.558,0.05,0.641,0.484,0.219,0.886],["heritage-railways",300,"railway_country(150)\u2192url(2)",[],0,"flat",["wikis"],"high",0.878,0.023,0.907,0.822,0.976,0.15],["high-voltage-grid-equipment",300,"equipment_class(4)\u2192manufacturer(25)\u2192equipment_family(1)\u2192url(1)",["equipment_family(100)\u2192public_reference(2)\u2192url(1)"],3,"composite",["general","e-com"],"high",0.823,0.553,0.702,0.647,0.572,0.599],["jrct-registry-metadata",300,"recruitment_status(5)\u2192jrct_record(15)\u2192registry_facet(4)\u2192url(1)",[],2,"flat",["health"],"medium",0.537,0.338,0.802,0.496,0.593,0.011],["legal-ai-publications",300,"publication(60)\u2192profile_facet(2)\u2192url(1)",["publication(60)\u2192governance_piece(3)\u2192url(1)"],2,"hierarchical",["general","events","academic"],"high",0.794,0.439,0.761,0.844,0.922,0.264],["local-ai-offers",300,"offer_family(5)\u2192provider_package(30)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.42,0.14,0.381,0.617,0.68,0.77],["macos-privilege-elevation-controls",300,"macos_elevation_offering(30)\u2192control_facet(5)\u2192source_surface(2)\u2192url(1)",[],2,"hierarchical",["tech"],"medium",0.575,0.294,0.527,0.601,0.342,0.712],["mdb-cross-debarment-provenance",300,"sanctioned_party(100)\u2192source_institution(3)\u2192url(1)",[],1,"hierarchical",["legal"],"medium",0.497,0.076,0.791,0.464,0.071,0.406],["merchant-kyb-onboarding-source-provenance",300,"vendor_platform(75)\u2192source_class(3)\u2192url(1)",["vendor_platform(75)\u2192url(1)"],1,"composite",["general","tech"],"medium",0.411,0.224,0.47,0.616,0.694,0.703],["mipt-ml-engineers",300,"person_graduation_year(300)\u2192url(1)",[],0,"flat",["people"],"low",0.083,0.672,0.385,0.587,0.987,0.066],["nj-hib-school-contacts",300,"district(60)\u2192district_school(3)\u2192url(1)",["district(60)\u2192district_evidence_side(2)\u2192url(1)"],2,"hierarchical",["legal"],"low",0.329,0.549,0.482,0.626,0.285,0.754],["pls-ri-competitor-capability-provenance-atlas",300,"vendor_product(100)\u2192capability_facet(3)\u2192url(1)",[],1,"hierarchical",["tech"],"low",0.343,0.27,0.505,0.494,0.943,0.466],["recent-type-foundries",300,"foundry(150)\u2192evidence_kind(2)\u2192url(1)",[],1,"hierarchical",["events"],"low",0.203,0.539,0.337,0.488,0.821,0.293],["robot-offering-deployments",300,"company(150)\u2192company_robot_offering(1)\u2192proof_side(2)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"medium",0.405,0.209,0.55,0.537,0.994,0.673],["saudi-bank-boards",300,"bank(10)\u2192board_member(10)\u2192source_mode(3)\u2192url(1)",[],2,"hierarchical",["legal","finance"],"medium",0.517,0.32,0.496,0.557,0.143,0.488],["supply-shortage-claims",300,"supply_domain(3)\u2192claim_case(50)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["events","legal","finance"],"high",0.712,0.574,0.576,0.606,0.496,0.491],["thailand-service-robot-channel-presence",300,"company(100)\u2192presence_facet(3)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.868,0.763,0.511,0.585,0.448,0.787],["tn-colleges",300,"college_district(300)\u2192url(1)",[],0,"flat",["general"],"low",0.095,0.356,0.659,0.578,1.0,0.023],["uk-farm-shop-retail-directory",300,"farm_shop(100)\u2192retail_signal(3)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"high",0.667,0.002,0.747,0.308,0.577,0.443],["us-outplacement-provider-public-capability-provenance",300,"provider(100)\u2192capability_facet(3)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.518,0.377,0.538,0.684,0.463,0.821],["forbes-250-cross",294,"person(14)\u2192person_claim_erroneous(1)\u2192url(1)",["person(14)\u2192person_claim_truthful(4)\u2192url(5)"],2,"composite",["general"],"high",0.736,0.057,0.791,0.565,0.367,0.667],["gpu-benchmarks",290,"gpu(20)\u2192game(10)\u2192url(1)",["gpu(20)\u2192url(3)","game(10)\u2192url(3)"],0,"composite",["general","e-com"],"high",0.669,0.49,0.784,0.788,0.462,0.048],["paper-retractions",290,"paper(290)\u2192url(1)",[],0,"flat",["academic"],"low",0.0,0.532,0.505,0.522,0.998,0.014],["australia-education-agents",288,"country(8)\u2192country_agency(6)\u2192source_side(2)\u2192url(1)",["country_agency(48)\u2192endorsement_flavor(2)\u2192url(2)"],3,"composite",["general"],"high",0.811,0.0,0.884,0.842,0.583,0.535],["canberra-procurement-advisory-contracts",288,"service_line(3)\u2192supplier(24)\u2192contract_award(2)\u2192url(1)",["supplier(72)\u2192supplier_profile_facet(2)\u2192url(1)"],3,"composite",["general","legal"],"low",0.314,0.613,0.571,0.79,0.849,0.187],["trailer-component-supplier-provenance",288,"product_category(8)\u2192category_supplier(12)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.562,0.335,0.531,0.569,0.223,0.553],["ai-model-layer-company-public-capability-source-table",280,"company(35)\u2192model(2)\u2192evidence_role(4)\u2192url(1)",[],2,"hierarchical",["tech"],"medium",0.605,0.163,0.781,0.637,0.732,0.429],["benefits-policy-sources",280,"jurisdiction(56)\u2192assistance_program(5)\u2192url(1)",[],1,"hierarchical",["legal"],"medium",0.473,0.158,0.629,0.478,0.699,0.479],["clm-offering-evidence",280,"clm_offering(70)\u2192evidence_axis(4)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.354,0.243,0.697,0.615,0.936,0.397],["financial-institution-ai-outcome-evidence",280,"institution_initiative(140)\u2192evidence_side(2)\u2192url(1)",[],1,"hierarchical",["general","events","finance"],"medium",0.454,0.46,0.407,0.413,0.6,0.548],["nulogy-adjacent-capability-evidence",280,"adjacency_cluster(2)\u2192company_product(70)\u2192capability_family(2)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.339,0.217,0.482,0.529,0.75,0.695],["onboarding-gamification",280,"category(7)\u2192product(20)\u2192evidence_facet(2)\u2192product_evidence(1)\u2192url(1)",[],3,"hierarchical",["general","tech"],"medium",0.618,0.146,0.656,0.601,0.59,0.855],["rcm-website-surfaces",280,"company(70)\u2192company_proof_object(2)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["events","e-com","health"],"high",0.832,0.109,0.901,0.847,0.731,0.561],["restaurant-uniforms",280,"restaurant_chain(280)\u2192supplier_partner(1)\u2192url(1)",[],0,"hierarchical",["general"],"high",0.686,0.627,0.368,0.247,0.573,0.6],["data-governance-kpi-evidence",270,"vendor_platform(45)\u2192evidence_facet(6)\u2192url(1)",[],1,"hierarchical",["general","tech"],"low",0.243,0.0,0.461,0.36,0.793,0.444],["maritime-casualty-reports-relaxed",270,"vessel(270)\u2192url(1)",[],0,"flat",["events"],"low",0.0,0.204,0.3,0.106,0.935,0.081],["transit-procurement-items",270,"agency(30)\u2192pipeline_stage(3)\u2192pipeline_item(3)\u2192url(1)",[],2,"hierarchical",["legal"],"high",0.807,0.788,0.393,0.398,0.701,0.727],["uk-tax-software-evidence",270,"software_product(45)\u2192evidence_facet(4)\u2192url(1)",["software_product(45)\u2192product_entity(1)\u2192entity_source_type(2)\u2192url(1)"],3,"composite",["general","legal"],"medium",0.425,0.204,0.619,0.712,0.424,0.36],["biotech-china-decoupling",260,"signal_event(260)\u2192source_type(1)\u2192url(1)",[],1,"flat",["legal"],"medium",0.471,0.399,0.747,0.736,0.868,0.186],["essilorluxottica-2026-frames",256,"brand(16)\u2192brand_frame(8)\u2192colorway(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"high",0.881,0.316,0.902,0.651,0.828,0.076],["spokane-kootenai-projects",252,"county(2)\u2192county_lead_agency(7)\u2192canonical_project(6)\u2192source_claim_family(3)\u2192url(1)",[],3,"hierarchical",["legal"],"high",0.855,0.335,0.741,0.611,0.369,0.508],["africa-entrepreneur-support",250,"country(10)\u2192support_role(5)\u2192country_support_role_actor(5)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.316,0.194,0.539,0.601,0.646,0.874],["bi-analytics-ai-capability-provenance",250,"vendor(125)\u2192capability(1)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["tech"],"low",0.336,0.361,0.48,0.554,0.872,0.736],["local-search-integrity",250,"integrity_case(50)\u2192independent_case_source(3)\u2192url(1)",["integrity_case(50)\u2192platform_evidence_role(2)\u2192platform_case_source(1)\u2192url(1)"],3,"hierarchical",["general","legal"],"high",0.925,0.36,0.821,0.92,0.602,0.617],["supply-chain-planning-vendors",250,"company(50)\u2192evidence_axis(5)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"low",0.184,0.0,0.511,0.632,0.673,0.572],["upc-offering-mechanics",250,"offering_event(50)\u2192evidence_facet(5)\u2192url(1)",[],1,"hierarchical",["legal"],"low",0.16,0.48,0.357,0.559,0.337,0.022],["ai-capacity-opportunities",240,"route_family(4)\u2192organization(20)\u2192opportunity(1)\u2192url(1)",["organization(80)\u2192capacity_evidence_role(2)\u2192url(1)"],3,"composite",["general"],"high",0.769,0.515,0.531,0.822,0.756,0.588],["ai-collaboration-signals",240,"ai_collaboration_signal(6)\u2192company_product(40)\u2192url(1)",[],1,"hierarchical",["tech"],"low",0.248,0.287,0.213,0.429,0.45,0.704],["artisan-brand-visibility",240,"brand(60)\u2192visibility_facet(4)\u2192url(1)",[],1,"hierarchical",["events","e-com","social"],"low",0.383,0.123,0.615,0.358,0.954,0.669],["bag-palletizer-suppliers",240,"supplier_or_brand(60)\u2192capability_facet(4)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.342,0.303,0.361,0.503,0.604,0.568],["craft-breweries",240,"country(20)\u2192country_brewery(12)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.758,0.358,0.808,0.891,1.0,0.623],["dach-ai-implementers",240,"country(3)\u2192country_company(20)\u2192evidence_facet(3)\u2192url(1)",["country_company(60)\u2192url(1)"],2,"composite",["general"],"medium",0.464,0.181,0.578,0.677,0.739,0.521],["detroit-michigan-specialty-contributor-public-credit-map",240,"specialty_contributor(120)\u2192credit_source_role(2)\u2192public_credit(1)\u2192url(1)",[],2,"hierarchical",["general","events"],"high",0.69,0.492,0.47,0.336,0.44,0.626],["digital-health-revenue-ops-reciprocity",240,"platform_company(60)\u2192revenue_ops_counterparty(2)\u2192reference_type(2)\u2192url(1)",[],1,"hierarchical",["health"],"high",0.71,0.511,0.482,0.365,0.414,0.824],["european-private-software-scale-metrics",240,"company(120)\u2192url(1)",["company(120)\u2192scale_metric_kind(1)\u2192url(1)"],1,"composite",["general","legal"],"high",0.692,0.154,0.776,0.947,0.89,0.575],["food-distribution-facility-project-evidence",240,"facility_project(120)\u2192evidence_side(2)\u2192url(1)",[],1,"hierarchical",["general","events"],"medium",0.44,0.414,0.409,0.615,0.939,0.631],["global-solar-pv-component-manufacturers",240,"stack_tier(10)\u2192tier_company(12)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["general"],"low",0.344,0.072,0.53,0.476,0.756,0.745],["industrial-dc-chargers",240,"brand_or_product(60)\u2192lineage_relation(4)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.577,0.187,0.629,0.561,0.48,0.5],["mineral-partnership-events",240,"partnership_event(120)\u2192source_side(2)\u2192url(1)",[],1,"hierarchical",["general","events"],"medium",0.446,0.219,0.529,0.576,0.917,0.539],["nurse-pathway-programs",240,"program_host(240)\u2192support_program(1)\u2192url(1)",[],1,"hierarchical",["general","health"],"low",0.385,0.474,0.431,0.535,0.829,0.921],["public-company-data-asset-provenance",240,"data_domain(6)\u2192company(20)\u2192data_asset(1)\u2192evidence_axis(2)\u2192url(1)",[],3,"hierarchical",["general","legal","finance"],"high",0.769,0.715,0.501,0.472,0.66,0.789],["rosemary-antioxidant-product-provenance",240,"company_product(60)\u2192evidence_axis(4)\u2192url(1)",[],1,"hierarchical",["e-com"],"medium",0.546,0.289,0.495,0.628,0.366,0.606],["swedish-invoice-finance",240,"provider(120)\u2192provider_service(1)\u2192evidence_role(2)\u2192url(1)",[],2,"flat",["legal","finance"],"low",0.256,0.506,0.442,0.387,0.87,0.544],["us-solar-manufacturing",240,"solar_facility(60)\u2192evidence_axis(4)\u2192url(1)",[],1,"hierarchical",["general","events","legal"],"high",0.733,0.111,0.686,0.901,0.389,0.668],["wru-rugby-clubs-wales",240,"division(30)\u2192club_division(8)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.727,0.235,0.673,0.649,0.059,0.243],["sa-bakery-supplier-provenance",234,"evidence_facet(3)\u2192supplier(78)\u2192url(1)",[],1,"hierarchical",["general","legal","e-com"],"high",0.752,0.592,0.488,0.532,0.739,0.805],["cve-vendor-advisories",230,"cve(230)\u2192url(1)",[],0,"flat",["tech"],"low",0.0,0.377,0.185,0.448,0.455,0.054],["former-us-solicitor-general-private-practice",225,"person(75)\u2192evidence_axis(3)\u2192url(1)",[],1,"hierarchical",["legal"],"low",0.224,0.22,0.35,0.381,0.594,0.527],["ghana-beverage-manufacturer-firmographics",225,"manufacturer(75)\u2192firmographic_facet(3)\u2192url(1)",[],1,"flat",["general"],"medium",0.576,0.4,0.478,0.718,0.567,0.56],["music-publishing-admin-cwr-provider-public-capability-source-table",225,"provider_product(75)\u2192capability_facet(3)\u2192url(1)",[],1,"hierarchical",["general","tech"],"medium",0.52,0.449,0.349,0.464,0.406,0.763],["space-pv-suppliers",225,"supplier_role(75)\u2192evidence_facet(3)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.498,0.54,0.495,0.586,0.805,0.683],["transduction-orgs",225,"organization_type(3)\u2192organization(25)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general","academic","health"],"high",0.691,0.267,0.687,0.61,0.949,0.577],["y-dna-haplogroup-clades",225,"parent_clade(75)\u2192child_clade(3)\u2192url(1)",[],0,"hierarchical",["wikis"],"low",0.062,0.263,0.392,0.323,1.0,0.005],["victorian-uni-acts",224,"university(8)\u2192governance_facet(9)\u2192evidence_source(3)\u2192url(1)",["university(8)\u2192url(1)"],2,"composite",["legal"],"high",0.975,0.125,0.956,0.978,0.268,0.336],["lawa-systems-governance",220,"system_action(220)\u2192url(1)",[],0,"flat",["legal"],"high",0.673,0.457,0.617,0.568,0.8,0.023],["us-lng-projects",220,"project(55)\u2192facet(4)\u2192url(1)",[],1,"composite",["general","legal","finance"],"medium",0.514,0.091,0.607,0.378,0.401,0.503],["acma-rrl-licensee-provenance",216,"service_bucket(6)\u2192organisation_licensee(12)\u2192evidence_facet(3)\u2192url(1)",[],2,"flat",["legal"],"low",0.366,0.606,0.419,0.343,0.805,0.352],["bergen-county-nonprofit-landscape",216,"focus_area(6)\u2192focus_org(12)\u2192url(1)",["focus_org(72)\u2192evidence_axis(2)\u2192url(1)"],2,"composite",["general","legal"],"low",0.365,0.012,0.595,0.681,0.523,0.707],["poster-printing-capabilities",216,"provider(24)\u2192poster_product(3)\u2192capability_facet(3)\u2192url(1)",[],2,"hierarchical",["e-com"],"medium",0.495,0.294,0.63,0.582,0.425,0.354],["restaurant-ingredient-prices",216,"market_country(2)\u2192source_role(3)\u2192source_context(18)\u2192ingredient_component(2)\u2192url(1)",[],3,"hierarchical",["finance","e-com"],"high",0.921,0.785,0.598,0.597,0.604,0.374],["russia-production-case-evidence",216,"sector_band(3)\u2192production_case(24)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general","legal","e-com"],"low",0.03,0.343,0.308,0.668,0.361,0.545],["australian-universities",215,"university(43)\u2192information_pane(5)\u2192url(1)",[],1,"hierarchical",["general","legal"],"low",0.181,0.012,0.401,0.371,0.552,0.335],["africa-fertilizer-associations",210,"association(35)\u2192evidence_role(3)\u2192association_evidence_signal(2)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.662,0.333,0.618,0.691,0.297,0.716],["bric-state-workflows",210,"jurisdiction(35)\u2192marker_kind(3)\u2192workflow_marker(1)\u2192url(2)",[],2,"composite",["legal"],"high",0.726,0.433,0.613,0.521,0.39,0.609],["market-access-datasets",210,"vendor(70)\u2192vendor_dataset(1)\u2192url(1)",["vendor_dataset(70)\u2192url(1)","vendor_dataset(70)\u2192url(1)"],1,"composite",["health"],"high",0.65,0.238,0.79,0.776,0.413,0.836],["pulsed-capacitor-claims",210,"vendor(35)\u2192vendor_capability_claim(3)\u2192provenance_role(2)\u2192url(1)",[],2,"hierarchical",["e-com","tech"],"high",0.698,0.341,0.611,0.462,0.433,0.802],["window-tinting-laws-worldwide",210,"country(30)\u2192tinting_axis(7)\u2192country_tinting_rule(1)\u2192url(1)",[],2,"composite",["legal"],"high",0.736,0.073,0.689,0.655,0.325,0.881],["virginia-k12-districts",204,"district(68)\u2192contact_facet(3)\u2192url(1)",[],1,"flat",["general"],"low",0.4,0.142,0.424,0.379,0.418,0.823],["ai-paper-authors",200,"author(100)\u2192url(1)",["author(100)\u2192url(1)"],0,"hierarchical",["academic"],"high",0.85,0.167,0.898,0.877,0.592,0.064],["fda-drug-lineage-relaxed",200,"drug(40)\u2192url(1)",["drug(40)\u2192molecule(1)\u2192url(1)"],2,"composite",["legal","academic"],"high",0.933,0.154,0.95,0.333,0.178,0.779],["former-yandex-now-meta",200,"person(200)\u2192url(1)",[],0,"flat",["people"],"low",0.147,0.658,0.44,0.668,1.0,0.021],["grid-deployment-award-provenance",200,"grid_deployment_project(40)\u2192url(1)",["grid_deployment_project(40)\u2192evidence_axis(4)\u2192url(1)"],1,"composite",["general","legal"],"high",0.869,0.054,0.89,0.895,0.328,0.63],["independent-sponsor-capital-criteria",200,"capital_partner(50)\u2192evidence_role(4)\u2192url(1)",[],1,"hierarchical",["finance"],"high",0.755,0.088,0.795,0.427,0.66,0.701],["industrial-air-controls",200,"company_facility(200)\u2192control_instance(1)\u2192url(1)",[],1,"flat",["legal"],"low",0.152,0.448,0.218,0.621,0.733,0.339],["japan-auto-tech-speaker-sales-leads",200,"speaker_organization(200)\u2192url(1)",[],0,"flat",["general"],"low",0.0,0.239,0.699,0.382,0.075,0.228],["legal-crm-role-sources",200,"crm_profile(100)\u2192legal_context(1)\u2192url(1)",["crm_profile(100)\u2192url(1)"],1,"composite",["general","tech"],"high",0.885,0.382,0.834,0.94,0.748,0.352],["lentropiste-retail-provenance",200,"retailer_surface(50)\u2192product_role(2)\u2192url(1)",["retailer_surface(50)\u2192context_role(2)\u2192url(1)"],2,"composite",["e-com"],"high",0.828,0.443,0.817,0.842,0.552,0.34],["nvidia-ai-infrastructure-attestation",200,"company(100)\u2192attestation_side(2)\u2192url(1)",[],1,"hierarchical",["general","tech"],"medium",0.477,0.25,0.442,0.3,0.68,0.71],["ofcom-transfer-lineage",200,"licence_record(100)\u2192source_family(2)\u2192url(1)",[],1,"hierarchical",["legal"],"high",0.795,0.537,0.825,0.704,0.517,0.038],["online-houseplant-retailer-catalog",200,"retailer(50)\u2192evidence_facet(4)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.158,0.0,0.55,0.538,0.868,0.36],["polish-energy-project-relationship-evidence",200,"company(100)\u2192company_project(1)\u2192url(1)",["company_project(100)\u2192url(1)"],1,"composite",["general"],"medium",0.62,0.485,0.575,0.734,0.746,0.738],["prize-contingency-insurance",200,"entity(100)\u2192source_role(2)\u2192url(1)",[],1,"hierarchical",["finance"],"medium",0.403,0.107,0.646,0.606,0.318,0.867],["resolved-prediction-markets",200,"platform_market(100)\u2192evidence_type(2)\u2192url(1)",[],1,"composite",["finance","wikis"],"low",0.107,0.18,0.328,0.258,0.521,0.11],["restaurant-openings-nyc",200,"restaurant_address(100)\u2192url(2)",[],0,"flat",["events"],"high",0.902,0.427,0.861,0.847,0.603,0.212],["satellite-d2d",200,"organization_role(100)\u2192evidence_facet(2)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.487,0.343,0.326,0.785,0.45,0.786],["social-api-vendor-evidence",200,"vendor(40)\u2192evidence_facet(5)\u2192url(1)",[],1,"hierarchical",["e-com","tech"],"medium",0.555,0.004,0.615,0.591,0.577,0.532],["coding-agent-protocols",192,"protocol(2)\u2192protocol_role(4)\u2192implementation(6)\u2192evidence_facet(4)\u2192url(1)",[],3,"hierarchical",["tech"],"low",0.32,0.008,0.369,0.465,0.33,0.434],["concrete-tool-presence",192,"manufacturer(8)\u2192manufacturer_sku_product(8)\u2192presence_facet(3)\u2192url(1)",[],2,"hierarchical",["e-com"],"low",0.305,0.232,0.434,0.518,0.448,0.473],["growth-equity-portfolio-roles",192,"investment_firm(12)\u2192firm_portfolio_role(8)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general","finance"],"low",0.102,0.179,0.398,0.329,0.672,0.614],["media-indicator-lineage",192,"country(12)\u2192source_family(4)\u2192calculation_line(2)\u2192lineage_evidence(2)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.445,0.188,0.654,0.445,0.118,0.489],["montreal-metal-fabricators",192,"capability_family(4)\u2192operator_site(24)\u2192source_role(2)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.534,0.21,0.583,0.56,0.726,0.678],["uk-fca-regulated-adviser-profile-corroboration",192,"firm(48)\u2192adviser(2)\u2192evidence_axis(2)\u2192url(1)",[],2,"hierarchical",["legal","finance"],"medium",0.573,0.773,0.693,0.73,0.716,0.501],["us-brand-leadership",192,"industry_sector(8)\u2192industry_sector_brand(8)\u2192leadership_lane(3)\u2192brand_leader(1)\u2192url(1)",[],3,"hierarchical",["general"],"high",0.682,0.49,0.532,0.578,0.859,0.66],["texas-headcounts",189,"employer_sector(10)\u2192employer(9)\u2192workforce_evidence(2)\u2192url(1)",["employer(9)\u2192url(1)"],2,"composite",["general","legal"],"high",0.792,0.339,0.802,0.789,0.4,0.883],["amazon-business-punchout-capability-provenance",180,"provider(90)\u2192evidence_facet(2)\u2192url(1)",[],1,"hierarchical",["e-com","tech"],"medium",0.625,0.359,0.383,0.43,0.475,0.74],["au-qs-service-corroboration",180,"service_domain(3)\u2192firm_listing(30)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["general"],"high",0.644,0.254,0.662,0.536,0.398,0.53],["business-banking-products",180,"provider(30)\u2192provider_product_plan(1)\u2192evidence_facet(6)\u2192url(1)",[],2,"hierarchical",["legal","finance"],"medium",0.419,0.017,0.585,0.528,0.474,0.465],["china-semiconductor-footprints",180,"supplier(45)\u2192footprint_function(4)\u2192footprint_signal(1)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"medium",0.581,0.24,0.605,0.261,0.714,0.666],["clearing-infrastructure-capabilities",180,"resolved_legal_entity(60)\u2192provider_service_line(1)\u2192capability(2)\u2192url(1)",["resolved_legal_entity(60)\u2192registration_anchor(1)\u2192url(1)"],3,"composite",["legal"],"medium",0.621,0.106,0.844,0.719,0.72,0.479],["eia-generator-status-date-episodes",180,"episode_family(5)\u2192independent_source_family(3)\u2192status_episode(6)\u2192evidence_side(2)\u2192url(1)",[],3,"hierarchical",["legal"],"high",0.681,0.435,0.669,0.817,0.582,0.659],["focal-brand-local-competitor-panels",180,"focal_brand(6)\u2192brand(10)\u2192evidence_axis(3)\u2192brand_axis_finding(1)\u2192url(1)",[],3,"composite",["general","e-com"],"low",0.175,0.083,0.44,0.382,0.528,0.583],["industrial-gas-consumption-plants",180,"industrial_facility(60)\u2192evidence_axis(3)\u2192facility_signal(1)\u2192url(1)",[],2,"flat",["legal"],"medium",0.431,0.057,0.702,0.742,0.52,0.165],["pdac-multiomics-registry",180,"resource(90)\u2192url(2)",[],0,"flat",["academic"],"high",0.808,0.358,0.772,0.82,0.993,0.05],["precast-decking-capability-provenance",180,"producer(60)\u2192capability_facet(3)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.692,0.519,0.437,0.288,0.799,0.536],["religion-nonfiction-publisher-imprint-provenance",180,"publisher_type(3)\u2192publisher_or_imprint(20)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.494,0.136,0.519,0.568,0.809,0.521],["sales-tax-economic-nexus",180,"state(45)\u2192rule_facet(4)\u2192state_rule_finding(1)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.208,0.004,0.389,0.357,0.197,0.827],["community-association-software",175,"vendor_product(35)\u2192evidence_facet(5)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.329,0.1,0.421,0.61,0.785,0.439],["regulated-messaging-fees",175,"vendor(35)\u2192evidence_kind(5)\u2192url(1)",[],1,"hierarchical",["general","tech"],"low",0.231,0.152,0.342,0.577,0.56,0.604],["uk-b8-open-storage-site-scouting",175,"opportunity_area(35)\u2192evidence_axis(5)\u2192area_axis_finding(1)\u2192url(1)",[],2,"composite",["general","legal","e-com"],"low",0.037,0.0,0.481,0.448,0.596,0.424],["maritime-casualty-reports",170,"vessel(170)\u2192url(1)",[],0,"flat",["legal"],"low",0.0,0.305,0.201,0.226,0.763,0.092],["sec-8k-material-events",170,"company_filing_date_item_code(170)\u2192url(1)",[],0,"flat",["legal"],"low",0.0,0.155,0.1,0.2,0.841,0.009],["china-satellite-industry",168,"topic(7)\u2192business_signal(8)\u2192url(3)",[],1,"composite",["general","events","legal"],"high",0.69,0.283,0.616,0.536,0.672,0.761],["fund-lifecycle-solutions",168,"role_family(7)\u2192firm(8)\u2192evidence_type(3)\u2192url(1)",[],2,"hierarchical",["legal","finance"],"low",0.327,0.143,0.414,0.531,0.524,0.675],["job-board-api-access",168,"capability_family(7)\u2192platform(24)\u2192url(1)",[],1,"hierarchical",["tech"],"high",0.899,0.179,0.85,0.994,0.511,0.482],["latam-fare-payment-programs",168,"region_bucket(8)\u2192fare_payment_program(7)\u2192evidence_type(3)\u2192url(1)",[],2,"hierarchical",["general","legal","finance"],"high",0.702,0.161,0.749,0.807,0.43,0.814],["thermal-area-suppliers",168,"thermal_area(7)\u2192supplier(12)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.446,0.23,0.491,0.464,0.873,0.731],["fis-bank-product-public-evidence",165,"fis_product(5)\u2192institution(18)\u2192url(1)",["institution(75)\u2192regulator_authority(1)\u2192url(1)"],1,"composite",["legal","finance"],"high",0.667,0.581,0.64,0.73,0.829,0.202],["africa-project-attrition",160,"country(10)\u2192project_event(8)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.119,0.371,0.472,0.655,0.168,0.164],["ai-server-hardware-relationships",160,"supply_chain_layer(8)\u2192relationship_edge(10)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["general","events"],"medium",0.425,0.253,0.458,0.477,0.807,0.686],["cross-os-dma-evidence",160,"os(5)\u2192scope_lens(4)\u2192scope_anchor(2)\u2192dma_signal(2)\u2192evidence_role(2)\u2192url(1)",[],4,"hierarchical",["tech"],"medium",0.578,0.0,0.485,0.685,0.201,0.245],["data-center-cooling",160,"claim_type(4)\u2192vendor(10)\u2192solution_claim(2)\u2192source_class(2)\u2192url(1)",[],3,"hierarchical",["general","e-com"],"medium",0.613,0.263,0.636,0.554,0.486,0.456],["hearth-accessory-docs",160,"brand(16)\u2192brand_sku(5)\u2192documentation_facet(2)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"medium",0.487,0.15,0.596,0.53,0.638,0.44],["olympic-medal-revocations",160,"athlete_event_games(80)\u2192evidence_type(2)\u2192url(1)",[],1,"flat",["wikis"],"low",0.266,0.0,0.341,0.733,0.51,0.154],["siirt-hydropower",160,"project(40)\u2192evidence_role(4)\u2192url(1)",[],1,"hierarchical",["general","events","legal"],"high",0.722,0.338,0.588,0.583,0.411,0.511],["software-kpis",160,"software_company(10)\u2192fiscal_period(8)\u2192metric_axis(2)\u2192url(1)",[],2,"hierarchical",["legal","finance"],"low",0.084,0.0,0.477,0.133,0.491,0.089],["startup-funding-party-provenance",160,"market_segment(4)\u2192company(20)\u2192round_participation(1)\u2192announcement_side(2)\u2192url(1)",[],3,"hierarchical",["general","social"],"high",0.816,0.723,0.355,0.535,0.961,0.575],["phoenix-wastewater-rehab-market-share",155,"firm_contract(155)\u2192url(1)",[],0,"flat",["legal"],"low",0.203,0.388,0.54,0.498,0.639,0.13],["good-standing-certificates",153,"jurisdiction(51)\u2192evidence_role(3)\u2192url(1)",[],1,"flat",["legal"],"low",0.252,0.118,0.349,0.332,0.545,0.83],["africa-agribusiness-operators",150,"operator(50)\u2192evidence_axis(3)\u2192url(1)",[],1,"hierarchical",["finance"],"medium",0.413,0.096,0.338,0.702,0.509,0.611],["assembly-equipment-channels",150,"channel_relationship(75)\u2192channel_side(2)\u2192url(1)",[],1,"hierarchical",["tech"],"high",0.667,0.328,0.59,0.475,0.614,0.627],["australian-potato-export-evidence",150,"corridor_product_pair(50)\u2192evidence_side(3)\u2192url(1)",[],1,"hierarchical",["general","legal"],"high",0.823,0.387,0.653,0.568,0.555,0.273],["campania-farm-capital-evidence",150,"educational_farm(75)\u2192url(1)",["educational_farm(75)\u2192url(1)"],0,"composite",["legal"],"low",0.28,0.0,0.76,0.841,0.834,0.147],["chips-funding-status",150,"funding_action(75)\u2192evidence_role(2)\u2192url(1)",[],1,"flat",["legal"],"low",0.35,0.156,0.449,0.523,0.863,0.396],["christian-radio-network-contacts",150,"network(50)\u2192contact_channel(3)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.527,0.253,0.559,0.36,0.431,0.931],["data-center-moratoriums",150,"jurisdiction_action(30)\u2192evidence_type(5)\u2192url(1)",[],1,"composite",["events","legal"],"low",0.333,0.006,0.325,0.608,0.257,0.918],["dw-persian-radio-archive-source-index",150,"holder_or_source_family(50)\u2192archive_holding(1)\u2192provenance_role(3)\u2192url(1)",[],2,"hierarchical",["academic"],"high",0.853,0.668,0.481,0.71,0.438,0.606],["eo-satellites-2000-2025",150,"operator_satellite(150)\u2192url(1)",[],0,"flat",["wikis"],"low",0.39,0.137,0.631,0.699,0.908,0.089],["indie-bookstore-imprints",150,"bookstore_imprint(30)\u2192url(2)",["bookstore_imprint(30)\u2192title(3)\u2192url(1)"],1,"hierarchical",["general","e-com"],"high",0.922,0.106,0.947,0.86,0.981,0.433],["iraq-ethiopia-hatching-provenance",150,"country(2)\u2192organization_or_facility(25)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.553,0.223,0.548,0.603,0.265,0.806],["llmops-provenance",150,"platform(25)\u2192workflow_area(3)\u2192source_surface(2)\u2192dated_event(1)\u2192url(1)",[],3,"hierarchical",["tech"],"medium",0.44,0.0,0.59,0.536,0.468,0.52],["pump-room-channels",150,"channel_relationship(75)\u2192source_side(2)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"medium",0.613,0.14,0.542,0.45,0.64,0.784],["retracted-for-misconduct",150,"person_paper(50)\u2192url(3)",[],0,"flat",["legal","academic"],"medium",0.643,0.0,0.718,0.467,0.475,0.229],["security-incident-disclosures",150,"organization_event(150)\u2192url(1)",[],0,"flat",["tech"],"medium",0.553,0.035,0.639,0.527,0.555,0.192],["sitecore-award-engagement-provenance",150,"award_engagement(75)\u2192evidence_type(2)\u2192url(1)",[],1,"hierarchical",["events","tech"],"low",0.397,0.231,0.431,0.349,0.253,0.417],["uconn-basketball-trading-cards",150,"player_card(150)\u2192url(1)",[],0,"flat",["e-com"],"low",0.0,0.058,0.364,0.496,0.526,0.05],["vp-marketing-saas-historical",150,"company(50)\u2192company_person(3)\u2192url(1)",[],1,"hierarchical",["people"],"low",0.013,0.208,0.425,0.57,0.978,0.199],["chicago-turo-vehicle-unit-economics",144,"vehicle_model(18)\u2192evidence_axis(8)\u2192url(1)",[],1,"composite",["finance","e-com"],"medium",0.5,0.0,0.662,0.644,0.633,0.08],["easa-publication-relationship-provenance",144,"relationship_class(4)\u2192publication_relationship(18)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.396,0.111,0.519,0.578,0.938,0.037],["robot-vision-deployments",144,"use_case(4)\u2192use_case_deployment_case(18)\u2192evidence_role(2)\u2192url(1)",[],2,"composite",["general"],"high",0.712,0.414,0.618,0.546,0.858,0.743],["space-competition-opportunity-matrix",144,"opportunity(24)\u2192evidence_axis(6)\u2192url(1)",[],1,"composite",["legal"],"low",0.288,0.042,0.27,0.591,0.274,0.435],["usports-basketball-coaches",144,"university(48)\u2192university_coach(3)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.309,0.125,0.382,0.385,0.307,0.946],["canada-copacker-capabilities",140,"operator_or_facility(20)\u2192evidence_axis(7)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.675,0.292,0.666,0.673,0.489,0.614],["ceo-cfo-appointments",140,"company(70)\u2192company_appointee(1)\u2192url(1)",["company(70)\u2192url(1)"],1,"composite",["legal","finance"],"low",0.0,0.198,0.463,0.592,0.941,0.111],["cx-qm-outcome-provenance",140,"vendor(20)\u2192outcome_context(3)\u2192use_case_family(1)\u2192outcome_metric(2)\u2192url(1)",["vendor(20)\u2192partial_source(1)\u2192url(1)"],4,"flat",["general"],"high",0.692,0.36,0.677,0.759,0.567,0.481],["tic-lab-accreditation-authority-records",140,"provider_brand(70)\u2192recognition_event(1)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["general","legal"],"medium",0.507,0.174,0.391,0.404,0.871,0.679],["eu-ecall-psap-infrastructure",135,"country(27)\u2192infrastructure_axis(5)\u2192country_finding(1)\u2192url(1)",[],2,"composite",["legal"],"medium",0.519,0.056,0.743,0.374,0.223,0.843],["greece-bike-share-procurement-events",135,"procurement_case(45)\u2192lifecycle_facet(3)\u2192event_stage(1)\u2192url(1)",[],2,"hierarchical",["legal"],"high",0.774,0.43,0.849,0.503,0.795,0.668],["protein-cookie-labels",135,"brand_product(45)\u2192source_family(3)\u2192source_surface(1)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"high",0.659,0.207,0.659,0.514,0.879,0.292],["mozambique-districts",131,"district_province(131)\u2192url(1)",[],0,"flat",["wikis"],"medium",0.519,0.517,0.17,0.138,1.0,0.018],["mortgage-calculator-surfaces",130,"surface_provider(65)\u2192calculator_surface(1)\u2192evidence_axis(2)\u2192url(1)",[],2,"hierarchical",["finance"],"low",0.208,0.156,0.373,0.567,0.961,0.567],["cgt-cryopreservation-bag-distributor",128,"market(16)\u2192market_channel(4)\u2192evidence_facet(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"low",0.246,0.366,0.336,0.316,0.59,0.283],["helmet-procurement-records",128,"jurisdiction(8)\u2192procurement_record(16)\u2192url(1)",[],1,"hierarchical",["legal"],"high",0.836,0.689,0.731,0.691,0.872,0.434],["aquilon-comic-universe-volumes",126,"series_tome(126)\u2192url(1)",[],0,"flat",["wikis","e-com"],"low",0.206,0.311,0.705,0.408,0.852,0.027],["eu-ets-installation-emissions",125,"country(5)\u2192country_entity_year(25)\u2192url(1)",[],1,"hierarchical",["legal"],"low",0.4,0.536,0.0,0.5,0.028,1.0],["hk-international-schools",125,"school(25)\u2192url(1)",["school(25)\u2192person(2)\u2192url(1)"],1,"hierarchical",["wikis"],"medium",0.54,0.167,0.756,0.46,0.478,0.102],["italpreziosi-relationships",125,"evidence_family(5)\u2192provenance_unit(25)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.276,0.297,0.294,0.338,0.16,0.431],["large-load-costs",125,"official_instrument(125)\u2192url(1)",[],0,"flat",["legal"],"high",0.716,0.588,0.625,0.81,0.806,0.577],["starlink-eband-evidence",125,"evidence_scope(1)\u2192deployment_signal(50)\u2192url(1)",["evidence_scope(1)\u2192named_external_supply_signal(20)\u2192url(1)","evidence_scope(1)\u2192internal_capability_signal(55)\u2192url(1)"],3,"composite",["general","legal"],"low",0.267,0.0,0.614,0.516,0.864,0.239],["active-climate-hardtech-opportunities",120,"source_family(6)\u2192opportunity(20)\u2192url(1)",[],1,"hierarchical",["legal"],"high",0.925,0.562,0.58,0.554,0.498,0.383],["au-letterbox-product-presence",120,"brand(15)\u2192brand_model(2)\u2192evidence_facet(2)\u2192url(1)",["brand(15)\u2192trace_facet(2)\u2192url(2)"],3,"composite",["general","community","e-com"],"high",0.744,0.122,0.789,0.826,0.656,0.46],["content-agency-hiring",120,"agency(20)\u2192hiring_facet(6)\u2192url(1)",[],1,"flat",["general"],"low",0.3,0.0,0.439,0.428,0.543,0.439],["distressed-power-user-site-acquisition",120,"site_opportunity(40)\u2192evidence_axis(3)\u2192site_finding(1)\u2192url(1)",[],2,"composite",["general","e-com"],"low",0.092,0.05,0.245,0.412,0.444,0.803],["ea-public-register-document-states",120,"register_category(4)\u2192permission_record(15)\u2192document_state_family(2)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.171,0.19,0.403,0.542,0.503,0.023],["environmental-violations",120,"company_violation(120)\u2192url(1)",[],0,"flat",["legal"],"high",0.733,0.175,0.77,0.561,0.483,0.427],["federal-parts-distributor-screen",120,"distributor(40)\u2192evidence_facet(3)\u2192url(1)",[],1,"flat",["general","legal"],"high",0.775,0.135,0.878,0.25,0.879,0.517],["math-conjectures-resolved",120,"conjecture(30)\u2192url(1)",["conjecture(30)\u2192url(3)"],0,"composite",["events","academic"],"medium",0.483,0.078,0.748,0.689,0.975,0.448],["miami-dade-civil-judges",120,"jurist(40)\u2192evidence_facet(3)\u2192url(1)",[],1,"flat",["legal"],"low",0.333,0.163,0.641,0.328,0.092,0.406],["musk-supplier-relationships",120,"supply_scope(6)\u2192supplier_relationship(10)\u2192evidence_role(2)\u2192url(1)",[],2,"hierarchical",["general","events"],"high",0.738,0.283,0.579,0.771,0.871,0.884],["ntsb-marine-publication-state",120,"investigation(40)\u2192url(1)",["investigation(40)\u2192url(1)","investigation(40)\u2192url(1)"],0,"hierarchical",["legal"],"medium",0.463,0.033,0.825,0.82,0.924,0.014],["opto-stage-variant-provenance",120,"supplier(30)\u2192product_family(2)\u2192qualifying_variant(2)\u2192url(1)",[],2,"hierarchical",["e-com"],"high",0.654,0.465,0.668,0.66,0.669,0.511],["photo-retail-event-workshops",120,"host_org(60)\u2192event(2)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"medium",0.442,0.429,0.449,0.508,0.708,0.588],["probate-distributed-properties",120,"county_property(40)\u2192evidence_facet(3)\u2192url(1)",[],1,"hierarchical",["legal","e-com"],"medium",0.567,0.421,0.778,0.587,0.627,0.21],["roof-estimator-deployments",120,"provider_family(4)\u2192contractor_deployment(30)\u2192url(1)",[],1,"hierarchical",["general"],"high",0.842,0.574,0.552,0.596,1.0,0.843],["sap-data-integration-capability-evidence",120,"tool(30)\u2192sap_source_surface(2)\u2192url(1)",["tool(30)\u2192target(2)\u2192url(1)"],2,"composite",["tech"],"medium",0.442,0.039,0.545,0.547,0.75,0.382],["sec-going-concern-filings",120,"filing(60)\u2192disclosure_facet(2)\u2192url(1)",[],1,"flat",["legal"],"low",0.121,0.157,0.431,0.42,0.523,0.092],["small-water-utilities-wi-mi-up",120,"region(2)\u2192utility_system(30)\u2192url(1)",["utility_system(60)\u2192url(1)"],1,"composite",["general","legal"],"high",0.775,0.325,0.714,0.459,0.993,0.339],["tiktok-shop-partner-api-evidence",120,"public_support_status(10)\u2192capability_area(3)\u2192capability_surface(2)\u2192evidence_facet(2)\u2192url(1)",[],3,"hierarchical",["tech"],"low",0.379,0.036,0.439,0.519,0.286,0.043],["university-application-fees",120,"destination_market(6)\u2192university(20)\u2192fee_scope(1)\u2192url(1)",[],2,"flat",["general"],"low",0.375,0.235,0.376,0.522,0.986,0.993],["work-visa-rule-changes",120,"jurisdiction(12)\u2192rule_change_event(5)\u2192change_category(1)\u2192source_role(2)\u2192url(1)",[],3,"hierarchical",["legal"],"high",0.75,0.106,0.701,0.636,0.579,0.315],["g20-top-institutions",114,"country(19)\u2192institution_type(3)\u2192country_institution(2)\u2192url(1)",[],2,"composite",["legal","finance"],"high",0.658,0.145,0.807,0.436,0.506,0.391],["merchant-bank-platform-incubation-thesis",112,"thesis_pillar(8)\u2192precedent_entity(2)\u2192evidence_axis(7)\u2192url(1)",[],2,"composite",["finance"],"low",0.308,0.15,0.247,0.604,0.409,0.7],["real-estate-feasibility-evidence",110,"vendor_product(55)\u2192workflow_axis(2)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.3,0.003,0.333,0.418,0.608,0.83],["restaurant365-customer-workflow-evidence",110,"customer_operator(55)\u2192workflow_evidence_record(2)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.514,0.011,0.626,0.906,0.452,0.107],["watchlist-eod-quotes",110,"ticker(110)\u2192url(1)",[],0,"flat",["finance"],"low",0.018,0.37,0.754,0.161,1.0,0.009],["accounting-ai-claims",108,"platform(18)\u2192platform_claim(3)\u2192evidence_family(2)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.639,0.096,0.576,0.61,0.51,0.645],["cee-heat-operator-regulation",108,"country(6)\u2192heat_operator(9)\u2192evidence_side(2)\u2192url(1)",[],2,"hierarchical",["legal"],"medium",0.407,0.037,0.638,0.616,0.332,0.282],["eu-emergency-communications-infrastructure",108,"country(27)\u2192axis(4)\u2192country_finding(1)\u2192url(1)",[],2,"composite",["legal"],"high",0.657,0.21,0.733,0.365,0.964,0.88],["latam-fiscal-workflows",108,"jurisdiction(6)\u2192regulator_program(1)\u2192registry_legal_entity(6)\u2192commercial_identity(1)\u2192registry_product_join(1)\u2192evidence_leg(3)\u2192url(1)",[],4,"hierarchical",["general","legal","tech"],"high",0.759,0.206,0.758,0.169,0.462,0.784],["transparent-led-products",105,"provider(35)\u2192display_product(1)\u2192evidence_facet(3)\u2192url(1)",[],2,"hierarchical",["events","e-com","social"],"medium",0.562,0.252,0.605,0.415,0.796,0.69],["us-msp-mssp",105,"sector(7)\u2192company(15)\u2192company_customer(1)\u2192url(1)",[],2,"hierarchical",["general"],"medium",0.61,0.325,0.479,0.363,0.829,0.618],["gta-dental-clinic-site-selection",104,"submarket(13)\u2192site_selection_domain(4)\u2192site_selection_signal(2)\u2192url(1)",[],2,"composite",["legal","e-com","health"],"low",0.346,0.0,0.614,0.418,0.664,0.554],["hkex-ai-disclosures",104,"issuer(13)\u2192disclosure_facet(4)\u2192issuer_facet_claim(1)\u2192source_role(2)\u2192url(1)",[],3,"hierarchical",["legal"],"medium",0.49,0.142,0.627,0.896,0.286,0.105],["pharma-former-rd-heads",104,"company(52)\u2192company_person(1)\u2192url(2)",[],1,"hierarchical",["events","health"],"high",0.649,0.647,0.206,0.292,1.0,0.749],["australia-philanthropic-giving-event-provenance",102,"giving_vehicle(34)\u2192giving_event(1)\u2192evidence_side(2)\u2192url(1)",["giving_vehicle(34)\u2192url(1)"],2,"composite",["general"],"high",0.669,0.01,0.698,0.831,0.72,0.8],["hmgma-suppliers",102,"supplier_facility(34)\u2192evidence_role(3)\u2192url(1)",[],1,"hierarchical",["general","events","legal"],"medium",0.461,0.093,0.486,0.454,0.821,0.534],["us-bar-prior-discipline-rules",102,"jurisdiction(51)\u2192rule_class(2)\u2192url(1)",[],1,"hierarchical",["legal"],"medium",0.485,0.193,0.514,0.731,0.983,0.774],["airport-biometric-border-gates",100,"border_jurisdiction(20)\u2192border_program(1)\u2192airport_deployment(2)\u2192url(1)",["border_program(20)\u2192passenger_flow_rule(2)\u2192url(1)","border_program(20)\u2192url(1)"],3,"flat",["legal"],"medium",0.637,0.092,0.646,0.733,0.493,0.705],["aviation-provenance-programs",100,"deployment_or_implementation(25)\u2192evidence_type(3)\u2192url(1)",["deployment_or_implementation(25)\u2192url(1)"],1,"composite",["general","events","legal"],"high",0.92,0.34,0.895,0.9,0.736,0.735],["construction-3d-printing-deployments",100,"project_deployment(100)\u2192url(1)",[],0,"flat",["general","events"],"low",0.275,0.052,0.492,0.559,0.926,0.491],["dutch-spiritual-influencers",100,"person(100)\u2192url(1)",[],0,"flat",["general","social"],"high",0.68,0.003,0.792,0.733,0.799,0.691],["fda-drug-lineage",100,"drug(30)\u2192url(1)",["drug(30)\u2192molecule(1)\u2192url(1)"],2,"composite",["health"],"high",0.8,0.183,0.856,0.357,0.258,0.853],["free-trade-agreements-historical",100,"trade_deal(100)\u2192url(1)",[],0,"flat",["legal"],"low",0.065,0.0,0.482,0.58,0.717,0.357],["google-london-inference",100,"person(100)\u2192url(1)",[],0,"flat",["people"],"high",0.74,0.458,0.661,0.379,1.0,0.103],["hcmc-sugarcane-providers",100,"provider(25)\u2192url(1)",["provider(25)\u2192evidence_type(3)\u2192url(1)"],1,"hierarchical",["general","e-com"],"low",0.287,0.168,0.371,0.565,0.311,0.754],["humanoid-fiber-tendon-patents",100,"author_publication(100)\u2192url(1)",[],0,"flat",["patents"],"low",0.155,0.05,0.444,0.54,0.992,0.021],["maritime-port-shore-power-deployments",100,"port(50)\u2192shore_power_deployment(2)\u2192url(1)",[],1,"flat",["general"],"medium",0.435,0.393,0.414,0.206,0.486,0.862],["museum-repatriations",100,"artifact_institution(50)\u2192url(2)",[],0,"flat",["general"],"medium",0.57,0.04,0.68,0.406,0.74,0.768],["nonfinancial-public-company-insurance-intermediation",100,"public_company(50)\u2192source_family(2)\u2192url(1)",[],1,"hierarchical",["general","legal"],"high",0.685,0.503,0.74,0.448,0.735,0.855],["npdes-cwa-records",100,"record_class(5)\u2192npdes_permit(20)\u2192cwa_record(1)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.135,0.078,0.621,0.593,0.509,0.048],["payment-integrity-service-lines",100,"vendor(25)\u2192vendor_capability(4)\u2192url(1)",[],1,"composite",["health"],"medium",0.44,0.263,0.221,0.55,0.644,0.425],["quantum-photonics-suppliers",100,"supplier(25)\u2192capability_axis(2)\u2192url(1)",["supplier(25)\u2192url(1)","supplier(25)\u2192url(1)"],1,"hierarchical",["tech"],"medium",0.61,0.067,0.667,0.726,0.537,0.655],["wartsila-engagements",100,"counterparty(100)\u2192engagement_claim(1)\u2192url(1)",[],1,"hierarchical",["general","events"],"high",0.865,0.478,0.714,0.881,0.766,0.753],["estonia-ministry-lobby-disclosures",99,"ministry(11)\u2192quarter(9)\u2192url(1)",[],1,"hierarchical",["legal"],"medium",0.626,0.0,0.758,0.648,0.205,0.644],["ftse-private-roles",96,"company(48)\u2192role_kind(2)\u2192url(1)",[],1,"flat",["general"],"low",0.292,0.125,0.384,0.276,0.781,0.787],["prd-packaging-suppliers",96,"material_family(6)\u2192supplier(8)\u2192source_role(2)\u2192url(1)",[],2,"hierarchical",["general","e-com"],"medium",0.63,0.156,0.616,0.633,0.924,0.749],["semiconductor-financial-deep-dive",96,"company(6)\u2192company_quarter(8)\u2192url(1)",["company(6)\u2192analysis_axis(8)\u2192company_axis_finding(1)\u2192url(1)"],3,"composite",["legal","finance"],"medium",0.556,0.0,0.585,0.802,0.646,0.172],["microgrid-controller-deployments",95,"site_class(5)\u2192deployment(8)\u2192url(1)",["site_class(5)\u2192control_deployment(3)\u2192url(1)","deployment(40)\u2192url(1)"],2,"flat",["general"],"low",0.133,0.146,0.439,0.739,0.472,0.801],["bali-laundry-suppliers",90,"supplier(30)\u2192url(1)",["supplier(30)\u2192url(1)","supplier(30)\u2192url(1)"],0,"hierarchical",["e-com"],"medium",0.5,0.289,0.557,0.59,0.522,0.418],["bc-mechanical-procurement",90,"authority(30)\u2192authority_source_surface(1)\u2192authority_source_record(3)\u2192url(1)",[],2,"hierarchical",["legal"],"high",0.667,0.443,0.599,0.644,0.745,0.454],["eu-emissions-cross-register",90,"country(3)\u2192facility(5)\u2192release_event(2)\u2192source_layer(3)\u2192url(1)",[],3,"hierarchical",["legal"],"low",0.111,0.189,0.497,0.504,0.508,0.092],["handheld-game-benchmarks",90,"handheld(12)\u2192game(6)\u2192url(1)",["handheld(12)\u2192url(1)","game(6)\u2192url(1)"],0,"composite",["general","e-com"],"medium",0.417,0.206,0.676,0.786,0.417,0.24],["mineral-recycling-facilities",90,"operator(90)\u2192operator_facility_asset(1)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.522,0.109,0.716,0.823,0.921,0.93],["pediatric-daf-grant-foundations",90,"org(30)\u2192evidence_facet(3)\u2192url(1)",[],1,"flat",["general","health"],"medium",0.628,0.133,0.601,0.635,0.777,0.591],["taipei-car-detailing-shops",90,"shop(30)\u2192service_facet(3)\u2192url(1)",[],1,"flat",["general","social"],"low",0.267,0.033,0.616,0.769,0.665,0.317],["tn-kl-100-bed-hospitals",90,"city_hospital(90)\u2192url(1)",[],0,"flat",["legal","health"],"low",0.0,0.241,0.413,0.308,0.998,0.298],["compact-cea-systems",85,"company(85)\u2192company_system(1)\u2192url(1)",[],1,"hierarchical",["general","e-com"],"low",0.253,0.043,0.419,0.596,0.964,0.941],["ai-funding-announcements",80,"company_event(80)\u2192url(1)",[],0,"flat",["events"],"low",0.287,0.281,0.268,0.418,0.603,0.51],["ai-governance-jobs",80,"company_title(80)\u2192url(1)",[],0,"flat",["general"],"medium",0.431,0.35,0.695,0.606,0.939,0.424],["airbnb-fullstack-perplexity-fit",80,"person(80)\u2192url(1)",[],0,"flat",["people"],"high",0.644,0.54,0.672,0.628,1.0,0.063],["cgt-cryopreservation-bag-distributor-sales-map",80,"distributor(80)\u2192url(1)",[],0,"flat",["e-com"],"low",0.35,0.122,0.597,0.616,0.993,0.703],["china-tech-self-reliance",80,"authority_signal(80)\u2192url(1)",[],0,"flat",["events","legal"],"low",0.0,0.13,0.365,0.32,0.216,0.698],["copper-induction-furnace-provenance",80,"supplier_or_manufacturer(40)\u2192furnace_offering(2)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.394,0.412,0.371,0.701,0.636,0.677],["dfw-location-events",80,"company_event(40)\u2192source_family(2)\u2192url(1)",[],1,"composite",["general","events"],"medium",0.569,0.113,0.475,0.778,0.995,0.533],["first-responder-grants",80,"source_family(4)\u2192funder(20)\u2192program_cycle(1)\u2192url(1)",[],2,"composite",["general","legal"],"medium",0.444,0.615,0.264,0.525,0.832,0.881],["lot-sales",80,"city(2)\u2192city_address(40)\u2192url(1)",[],1,"hierarchical",["legal","e-com"],"low",0.163,0.512,0.39,0.191,0.96,0.163],["new-tech-company-emergences",80,"company(80)\u2192url(1)",[],0,"flat",["general","events"],"medium",0.562,0.121,0.645,0.65,0.725,0.655],["nm-immigration-enforcement",80,"enforcement_action(80)\u2192url(1)",[],0,"flat",["legal"],"high",0.669,0.596,0.354,0.142,0.168,0.47],["solid-state-battery-patents",80,"assignee(20)\u2192landscape_facet(4)\u2192url(1)",[],1,"flat",["patents"],"high",0.75,0.0,0.84,0.435,0.381,0.349],["vietnam-tile-slabs",80,"manufacturer(40)\u2192manufacturer_capability(2)\u2192url(1)",[],1,"hierarchical",["e-com"],"low",0.344,0.046,0.652,0.649,0.618,0.551],["perplexity-elite-schools",76,"school(19)\u2192school_person(2)\u2192url(1)",["school_person(38)\u2192url(1)"],1,"hierarchical",["people","academic"],"medium",0.487,0.526,0.422,0.383,0.942,0.577],["hong-kong-school-offices",75,"school(25)\u2192office(3)\u2192url(1)",[],1,"hierarchical",["general"],"medium",0.64,0.267,0.65,0.287,0.967,0.794],["new-grad-rn-residencies",75,"hospital_state(25)\u2192url(1)",["hospital_state(25)\u2192url(1)","hospital_state(25)\u2192url(1)"],0,"composite",["general","health"],"low",0.4,0.007,0.63,0.84,0.716,0.699],["us-government-grants",75,"company_grant(75)\u2192url(1)",[],0,"flat",["legal"],"high",0.833,0.336,0.82,0.728,0.96,0.063],["benelux-health-retailers",72,"retailer(12)\u2192retail_event(2)\u2192evidence_side(3)\u2192url(1)",[],2,"hierarchical",["general","events"],"high",0.799,0.158,0.77,0.533,0.927,0.659],["chile-industrial-decommissioning",72,"region_asset(24)\u2192opportunity_aspect(3)\u2192url(1)",[],1,"composite",["general","events","legal"],"high",0.785,0.0,0.755,0.86,0.354,0.685],["energy-tech-climate-announcements",70,"company(70)\u2192url(1)",[],0,"flat",["events"],"medium",0.407,0.34,0.598,0.437,0.748,0.691],["pbm-lobbying",70,"jurisdiction(7)\u2192actor(6)\u2192url(1)",["jurisdiction(7)\u2192anchor_family(2)\u2192probe_name(2)\u2192probe_status(1)\u2192url(1)"],4,"composite",["legal"],"high",0.851,0.438,0.87,0.717,0.708,0.199],["dib-nondilutive-pathways",66,"source_family(6)\u2192source_channel(3)\u2192pathway(2)\u2192url(1)",["pathway(30)\u2192url(1)"],2,"hierarchical",["legal"],"medium",0.611,0.083,0.675,0.639,0.344,0.629],["luxury-constructs",64,"construct_alignment(16)\u2192evidence_role(4)\u2192url(1)",[],1,"hierarchical",["general","academic"],"medium",0.453,0.125,0.49,0.636,0.518,0.632],["australian-vrfb-atlas",62,"vrfb_asset(31)\u2192url(2)",[],0,"flat",["general","events","legal"],"high",0.718,0.006,0.734,0.777,0.932,0.608],["cloud-ai-service-launches-by-provider",60,"provider(30)\u2192provider_service(2)\u2192url(1)",[],1,"hierarchical",["tech"],"low",0.15,0.117,0.25,0.572,0.72,0.748],["devtool-promo-codes",60,"vendor_code(60)\u2192url(1)",[],0,"flat",["general","e-com"],"high",0.775,0.203,0.841,0.42,0.583,0.609],["fiba-u20-women-sources",60,"event_team(30)\u2192source_phase(2)\u2192url(1)",[],1,"hierarchical",["general"],"low",0.167,0.0,0.337,0.533,0.481,0.263],["hospital-at-home-programs",60,"operator_system(60)\u2192url(1)",[],0,"composite",["health"],"low",0.075,0.189,0.25,0.386,0.944,0.989],["lenels2-milestone-integration-evidence",60,"integration_edge(45)\u2192url(1)",["integration_edge(15)\u2192url(1)"],0,"composite",["tech"],"high",0.867,0.015,0.883,0.608,0.827,0.535],["michelin-demotions",54,"restaurant_city(27)\u2192url(2)",[],0,"flat",["events"],"medium",0.435,0.006,0.488,0.491,0.169,0.947],["cloud-ai-service-launches",50,"provider_service(50)\u2192url(1)",[],0,"flat",["tech"],"low",0.0,0.0,0.097,0.469,0.195,0.509],["vp-marketing-saas",50,"company(50)\u2192company_person(1)\u2192url(1)",[],1,"hierarchical",["people"],"low",0.12,0.073,0.22,0.43,1.0,0.566],["uk-property-feeds",48,"source_product_or_provider(12)\u2192destination(2)\u2192integration_surface(1)\u2192evidence_facet(2)\u2192url(1)",[],3,"flat",["tech"],"low",0.198,0.014,0.436,0.448,0.323,0.815],["us-cardiac-surgery-signals",48,"procedure_segment(12)\u2192evidence_signal(4)\u2192url(1)",[],1,"hierarchical",["academic","health"],"medium",0.552,0.028,0.629,0.84,0.46,0.564],["hbcu-proxy-directors",45,"hbcu_director(45)\u2192url(1)",[],0,"flat",["legal"],"high",0.744,0.427,0.577,0.65,0.959,0.061],["forbes-250-errors",40,"error(40)\u2192url(1)",[],0,"flat",["wikis"],"low",0.362,0.305,0.265,0.26,0.987,0.358],["georgia-open-construction-notices",40,"agency(20)\u2192solicitation(1)\u2192source_appearance(2)\u2192url(1)",[],2,"hierarchical",["legal"],"low",0.325,0.45,0.549,0.583,0.969,0.554],["aviation-ad-sb-adoption",32,"aircraft_model(8)\u2192ad_number(4)\u2192manufacturer_sb(1)\u2192url(1)",[],0,"hierarchical",["legal"],"low",0.188,0.615,0.141,0.51,0.643,0.105],["canada-competition-bureau-merger-dispositions",30,"merger_review(30)\u2192surface_type(1)\u2192url(1)",[],1,"flat",["legal"],"low",0.333,0.094,0.198,0.543,0.97,0.122],["uv-printer-offers",30,"supplier(15)\u2192supplier_model(2)\u2192url(1)",[],1,"flat",["e-com"],"high",0.717,0.067,0.66,0.93,0.826,0.669]]</script>
+<script id="runData" type="application/json">{"html": "<div class=\"col\">\n<p>I wanted to run this properly. I could not, and the reason is worth stating before the numbers: the official harness needs Docker and six provider API keys, and this machine has neither — and its network egress is restricted to GitHub and package registries, so <em>every</em> open-web citation a real WANDR task needs is unreachable from here. Attempting one of the 500 would have meant submitting excerpts I could not verify against a fetched page, which is precisely the fabrication the benchmark exists to catch.</p>\n<p>So I ran the one thing I could run honestly: the repository's shipped <code>smoke</code> task, end to end, twice — with real pages, fetched, quoted verbatim, and scored by the benchmark's own unmodified rollup code.</p>\n</div>\n\n<div class=\"grid g2\" style=\"margin-top:24px\">\n  <div class=\"card\">\n    <h3>What was actually executed</h3>\n    <ul class=\"tight\" style=\"font-size:.92rem;color:var(--dim)\">\n      <li><strong>Task:</strong> <span class=\"mono\">smoke</span> — <span class=\"mono\">topic(3)&rarr;url(2)</span>, 6 required records. Ten language-design documents from <span class=\"mono\">golang/proposal</span>, <span class=\"mono\">rust-lang/rfcs</span> and <span class=\"mono\">python/peps</span>, fetched raw over HTTPS.</li>\n      <li><strong>Solve:</strong> five topics &times; two URLs = ten records, over quota on both axes. Every excerpt was machine-checked to be an exact whitespace-normalized substring of the fetched page before submission.</li>\n      <li><strong>Two effort settings:</strong> identical topics, identical URLs. <em>High</em> selects two to three excerpts so the concrete detail survives in the quote. <em>Low</em> selects one short excerpt per record.</li>\n      <li><strong>Judge:</strong> me, following <span class=\"mono\">prompts/judge_macro.md.jinja</span> and emitting the real <span class=\"mono\">JudgmentResult</span> schema. <strong>Score:</strong> the repository's own <span class=\"mono\">src/metrics.py</span>, untouched.</li>\n    </ul>\n  </div>\n  <div class=\"card\">\n    <h3>Result</h3>\n    <div class=\"scroller\"><table><thead><tr><th>Run</th><th>Soft F1</th><th>Hard F1</th><th>Soft F1<br>retrieval-only</th></tr></thead><tbody>\n      <tr><td>high effort</td><td class=\"num\" style=\"color:var(--wide)\">0.947</td><td class=\"num\">0.889</td><td class=\"num\">1.000</td></tr>\n      <tr><td>low effort</td><td class=\"num\" style=\"color:var(--fail)\">0.250</td><td class=\"num\" style=\"color:var(--fail)\">0.000</td><td class=\"num\">1.000</td></tr>\n    </tbody></table></div>\n    <p style=\"font-size:.92rem;color:var(--dim);margin-top:14px\">Same pages. Same URLs. Retrieval-only score identical and perfect in both runs — every cited page satisfies the task in both. <strong>The entire difference is which sentences got quoted.</strong> Soft F1 falls by a factor of 3.8 and hard F1 goes to zero, purely on evidence rendering.</p>\n  </div>\n</div>\n\n<div class=\"col\" style=\"margin-top:22px\">\n<p>That is the paper's central claim reproduced in miniature, on a task small enough to inspect by hand. Search was never the bottleneck here — I had the right pages the whole time. What decided the score was whether a reader given <em>only my quotes</em> could verify the claim. Two failure shapes showed up unprompted:</p>\n<ul class=\"tight\">\n  <li><strong>Topical drift.</strong> PEP&nbsp;744 genuinely discusses the specializing adaptive interpreter, so the page satisfies the requirement. My excerpts only established that a copy-and-patch JIT was merged for 3.13 — right page, wrong sentences. That record fails in <em>both</em> runs.</li>\n  <li><strong>Cropping away the definition.</strong> The low-effort PEP&nbsp;683 excerpt uses the word \"immortal\" but drops the preceding sentence that defines it. Perfectly faithful, entirely unverifiable on its own.</li>\n</ul>\n<p>One record landed at judge confidence 1 — a definitional excerpt I could not confidently call substantive either way. The scorer drops it as <em>missing</em> rather than false: it never enters precision, but it still leaves a hole in recall. Seeing that gate fire on a real record was worth more than reading the spec twice.</p>\n</div>\n\n<div style=\"margin:24px 0\">\n  <a class=\"card\" href=\"wandr-trajectories.html\" style=\"display:block;text-decoration:none;color:inherit\">\n    <div style=\"display:flex;justify-content:space-between;align-items:baseline;gap:14px;flex-wrap:wrap\">\n      <h3 style=\"margin:0\">Trajectory viewer &rarr;</h3><span class=\"tag t-fail\">20 graded records</span>\n    </div>\n    <p style=\"margin:.6em 0 0;font-size:.93rem;color:var(--dim)\">Every record from both runs: the six judge booleans, the confidence, the verbatim excerpts, and the reasoning for each verdict. Filter to failures only and read what broke.</p>\n  </a>\n</div>\n\n<div class=\"warn col\" style=\"max-width:none\">\n  <strong>What this is not.</strong> <code>smoke</code> is a pipeline check — its own docstring says it exists \"to verify the framework end-to-end without measuring agent quality.\" A 0.947 here says nothing about the 500. Two more caveats that matter as much: the pages were fetched directly rather than through the benchmark's agentic fetch backend, and I judged my own submissions. A self-judge is the weakest link in this run, and it is the one I would fix first given a key.\n</div>"}</script>
+<script>
+(function(){
+  /* ---------- theme ---------- */
+  var btn=document.getElementById('themeBtn');
+  var saved=null; try{saved=localStorage.getItem('wandr-theme')}catch(e){}
+  if(saved) document.documentElement.setAttribute('data-theme',saved);
+  btn.onclick=function(){
+    var cur=document.documentElement.getAttribute('data-theme');
+    if(!cur) cur=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
+    var next=cur==='dark'?'light':'dark';
+    document.documentElement.setAttribute('data-theme',next);
+    try{localStorage.setItem('wandr-theme',next)}catch(e){}
+  };
+
+  var fmt=function(x,d){return x==null?'—':x.toFixed(d==null?3:d)};
+  var el=function(id){return document.getElementById(id)};
+
+  /* ---------- §03 corpus explorer ---------- */
+  var RAW=JSON.parse(el('corpusData').textContent);
+  var F=['s','v','sig','sub','lv','top','ver','dl','d','disc','enr','ext','unr','dd'];
+  var TASKS=RAW.map(function(r){var o={};F.forEach(function(k,i){o[k]=r[i]});return o});
+
+  var verts={},state={vert:null,diff:null,topo:null,lv:null,q:'',sort:'v'};
+  TASKS.forEach(function(t){(t.ver||[]).forEach(function(v){verts[v]=(verts[v]||0)+1})});
+  var vertNames=Object.keys(verts).sort(function(a,b){return verts[b]-verts[a]});
+
+  function mkChips(host,items,key){
+    host.innerHTML='';
+    items.forEach(function(it){
+      var c=document.createElement('div');c.className='chip';c.textContent=it.label;
+      c.onclick=function(){state[key]=state[key]===it.val?null:it.val;render();};
+      c.dataset.val=it.val;host.appendChild(c);
+    });
+  }
+  mkChips(el('vertChips'),vertNames.map(function(v){return{label:v+' '+verts[v],val:v}}),'vert');
+  mkChips(el('diffChips'),['low','medium','high'].map(function(v){return{label:v,val:v}}),'diff');
+  mkChips(el('topoChips'),['flat','hierarchical','composite'].map(function(v){return{label:v,val:v}}),'topo');
+  mkChips(el('lvChips'),[0,1,2,3].map(function(v){return{label:v===3?'3+':''+v,val:v}}),'lv');
+
+  el('q').oninput=function(){state.q=this.value.toLowerCase();render()};
+  el('sortSel').onchange=function(){state.sort=this.value;render()};
+
+  function filtered(){
+    return TASKS.filter(function(t){
+      if(state.vert&&(t.ver||[]).indexOf(state.vert)<0) return false;
+      if(state.diff&&t.dl!==state.diff) return false;
+      if(state.topo&&t.top!==state.topo) return false;
+      if(state.lv!=null){ if(state.lv===3?t.lv<3:t.lv!==state.lv) return false; }
+      if(state.q&&(t.s+' '+t.sig+' '+t.sub.join(' ')).toLowerCase().indexOf(state.q)<0) return false;
+      return true;
+    });
+  }
+  function histo(host,axis,values,bins,labels){
+    var counts=bins.map(function(){return 0});
+    values.forEach(function(v){for(var i=bins.length-1;i>=0;i--){if(v>=bins[i]){counts[i]++;break}}});
+    var mx=Math.max.apply(null,counts)||1;
+    host.innerHTML='';axis.innerHTML='';
+    counts.forEach(function(c,i){
+      var b=document.createElement('div');b.className='b';
+      b.style.height=Math.max(2,Math.round(c/mx*84))+'px';
+      b.innerHTML='<span>'+c+'</span>';host.appendChild(b);
+      var a=document.createElement('div');a.textContent=labels[i];axis.appendChild(a);
+    });
+  }
+  function render(){
+    ['vertChips','diffChips','topoChips','lvChips'].forEach(function(h,i){
+      var key=['vert','diff','topo','lv'][i];
+      Array.prototype.forEach.call(el(h).children,function(c){
+        c.classList.toggle('on', String(state[key])===c.dataset.val);
+      });
+    });
+    var rows=filtered().slice();
+    var s=state.sort;
+    rows.sort(function(a,b){
+      if(s==='s') return a.s<b.s?-1:1;
+      if(s==='d') return (b.d||0)-(a.d||0);
+      if(s==='lv') return b.lv-a.lv||b.v-a.v;
+      return b.v-a.v;
+    });
+    var tot=rows.reduce(function(x,t){return x+t.v},0);
+    var vs=rows.map(function(t){return t.v}).sort(function(a,b){return a-b});
+    el('cNum').textContent=rows.length;
+    el('cVol').textContent=tot.toLocaleString();
+    el('cMed').textContent=vs.length?(vs.length%2?vs[(vs.length-1)/2]:(vs[vs.length/2-1]+vs[vs.length/2])/2):'—';
+    el('cLv').textContent=rows.length?(rows.reduce(function(x,t){return x+t.lv},0)/rows.length).toFixed(2):'—';
+    histo(el('histVol'),el('axVol'),rows.map(function(t){return t.v}),[0,100,300,1000],['<100','100–299','300–999','1000+']);
+    histo(el('histLv'),el('axLv'),rows.map(function(t){return Math.min(t.lv,3)}),[0,1,2,3],['flat','1','2','3+']);
+
+    var host=el('taskList');host.innerHTML='';
+    rows.slice(0,400).forEach(function(t){
+      var d=document.createElement('div');d.className='taskrow';
+      var cls=t.dl==='high'?'t-fail':t.dl==='medium'?'t-deep':'t-good';
+      var sig=t.sig+(t.sub.length?('  + '+t.sub.length+' subtask'+(t.sub.length>1?'s':'')):'');
+      d.title=t.s+'\ndiscovery '+fmt(t.disc,2)+' · enrichment '+fmt(t.enr,2)+' · extraction '+fmt(t.ext,2)+
+              '\nurl-nonreuse '+fmt(t.unr,2)+' · domain-dispersion '+fmt(t.dd,2)+
+              '\nverticals: '+(t.ver||[]).join(', ')+
+              (t.sub.length?('\nsubtasks:\n  '+t.sub.join('\n  ')):'');
+      d.innerHTML='<div class="slug">'+t.s+'</div>'+
+        '<div class="num" style="text-align:right;font-family:var(--mono);font-size:.8rem">'+t.v+'</div>'+
+        '<div style="text-align:right"><span class="tag '+cls+'">'+(t.dl||'?')+'</span></div>'+
+        '<div class="sig">'+sig+'</div>'+
+        '<div class="lvcell" style="text-align:right;font-family:var(--mono);font-size:.78rem;color:var(--faint)">'+t.lv+'</div>';
+      host.appendChild(d);
+    });
+    if(rows.length>400){var m=document.createElement('div');m.className='taskrow';m.style.color='var(--faint)';
+      m.innerHTML='<div class="slug">… '+(rows.length-400)+' more (narrow the filters)</div>';host.appendChild(m);}
+  }
+
+  /* ---------- §04 verdict machine ---------- */
+  var UNI=[['page_content_usable','substantive, on-topic page content'],
+           ['answer_intent_clear','a specific, identifiable submitted claim'],
+           ['excerpts_faithful','verbatim or near-verbatim, meaning-preserving']];
+  var TSK=[['overall_valid','well-formed, in-scope record'],
+           ['requirements_all_satisfied','the full page satisfies every substantive requirement'],
+           ['requirements_all_supported','the excerpts alone support every requirement']];
+  var checks={};
+  function mkChecks(host,list){
+    host.innerHTML='';
+    list.forEach(function(c){
+      checks[c[0]]=true;
+      var row=document.createElement('div');row.className='sw';row.style.margin='7px 0';
+      row.innerHTML='<div class="toggle on"></div><div><span class="mono" style="font-size:.8rem">'+c[0]+
+        '</span><div style="font-size:.8rem;color:var(--faint);line-height:1.4">'+c[1]+'</div></div>';
+      row.firstChild.onclick=function(){checks[c[0]]=!checks[c[0]];this.classList.toggle('on',checks[c[0]]);verdict()};
+      host.appendChild(row);
+    });
+  }
+  function verdict(){
+    var full=UNI.concat(TSK).every(function(c){return checks[c[0]]});
+    var ret=checks['requirements_all_satisfied'];
+    var a=el('vFull'),b=el('vRet');
+    a.textContent='verdict_full = '+(full?1:0);
+    a.style.background=full?'var(--good-soft)':'var(--fail-soft)';
+    a.style.color=full?'var(--good)':'var(--fail)';
+    b.textContent='verdict_retrieval = '+(ret?1:0);
+    b.style.background=ret?'var(--good-soft)':'var(--fail-soft)';
+    b.style.color=ret?'var(--good)':'var(--fail)';
+  }
+  mkChecks(el('uChecks'),UNI);mkChecks(el('tChecks'),TSK);verdict();
+
+  /* ---------- §05 rollup simulator ---------- */
+  var LEAVES=3, k=8, members=[];
+  function seed(pattern){
+    members=[];
+    if(pattern==='broad'){ for(var i=0;i<12;i++) members.push([1, i%3?1:0, i%2?0:1]); }
+    else if(pattern==='few'){ for(var i=0;i<3;i++) members.push([1,1,1]); }
+    else { members=[[1,1,1],[1,1,0],[1,0,0],[1,1,1],[1,1,0],[0,1,1],[1,1,1]]; }
+    draw();
+  }
+  function mean(a){return a.length?a.reduce(function(x,y){return x+y},0)/a.length:null}
+  function memberScores(){
+    return members.map(function(m){
+      var soft=mean(m);                    // key_level below member: precision-style average of leaves
+      var hard=soft>=1?1:0;                // hardened at the non-root level
+      return {soft:soft,hard:hard};
+    });
+  }
+  function rankedMean(vals,req){
+    var picked=vals.slice().sort(function(a,b){return b-a}).slice(0,req);
+    while(picked.length<req) picked.push(0);
+    return {arr:picked,val:picked.reduce(function(a,b){return a+b},0)/req};
+  }
+  function draw(){
+    el('kVal').textContent=k;
+    var host=el('members');host.innerHTML='';
+    members.forEach(function(m,mi){
+      var c=document.createElement('div');c.className='memberChip';
+      var lab=document.createElement('span');lab.textContent='m'+(mi+1);lab.style.color='var(--faint)';c.appendChild(lab);
+      m.forEach(function(v,li){
+        var d=document.createElement('i');d.className='leafdot '+(v?'on':'off');
+        d.onclick=function(){members[mi][li]=1-members[mi][li];draw()};
+        c.appendChild(d);
+      });
+      var x=document.createElement('span');x.textContent='✕';x.style.color='var(--faint)';x.style.marginLeft='2px';
+      x.onclick=function(){members.splice(mi,1);draw()};
+      c.appendChild(x);host.appendChild(c);
+    });
+    var sc=memberScores();
+    var sp=mean(sc.map(function(s){return s.soft}));
+    var hp=mean(sc.map(function(s){return s.hard}));
+    var rs=rankedMean(sc.map(function(s){return s.soft}),k);
+    var rh=rankedMean(sc.map(function(s){return s.hard}),k);
+    var f1=function(p,r){return (p==null||r==null)?null:((p+r)?2*p*r/(p+r):0)};
+    el('sp').textContent=fmt(sp);el('sr').textContent=fmt(rs.val);el('sf').textContent=fmt(f1(sp,rs.val));
+    el('hp').textContent=fmt(hp);el('hr').textContent=fmt(rh.val);el('hf').textContent=fmt(f1(hp,rh.val));
+    function ladder(host,arr,n){
+      host.innerHTML='';
+      arr.forEach(function(v,i){
+        var b=document.createElement('i');
+        var pad=i>=n;
+        b.textContent=v.toFixed(2).slice(1);
+        b.style.background=v>=1?'var(--good)':v>0?'var(--deep-soft)':(pad?'var(--surface-2)':'var(--fail-soft)');
+        b.style.color=v>=1?'#fff':'var(--dim)';
+        b.style.border='1px solid '+(pad?'var(--line)':'transparent');
+        b.style.width='30px';
+        b.title=pad?'zero-pad (quota shortfall)':'submitted member';
+        host.appendChild(b);
+      });
+    }
+    ladder(el('rankSoft'),rs.arr,Math.min(members.length,k));
+    ladder(el('rankHard'),rh.arr,Math.min(members.length,k));
+    var complete=sc.filter(function(s){return s.hard===1}).length;
+    var msg='';
+    if(members.length>k) msg='You submitted '+members.length+' members for a quota of '+k+
+      '. Recall keeps only the top '+k+' — the surplus is free precision risk with no recall upside.';
+    else if(members.length<k) msg='Short by '+(k-members.length)+' members. Those slots are zero-padded into recall, '+
+      'which is why recall sits below precision even when everything you submitted is perfect.';
+    else msg='Exactly at quota. '+complete+' of '+members.length+' members have a fully complete subtree — only those earn hard credit.';
+    el('rollNote').textContent=msg;
+  }
+  el('kReq').oninput=function(){k=+this.value;draw()};
+  el('addM').onclick=function(){members.push([1,1,0]);draw()};
+  el('preset1').onclick=function(){k=8;el('kReq').value=8;seed('broad')};
+  el('preset2').onclick=function(){k=8;el('kReq').value=8;seed('few')};
+  seed('default');
+
+  /* ---------- §06 results ---------- */
+  var MAIN=[
+    ['Perplexity',500,0.389,0.357,0.363,0.150,0.134,0.133,5.20,14.9],
+    ['Anthropic', 500,0.354,0.222,0.249,0.137,0.073,0.072,46.43,73.7],
+    ['OpenAI',    499,0.149,0.115,0.121,0.049,0.036,0.035,0.50,8.6],
+    ['Parallel',  496,0.154,0.055,0.069,0.054,0.016,0.019,1.19,30.0],
+    ['Exa',       500,0.130,0.057,0.070,0.042,0.018,0.020,0.50,5.3],
+    ['Gemini',    498,0.132,0.042,0.055,0.062,0.007,0.009,15.24,22.3]
+  ];
+  var tb=document.querySelector('#mainTable tbody');
+  MAIN.forEach(function(r,i){
+    var tr=document.createElement('tr'); if(i===0) tr.className='best';
+    tr.innerHTML='<td><strong>'+r[0]+'</strong></td><td class="num">'+r[1]+'</td>'+
+      r.slice(2,8).map(function(v,j){
+        var strong=(j===2||j===5);
+        return '<td class="num"'+(strong?' style="color:var(--wide);font-weight:600"':'')+'>'+v.toFixed(3)+'</td>';
+      }).join('')+
+      '<td class="num">$'+r[8].toFixed(2)+'</td><td class="num">'+r[9].toFixed(1)+'</td>';
+    tb.appendChild(tr);
+  });
+
+  var SWEEP={
+    Perplexity:[['low',0.121,0.053,0.40],['medium',0.295,0.149,2.07],['high',0.397,0.156,4.75],['xhigh',0.447,0.224,7.32]],
+    OpenAI:[['low',0.038,0.024,0.07],['medium',0.091,0.053,0.32],['high',0.153,0.073,0.49],['xhigh',0.127,0.060,0.74]],
+    Anthropic:[['high',0.262,0.099,49.09]],
+    Gemini:[['speed',0.048,0.020,14.03],['max',0.074,0.028,324.83]],
+    Parallel:[['ultra',0.005,0.002,0.27],['ultra2x',0.063,0.026,0.60],['ultra4x',0.067,0.025,1.20],['ultra8x',0.080,0.035,2.40]],
+    Exa:[['low',0.006,0.003,0.03],['medium',0.013,0.004,0.10],['high',0.073,0.029,0.50],['xhigh',0.111,0.036,1.00]]
+  };
+  var curSys='Perplexity';
+  var sc=el('sweepChips');
+  Object.keys(SWEEP).forEach(function(name){
+    var c=document.createElement('div');c.className='chip'+(name===curSys?' on':'');c.textContent=name;
+    c.onclick=function(){curSys=name;Array.prototype.forEach.call(sc.children,function(x){x.classList.toggle('on',x.textContent===name)});drawSweep()};
+    sc.appendChild(c);
+  });
+  function drawSweep(){
+    var t=document.querySelector('#sweepTable tbody');t.innerHTML='';
+    SWEEP[curSys].forEach(function(r){
+      var tr=document.createElement('tr');
+      tr.innerHTML='<td class="mono">'+r[0]+'</td><td class="num">'+r[1].toFixed(3)+'</td>'+
+        '<td><div class="bar"><i style="width:'+(r[1]/0.45*100).toFixed(0)+'%"></i></div></td>'+
+        '<td class="num">'+r[2].toFixed(3)+'</td><td class="num">$'+r[3].toFixed(2)+'</td>';
+      t.appendChild(tr);
+    });
+  }
+  drawSweep();
+
+  /* ---------- §07 funnel + heat ---------- */
+  var FUNNEL=[['Perplexity',16,59,25],['Anthropic',38,41,21],['OpenAI',18,65,17],
+              ['Gemini',52,40,7],['Parallel',57,31,13],['Exa',48,35,17]];
+  var fh=el('funnel');
+  FUNNEL.forEach(function(r){
+    var d=document.createElement('div');d.style.margin='9px 0';
+    d.innerHTML='<div style="display:flex;justify-content:space-between;font-size:.82rem;margin-bottom:3px">'+
+      '<span>'+r[0]+'</span><span class="kv">discovery / enrichment / extraction</span></div>'+
+      '<div style="display:flex;height:20px;border-radius:6px;overflow:hidden;border:1px solid var(--line)">'+
+      '<div style="width:'+r[1]+'%;background:var(--wide);color:#fff;font-size:.68rem;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">'+r[1]+'%</div>'+
+      '<div style="width:'+r[2]+'%;background:var(--deep);color:#fff;font-size:.68rem;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">'+r[2]+'%</div>'+
+      '<div style="width:'+r[3]+'%;background:var(--fail);color:#fff;font-size:.68rem;display:flex;align-items:center;justify-content:center;font-family:var(--mono)">'+r[3]+'%</div></div>';
+    fh.appendChild(d);
+  });
+
+  var HEAT=[['Perplexity',3.2,8.8,41.4,19.3,57.5,58.1],['Anthropic',3.9,4.2,33.6,26.5,59.2,59.7],
+            ['OpenAI',23.1,14.4,66.2,69.8,86.6,86.9],['Gemini',8.7,17.4,68.3,36.1,85.9,86.4],
+            ['Parallel',8.9,8.2,47.3,53.0,76.8,77.2],['Exa',7.9,8.6,45.1,59.1,84.4,84.5]];
+  var ht=document.querySelector('#heatTable tbody');
+  HEAT.forEach(function(r){
+    var tr=document.createElement('tr');
+    var cells='<td>'+r[0]+'</td>';
+    r.slice(1).forEach(function(v){
+      var a=Math.min(1,v/90);
+      cells+='<td style="background:rgba(193,53,47,'+(0.14+a*0.78).toFixed(2)+')">'+v.toFixed(1)+'</td>';
+    });
+    tr.innerHTML=cells;ht.appendChild(tr);
+  });
+
+  var REND=[['Perplexity',85.6,99.4,80.4],['Anthropic',83.1,99.2,70.0],['OpenAI',57.1,99.3,75.7],
+            ['Gemini',79.1,96.9,55.6],['Parallel',62.9,99.1,71.0],['Exa',49.2,98.4,59.7]];
+  var rt=document.querySelector('#renderTable tbody');
+  REND.forEach(function(r){
+    var tr=document.createElement('tr');
+    tr.innerHTML='<td>'+r[0]+'</td><td class="num">'+r[1].toFixed(1)+'%</td><td class="num">'+r[2].toFixed(1)+
+      '%</td><td class="num" style="color:'+(r[3]>70?'var(--good)':'var(--fail)')+'">'+r[3].toFixed(1)+'%</td>';
+    rt.appendChild(tr);
+  });
+
+  /* ---------- §08 my run (injected) ---------- */
+  var RUN=JSON.parse(el('runData').textContent);
+  el('runBody').innerHTML=RUN.html||'<p class="kv">Run pending.</p>';
+
+  render();
+})();
+</script>
