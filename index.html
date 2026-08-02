@@ -62,10 +62,10 @@
 
       <a class="card" href="codex-harness.html">
         <div class="ctop">
-          <h2>Inside the Codex harness</h2>
-          <span class="tag">systems · agent harnesses</span>
+          <h2>The Codex harness</h2>
+          <span class="tag">systems · agent runtimes</span>
         </div>
-        <p>Everything interesting about a coding agent lives outside the model. A component-by-component trace of OpenAI's open-source Codex CLI — 99 Rust crates, 1.27M lines — from <code>Op</code> submission to sandboxed process. The turn loop stepped through function by function, the twelve-stage tool dispatch pipeline, four sandbox backends behind one enum, and an approval simulator that mirrors the real branching in <code>ToolOrchestrator::run</code>. Plus why compacted history has to be laid out exactly one way.</p>
+        <p>A model emits tokens; everything between those tokens and an edited file is harness. A trace of OpenAI's open-source Codex CLI organised around the constraints its design answers — seven problems, seven mechanisms. Deep on the three that matter most: compaction (four paths, a two-ceiling trigger, and a summary placement fixed by post-training), the computed tool set with its four exposure levels, and tool discovery via deferred registration plus a local BM25 index. Steppable turn loop, discovery funnel, history transformer, and an approval simulator.</p>
         <div class="meta"><span>2026</span><span>·</span><span>interactive</span><span style="margin-left:auto" class="arrow">read →</span></div>
       </a>
 
