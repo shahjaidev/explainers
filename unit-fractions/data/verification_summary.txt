@@ -21,4 +21,4 @@ complete decision for every prime p in (m^2, 2m^2): every m has >= 1 exception; 
 - check2.c (independent algorithm: y-iteration, no factorization): re-certified all 243
   exceptions for m=7..19; positive controls agree
 - Python fractions brute force: agrees with both C programs for all m<=14, n<400
-- 150 random prime certificates re-verified in exact rational arithmetic
+- 200 random prime certificates re-verified in exact rational arithmetic (200/200 valid)

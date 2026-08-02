@@ -110,11 +110,11 @@ find witnesses.
   claimed exceptions was re-certified non-representable by this second
   program, with representable neighbors as positive controls.
 - A Python brute force over exact rationals (`fractions.Fraction`)
-  cross-validated both C implementations on all m ≤ 14, n < 400; random prime
-  certificates are additionally re-verified in exact rational arithmetic
-  (this audit caught — and we fixed — one display-only bug: a witness z
-  printed truncated mod 2⁶⁴; the underlying decisions were 128-bit exact and
-  unaffected, and both affected certificates verify with the true z).
+  cross-validated both C implementations on all m ≤ 14, n < 400, and 200
+  random prime certificates (m = 5..19, p up to 10⁹) were re-verified in
+  exact rational arithmetic — 200/200 valid. (An earlier round of this audit
+  caught, and we fixed, one display-only bug: a witness z printed truncated
+  mod 2⁶⁴; the underlying decisions were 128-bit exact and unaffected.)
 
 **Closing the composite gap.** A composite n is representable whenever any
 divisor > 1 is (scale the certificate), so a composite exception must have all
