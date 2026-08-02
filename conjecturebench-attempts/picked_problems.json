@@ -1,0 +1,57 @@
+[
+ {
+  "id": "codetables-gf2-109-14",
+  "kind": "family",
+  "title": "Minimum distance of a binary [109, 14] linear code",
+  "statement": "A binary [109, 14, d] linear code is a 14-dimensional subspace of GF(2)^109 in which every nonzero vector has Hamming weight at least d. The largest achievable d is unknown for these parameters: codes are known with d = 45, and no code can have d greater than 48.",
+  "url": "https://codetables.de/BKLC/BKLC.php?q=2&n=109&k=14",
+  "source": "codetables-linear-codes",
+  "status": "open",
+  "status_as_of": "2026-07-23",
+  "record_path": "problems/families/codetables-linear-codes/records.json"
+ },
+ {
+  "id": "codetables-gf4-199-7",
+  "kind": "family",
+  "title": "Minimum distance of a [199, 7] linear code over GF(4)",
+  "statement": "A [199, 7, d] linear code over GF(4) is a 7-dimensional subspace of GF(4)^199 in which every nonzero vector has Hamming weight at least d. The largest achievable d is unknown for these parameters: codes are known with d = 140, and no code can have d greater than 145.",
+  "url": "https://codetables.de/BKLC/BKLC.php?q=4&n=199&k=7",
+  "source": "codetables-nonbinary-linear-codes",
+  "status": "open",
+  "status_as_of": "2026-07-23",
+  "record_path": "problems/families/codetables-nonbinary-linear-codes/records.json"
+ },
+ {
+  "id": "codetables-gf5-98-8",
+  "kind": "family",
+  "title": "Minimum distance of a [98, 8] linear code over GF(5)",
+  "statement": "A [98, 8, d] linear code over GF(5) is a 8-dimensional subspace of GF(5)^98 in which every nonzero vector has Hamming weight at least d. The largest achievable d is unknown for these parameters: codes are known with d = 69, and no code can have d greater than 73.",
+  "url": "https://codetables.de/BKLC/BKLC.php?q=5&n=98&k=8",
+  "source": "codetables-nonbinary-linear-codes",
+  "status": "open",
+  "status_as_of": "2026-07-23",
+  "record_path": "problems/families/codetables-nonbinary-linear-codes/records.json"
+ },
+ {
+  "id": "ljcr-ds-28800-930-30-12-2400",
+  "kind": "family",
+  "title": "(28800, 930, 30)-difference set in Z_12 x Z_2400",
+  "statement": "A (28800, 930, 30)-difference set in the abelian group Z_12 x Z_2400 is a 930-element subset D such that every nonzero group element is a difference of two members of D in exactly 30 ways. Whether one exists is unknown: the parameters pass the standard nonexistence tests, and no example is known.",
+  "url": "https://raw.githubusercontent.com/dmgordo/difference-sets/main/ds.json",
+  "source": "ljcr-difference-sets",
+  "status": "open",
+  "status_as_of": "2026-07-23",
+  "record_path": "problems/families/ljcr-difference-sets/records.json"
+ },
+ {
+  "id": "unsolvedmath-1861",
+  "kind": "catalog",
+  "title": "Erd\u0151s $5000 Problem on Prime Gaps",
+  "statement": "Is it true that for infinitely many $n$, $d_n = p_{n+1} - p_n > c \\ln n \\ln \\ln n \\ln \\ln \\ln \\ln n / (\\ln \\ln \\ln n)^2$ for arbitrarily large constant $c$?",
+  "url": "https://www.unsolvedmath.com/problems/GUY-A8a",
+  "source": "unsolvedmath-1.1.0",
+  "status": "open",
+  "status_as_of": "2026-05-13T15:00:25.000Z",
+  "record_path": "problems/extended-catalog/unsolvedmath/unsolvedmath-1861.json"
+ }
+]
