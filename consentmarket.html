@@ -1,0 +1,725 @@
+<meta charset="utf-8">
+<title>ConsentMarket — the personal data marketplace for agents</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;--accent:#0C8478;--accent-soft:rgba(12,132,120,0.12);--teacher:#B9740C;
+    --good:#1B8A4C;--good-soft:rgba(27,138,76,.12);--bad:#C43D3D;--bad-soft:rgba(196,61,61,.12);--warn:#B9740C;--warn-soft:rgba(185,116,12,.12);
+    --never:#8A2BE2;--never-soft:rgba(138,43,226,.10);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+      --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--accent:#35CDB9;--accent-soft:rgba(53,205,185,0.15);--teacher:#E9A93E;
+      --good:#3FC97C;--good-soft:rgba(63,201,124,.14);--bad:#F07070;--bad-soft:rgba(240,112,112,.14);--warn:#E9A93E;--warn-soft:rgba(233,169,62,.14);
+      --never:#C084FC;--never-soft:rgba(192,132,252,.12);
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+      --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+    }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 24px;}
+  header{padding:clamp(48px,8vw,88px) 0 clamp(24px,4vw,40px);}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:1.2em;display:flex;align-items:center;gap:.7em;}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--accent);opacity:.6;}
+  h1{font-family:var(--serif);font-size:clamp(2rem,5vw,3rem);line-height:1.06;letter-spacing:-0.015em;margin:0 0 .35em;text-wrap:balance;}
+  .lead{font-size:1.08rem;color:var(--dim);max-width:66ch;margin:0 0 1em;}
+  .lead b{color:var(--text);}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px;}
+  button{font-family:var(--sans);font-size:.9rem;font-weight:600;border-radius:10px;border:1px solid var(--line);
+    background:var(--surface);color:var(--text);padding:9px 16px;cursor:pointer;box-shadow:var(--shadow);transition:transform .15s,box-shadow .15s,border-color .15s;}
+  button:hover{transform:translateY(-1px);border-color:var(--accent);}
+  button:disabled{opacity:.45;cursor:not-allowed;transform:none;}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+  @media (prefers-color-scheme: dark){ button.primary{color:#08110F;} }
+  button.ghost{background:transparent;box-shadow:none;}
+  main{padding-bottom:96px;}
+  .cols{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+  @media(max-width:960px){.cols{grid-template-columns:1fr;}}
+  .panel{background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:20px 22px;margin-bottom:18px;position:relative;overflow:hidden;}
+  .panel h2{font-family:var(--serif);font-size:1.25rem;margin:0 0 4px;letter-spacing:-.01em;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .panel h2 .sponsor{font-family:var(--mono);font-size:.62rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:6px;}
+  .panel .sub{color:var(--dim);font-size:.86rem;margin:0 0 14px;}
+  .tierchip{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:5px;}
+  .tier-open{color:var(--good);background:var(--good-soft);}
+  .tier-guarded{color:var(--warn);background:var(--warn-soft);}
+  .tier-never{color:var(--never);background:var(--never-soft);}
+  /* graph */
+  #graph{width:100%;height:auto;display:block;}
+  .gnode{cursor:default;}
+  .glabel{font-family:var(--mono);font-size:10.5px;fill:var(--text);}
+  .gsub{font-family:var(--mono);font-size:9px;fill:var(--faint);}
+  .gedge{stroke:var(--line);stroke-width:1.2;fill:none;}
+  .hull{fill:none;stroke-dasharray:4 4;stroke-width:1.4;opacity:.75;}
+  .hull-label{font-family:var(--mono);font-size:10px;letter-spacing:.05em;text-transform:uppercase;}
+  .scanning .hull-active{animation:pulse 1s ease-in-out infinite;}
+  @keyframes pulse{50%{opacity:.25;}}
+  /* agents */
+  .agents{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;}
+  .agent{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface-2);}
+  .agent .aname{font-weight:700;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .agent .trust{font-family:var(--mono);font-size:.68rem;color:var(--faint);}
+  .agent .bal{font-family:var(--mono);font-size:1.15rem;margin-top:6px;transition:color .3s;}
+  .agent .bal.flash{color:var(--bad);}
+  .agent .adesc{font-size:.76rem;color:var(--dim);margin-top:4px;line-height:1.4;}
+  /* earnings */
+  .earnings{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;}
+  .earnings .big{font-family:var(--mono);font-size:2.4rem;font-weight:700;color:var(--accent);transition:transform .2s;}
+  .earnings .big.tick{transform:scale(1.06);}
+  .meterlog{margin-top:10px;max-height:150px;overflow-y:auto;font-family:var(--mono);font-size:.72rem;color:var(--dim);}
+  .meterlog div{padding:3px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:10px;}
+  .meterlog .amt{color:var(--good);white-space:nowrap;}
+  .meterlog .amt.neg{color:var(--bad);}
+  /* bid form */
+  .bidform{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:12px;}
+  .bidform label{font-family:var(--mono);font-size:.64rem;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);display:block;margin-bottom:4px;}
+  .bidform select,.bidform input{width:100%;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--text);font-family:var(--mono);font-size:.85rem;}
+  /* feed */
+  .feed{display:flex;flex-direction:column;gap:8px;max-height:420px;overflow-y:auto;}
+  .bidcard{border:1px solid var(--line);border-left-width:4px;border-radius:10px;padding:10px 14px;background:var(--surface);animation:slidein .3s ease;}
+  @keyframes slidein{from{opacity:0;transform:translateY(-6px);}to{opacity:1;transform:none;}}
+  .bidcard.sealed{border-left-color:var(--faint);}
+  .bidcard.accepted{border-left-color:var(--good);}
+  .bidcard.rejected{border-left-color:var(--bad);}
+  .bidcard .brow{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;}
+  .bidcard .bwho{font-weight:700;font-size:.9rem;}
+  .bidcard .bstatus{font-family:var(--mono);font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 8px;border-radius:5px;}
+  .bidcard.sealed .bstatus{background:var(--surface-2);color:var(--dim);}
+  .bidcard.accepted .bstatus{background:var(--good-soft);color:var(--good);}
+  .bidcard.rejected .bstatus{background:var(--bad-soft);color:var(--bad);}
+  .bidcard .bdetail{font-family:var(--mono);font-size:.74rem;color:var(--dim);margin-top:4px;}
+  .bidcard .bverdict{font-size:.78rem;margin-top:6px;color:var(--dim);}
+  .bidcard .bverdict code{font-family:var(--mono);font-size:.72rem;background:var(--surface-2);padding:1px 6px;border-radius:4px;}
+  /* grants */
+  .grant{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:var(--surface-2);}
+  .grant .gtop{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;}
+  .grant .token{font-family:var(--mono);font-size:.7rem;color:var(--accent);word-break:break-all;}
+  .grant .gmeta{font-family:var(--mono);font-size:.7rem;color:var(--dim);margin-top:4px;display:flex;gap:14px;flex-wrap:wrap;}
+  .grant .qbar{height:5px;border-radius:3px;background:var(--line-soft);margin-top:8px;overflow:hidden;}
+  .grant .qbar i{display:block;height:100%;background:var(--accent);transition:width .3s;}
+  .grant.expired{opacity:.5;}
+  .grant .expired-tag{color:var(--bad);font-family:var(--mono);font-size:.66rem;text-transform:uppercase;}
+  .queryout{font-family:var(--mono);font-size:.72rem;background:var(--surface);border:1px solid var(--line-soft);border-radius:8px;padding:8px 10px;margin-top:8px;white-space:pre-wrap;color:var(--dim);max-height:130px;overflow-y:auto;}
+  .queryout .ok{color:var(--good);} .queryout .deny{color:var(--bad);}
+  /* offers */
+  .offers{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;}
+  .offer{border:1px solid var(--accent);border-radius:14px;padding:16px 18px;background:linear-gradient(135deg,var(--accent-soft),transparent 60%);animation:slidein .4s ease;}
+  .offer .oname{font-family:var(--serif);font-size:1.1rem;font-weight:700;}
+  .offer .oprice{font-family:var(--mono);margin-top:4px;font-size:.9rem;}
+  .offer .oprice s{color:var(--faint);} .offer .oprice b{color:var(--good);font-size:1.05rem;}
+  .offer .osrc{font-family:var(--mono);font-size:.64rem;color:var(--faint);margin-top:8px;}
+  .offer .oshared{margin-top:10px;font-size:.74rem;color:var(--dim);border-top:1px dashed var(--line);padding-top:8px;}
+  .offer .oshared b{font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;font-family:var(--mono);color:var(--faint);}
+  /* audit */
+  .audit{font-family:var(--mono);font-size:.72rem;max-height:340px;overflow-y:auto;}
+  .audit table{width:100%;border-collapse:collapse;}
+  .audit th{text-align:left;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);padding:4px 8px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--surface);}
+  .audit td{padding:5px 8px;border-bottom:1px solid var(--line-soft);color:var(--dim);vertical-align:top;}
+  .audit td.ev-accept{color:var(--good);} .audit td.ev-reject{color:var(--bad);} .audit td.ev-query{color:var(--accent);} .audit td.ev-block{color:var(--never);}
+  .audit .hash{color:var(--faint);font-size:.62rem;}
+  .chainok{font-family:var(--mono);font-size:.7rem;color:var(--good);margin-top:8px;}
+  /* narration */
+  #narration{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);max-width:640px;width:calc(100% - 40px);
+    background:var(--surface);border:1px solid var(--accent);border-radius:14px;box-shadow:var(--shadow-lg);padding:14px 18px;
+    font-size:.92rem;z-index:50;display:none;}
+  #narration.show{display:block;animation:slidein .3s ease;}
+  #narration .nstep{font-family:var(--mono);font-size:.64rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:4px;}
+  .flow{display:flex;gap:0;flex-wrap:wrap;align-items:center;font-family:var(--mono);font-size:.72rem;color:var(--dim);margin:10px 0 4px;}
+  .flow span{padding:5px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface);transition:all .3s;}
+  .flow span.lit{border-color:var(--accent);color:var(--accent);background:var(--accent-soft);}
+  .flow i{padding:0 7px;font-style:normal;color:var(--faint);}
+  footer{border-top:1px solid var(--line-soft);padding:28px 0 56px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.7;}
+  footer a{color:var(--dim);}
+</style>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Devnovate · Memory Meets Motion · Aug 3 2026</div>
+    <h1>ConsentMarket.</h1>
+    <p class="lead">Your personal agent owns your preference graph. Service agents submit <b>sealed bids</b> for scoped, consented, single-use access to it — and you get paid. Ads that can't afford to be relevant can't reach you. Everything below is live: bid → policy decision → payment → scoped query → audit entry.</p>
+    <div class="flow" id="flow">
+      <span data-f="bid">sealed bid</span><i>→</i>
+      <span data-f="policy">policy engine</span><i>→</i>
+      <span data-f="pay">payment</span><i>→</i>
+      <span data-f="query">scoped query</span><i>→</i>
+      <span data-f="audit">audit log</span>
+    </div>
+    <div class="btnrow">
+      <button class="primary" id="btn-demo">▶ Run the 3-minute demo</button>
+      <button id="btn-reset">Reset market</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <div class="cols">
+      <div>
+        <div class="panel" id="panel-graph">
+          <h2>Preference graph <span class="sponsor">FalkorDB</span></h2>
+          <p class="sub">"This is me, as my agent knows me." Sellable unit = a named subgraph. Tiers:
+            <span class="tierchip tier-open">open</span>
+            <span class="tierchip tier-guarded">guarded</span>
+            <span class="tierchip tier-never">never — unsellable, hard-blocked</span>
+          </p>
+          <svg id="graph" viewBox="0 0 560 430" role="img" aria-label="User preference graph with tiered subgraphs"></svg>
+        </div>
+
+        <div class="panel">
+          <h2>Service agents <span class="sponsor">Guild.ai identity</span></h2>
+          <p class="sub">Each bidder authenticates with Guild.ai and holds a prepaid Flexprice credit wallet. Trust score gates the auction.</p>
+          <div class="agents" id="agents"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Submit a sealed bid</h2>
+          <p class="sub">Offer = credits + discount, in exchange for ≤ N Cypher queries against one named subgraph, expiring after a TTL. The bid is sealed: other bidders never see it; a reject leaks only a code.</p>
+          <div class="bidform">
+            <div><label>bidder</label><select id="f-agent"></select></div>
+            <div><label>subgraph</label><select id="f-sub"></select></div>
+            <div><label>credits</label><input id="f-credits" type="number" value="18" min="0" step="1"></div>
+            <div><label>discount %</label><input id="f-disc" type="number" value="20" min="0" max="90" step="5"></div>
+            <div><label>ttl (sec)</label><input id="f-ttl" type="number" value="45" min="5" step="5"></div>
+            <div><label>max queries</label><input id="f-maxq" type="number" value="3" min="1" step="1"></div>
+          </div>
+          <button class="primary" id="btn-bid">Submit sealed bid</button>
+          <button class="ghost" id="btn-three">Fire 3 simultaneous bids</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="panel">
+          <h2>Your earnings <span class="sponsor">Flexprice</span></h2>
+          <div class="earnings">
+            <div class="big" id="earn">0.00</div>
+            <div style="color:var(--dim);font-size:.85rem;">credits earned<br>from consented, metered access</div>
+          </div>
+          <div class="meterlog" id="meterlog"></div>
+        </div>
+
+        <div class="panel">
+          <h2>Live bid feed · policy engine</h2>
+          <p class="sub">Every bid is evaluated against your rules: sensitivity tier → price floor → trust score → wallet balance. Rejections expose nothing but a code.</p>
+          <div class="feed" id="feed"><div style="color:var(--faint);font-family:var(--mono);font-size:.75rem;">no bids yet — run the demo or submit one</div></div>
+        </div>
+
+        <div class="panel">
+          <h2>Active access grants</h2>
+          <p class="sub">Accepted bids mint a scoped, time-boxed Guild.ai credential. Watch the winner spend its query budget — and watch out-of-scope queries bounce.</p>
+          <div id="grants"><div style="color:var(--faint);font-family:var(--mono);font-size:.75rem;">no grants yet</div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Winning offers <span class="sponsor">Linkup grounding</span></h2>
+      <p class="sub">Only bids that paid for relevance reach you. Each card shows the deal, the live-web product it's grounded in, and <b>exactly</b> what was shared to produce it.</p>
+      <div class="offers" id="offers"><div style="color:var(--faint);font-family:var(--mono);font-size:.75rem;">no winning offers yet</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Immutable audit log <span class="sponsor">Guild.ai governance</span></h2>
+      <p class="sub">Every access: consented, scoped, paid, logged. Hash-chained — each entry commits to the previous one.</p>
+      <div class="audit"><table>
+        <thead><tr><th>t</th><th>event</th><th>actor</th><th>detail</th><th>hash</th></tr></thead>
+        <tbody id="auditbody"></tbody>
+      </table></div>
+      <div class="chainok" id="chainok"></div>
+    </div>
+
+  </div>
+</main>
+
+<div id="narration"><div class="nstep" id="n-step"></div><div id="n-text"></div></div>
+
+<footer>
+  <div class="wrap">
+    ConsentMarket — built at the Devnovate "Memory Meets Motion" hackathon, Frontier Tower SF.<br>
+    Sponsor stack: FalkorDB (preference graph) · Guild.ai (identity + audit) · Flexprice (wallets + metering) · Linkup (offer grounding).<br>
+    This page is a single self-contained HTML file; the four services are implemented as faithful in-page modules with the same API shapes, so the full loop runs anywhere.
+  </div>
+</footer>
+
+<script>
+'use strict';
+/* ============================================================
+   ConsentMarket — full marketplace loop in one file.
+   Modules mirror the sponsor APIs so a real backend can swap in:
+     Falkor    — graph store + scoped Cypher-ish query executor
+     Guild     — agent identity, scoped credentials, audit chain
+     Flexprice — wallets, metered billable events, earnings
+     Linkup    — grounded product lookups for winning offers
+   ============================================================ */
+
+/* ---------- data model ---------- */
+const TIERS = { open:'open', guarded:'guarded', never:'never' };
+
+const PREFERENCES = [
+  {id:'p1',  category:'running',  value:'neutral cushioned shoes, size 10.5', tier:'open',    sub:'running_gear'},
+  {id:'p2',  category:'running',  value:'marathon in Oct (CIM)',              tier:'open',    sub:'running_gear'},
+  {id:'p3',  category:'apparel',  value:'prefers recycled materials',         tier:'open',    sub:'running_gear'},
+  {id:'p4',  category:'travel',   value:'window seat, aisle never',           tier:'open',    sub:'travel'},
+  {id:'p5',  category:'travel',   value:'Tokyo trip window: Nov 12–26',       tier:'guarded', sub:'travel'},
+  {id:'p6',  category:'budget',   value:'flight budget ≤ $900',               tier:'guarded', sub:'travel'},
+  {id:'p7',  category:'home',     value:'smart-home: HomeKit only',           tier:'open',    sub:'home_tech'},
+  {id:'p8',  category:'budget',   value:'gadget budget ≈ $200/mo',            tier:'guarded', sub:'home_tech'},
+  {id:'p9',  category:'health',   value:'left-knee ACL history',              tier:'never',   sub:'health'},
+  {id:'p10', category:'health',   value:'sleep-apnea screening (2025)',       tier:'never',   sub:'health'},
+  {id:'p11', category:'finance',  value:'brokerage balance',                  tier:'never',   sub:'health'},
+];
+
+const SUBGRAPHS = {
+  running_gear:{ name:'running_gear', tier:TIERS.open,    price_floor:10 },
+  travel:      { name:'travel',       tier:TIERS.guarded, price_floor:25 },
+  home_tech:   { name:'home_tech',    tier:TIERS.open,    price_floor:8  },
+  health:      { name:'health',       tier:TIERS.never,   price_floor:Infinity },
+};
+
+const AGENTS = {
+  nike:    { id:'nike',    label:'Nike Agent',     trust:0.92, wallet:500, desc:'Running-gear retailer. Wants in-market runners, not lookalike audiences.' },
+  amazon:  { id:'amazon',  label:'Amazon Agent',   trust:0.88, wallet:800, desc:'Everything store. Bids across categories — including ones it shouldn\'t.' },
+  wanderly:{ id:'wanderly',label:'Wanderly Travel',trust:0.81, wallet:300, desc:'Flight-deal service. Cheap by habit; lowballs the guarded travel subgraph.' },
+  shadyad: { id:'shadyad', label:'AdSpray Inc.',   trust:0.31, wallet:900, desc:'Legacy ad-tech DSP. Deep pockets, trust score in the basement.' },
+};
+const MIN_TRUST = 0.6;
+
+/* Linkup module: grounded live-web offers per subgraph (snapshot catalog). */
+const Linkup = {
+  catalog:{
+    running_gear:[
+      {product:'Nike Pegasus 42 (recycled Flyknit)', list:145, url:'nike.com/pegasus-42', note:'neutral · cushioned · size 10.5 in stock'},
+      {product:'Vaporfly 4 — marathon race day',      list:260, url:'nike.com/vaporfly-4', note:'CIM is 10 weeks out'},
+    ],
+    travel:[
+      {product:'SFO→HND nonstop, Nov 13–25', list:842, url:'wanderly.ai/sfo-hnd', note:'window seat held · under $900 budget'},
+    ],
+    home_tech:[
+      {product:'Aqara FP300 presence sensor (HomeKit)', list:59, url:'amazon.com/aqara-fp300', note:'HomeKit-native · fits $200/mo'},
+    ],
+  },
+  search(sub){ const c=this.catalog[sub]; return c ? c[0] : null; },
+};
+
+/* ---------- state ---------- */
+let S; // mutable market state
+function freshState(){
+  return {
+    bids:[], grants:[], offers:[], audit:[], meter:[],
+    earnings:0, bidSeq:0, prevHash:'GENESIS',
+    wallets:Object.fromEntries(Object.values(AGENTS).map(a=>[a.id,a.wallet])),
+  };
+}
+
+/* tiny deterministic hash for the audit chain (display-grade, not crypto) */
+function chainHash(str){
+  let h1=0xdeadbeef, h2=0x41c6ce57;
+  for(let i=0;i<str.length;i++){const c=str.charCodeAt(i);
+    h1=Math.imul(h1^c,2654435761); h2=Math.imul(h2^c,1597334677);}
+  h1=Math.imul(h1^(h1>>>16),2246822507)^Math.imul(h2^(h2>>>13),3266489909);
+  h2=Math.imul(h2^(h2>>>16),2246822507)^Math.imul(h1^(h1>>>13),3266489909);
+  return (h2>>>0).toString(16).padStart(8,'0')+(h1>>>0).toString(16).padStart(8,'0');
+}
+
+/* ---------- Guild: identity, credentials, audit ---------- */
+const Guild = {
+  authenticate(agentId){ return AGENTS[agentId] ? {agentId, session:'sess_'+agentId} : null; },
+  issueCredential(agentId, sub, ttlSec, maxQ){
+    const token='cm_'+chainHash(agentId+sub+S.bidSeq+performance.now()).slice(0,20);
+    return { token, agentId, sub, maxQueries:maxQ, used:0,
+             expires:Date.now()+ttlSec*1000, revoked:false };
+  },
+  log(event, actor, detail){
+    const t=new Date().toLocaleTimeString('en-US',{hour12:false});
+    const hash=chainHash(S.prevHash+event+actor+detail);
+    S.prevHash=hash;
+    S.audit.push({t,event,actor,detail,hash});
+    UI.renderAudit();
+  },
+  verifyChain(){
+    let prev='GENESIS';
+    for(const e of S.audit){
+      const h=chainHash(prev+e.event+e.actor+e.detail);
+      if(h!==e.hash) return false;
+      prev=h;
+    }
+    return true;
+  },
+};
+
+/* ---------- Flexprice: wallets, metering, earnings ---------- */
+const Flexprice = {
+  balance(id){ return S.wallets[id]; },
+  debit(id, amt, memo){
+    if(S.wallets[id] < amt) return false;
+    S.wallets[id]-=amt;
+    this.meter(`${AGENTS[id].label} → escrow`, -amt, memo);
+    UI.renderAgents(id);
+    return true;
+  },
+  creditUser(amt, memo){
+    S.earnings+=amt;
+    this.meter('escrow → you', +amt, memo);
+    UI.renderEarnings();
+  },
+  meter(who, amt, memo){
+    S.meter.unshift({who, amt, memo, t:new Date().toLocaleTimeString('en-US',{hour12:false})});
+    UI.renderMeter();
+  },
+};
+
+/* ---------- Falkor: graph + scoped query executor ---------- */
+const Falkor = {
+  subgraphPrefs(sub){ return PREFERENCES.filter(p=>p.sub===sub); },
+  /* Executes a scoped read. The grant's subgraph is the entire visible
+     universe: a MATCH against any other subgraph returns a denial, and the
+     denial is itself an audited event. */
+  scopedQuery(grant, targetSub){
+    if(grant.revoked || Date.now()>grant.expires)
+      return {ok:false, code:'GRANT_EXPIRED'};
+    if(grant.used>=grant.maxQueries)
+      return {ok:false, code:'QUERY_BUDGET_EXHAUSTED'};
+    grant.used++;
+    if(targetSub!==grant.sub){
+      Guild.log('SCOPE_DENY', AGENTS[grant.agentId].label, `query on «${targetSub}» outside grant «${grant.sub}»`);
+      return {ok:false, code:'OUT_OF_SCOPE', cypher:this.cypher(targetSub)};
+    }
+    const rows=this.subgraphPrefs(grant.sub).map(p=>({category:p.category, value:p.value}));
+    Flexprice.meter(`${AGENTS[grant.agentId].label} query`, 0, `metered read · ${grant.sub} · ${grant.used}/${grant.maxQueries}`);
+    Guild.log('QUERY', AGENTS[grant.agentId].label, `scoped read «${grant.sub}» (${grant.used}/${grant.maxQueries})`);
+    return {ok:true, rows, cypher:this.cypher(grant.sub)};
+  },
+  cypher(sub){
+    return `MATCH (s:Subgraph {name:'${sub}'})-[:CONTAINS]->(p:Preference)\nRETURN p.category, p.value`;
+  },
+};
+
+/* ---------- policy engine + auction resolver ---------- */
+const REJECT_REASONS = {
+  TIER_BLOCKED:'sensitivity tier is not sellable',
+  BELOW_FLOOR:'bid under subgraph price floor',
+  LOW_TRUST:'bidder trust score below threshold',
+  INSUFFICIENT_FUNDS:'wallet cannot cover the bid',
+};
+
+function submitBid({agentId, sub, credits, discount, ttl, maxQ}){
+  const agent=AGENTS[agentId], sg=SUBGRAPHS[sub];
+  const bid={ id:'bid_'+(++S.bidSeq), agentId, sub, credits, discount, ttl, maxQ, status:'sealed', code:null };
+  S.bids.unshift(bid);
+  UI.renderFeed();
+  Guild.log('BID', agent.label, `sealed bid on «${sub}» (terms sealed)`);
+  UI.lightFlow('bid');
+
+  // resolve after a beat so the sealed state is visible
+  setTimeout(()=>{
+    UI.lightFlow('policy');
+    UI.scanSubgraph(sub);
+    let code=null;
+    if(sg.tier===TIERS.never)                       code='TIER_BLOCKED';
+    else if(credits < sg.price_floor)               code='BELOW_FLOOR';
+    else if(agent.trust < MIN_TRUST)                code='LOW_TRUST';
+    else if(Flexprice.balance(agentId) < credits)   code='INSUFFICIENT_FUNDS';
+
+    if(code){
+      bid.status='rejected'; bid.code=code;
+      Guild.log(code==='TIER_BLOCKED'?'HARD_BLOCK':'REJECT', agent.label,
+        `bid on «${sub}» rejected · ${code}`);
+      UI.renderFeed();
+      return;
+    }
+    acceptBid(bid);
+  }, 900);
+  return bid;
+}
+
+function acceptBid(bid){
+  const agent=AGENTS[bid.agentId];
+  bid.status='accepted'; bid.code='ACCEPT';
+  UI.lightFlow('pay');
+  Flexprice.debit(bid.agentId, bid.credits, `bid ${bid.id} on «${bid.sub}»`);
+  Flexprice.creditUser(bid.credits, `access to «${bid.sub}» · ${bid.maxQ} queries · ${bid.ttl}s`);
+  const grant=Guild.issueCredential(bid.agentId, bid.sub, bid.ttl, bid.maxQ);
+  grant.bidId=bid.id;
+  S.grants.unshift(grant);
+  Guild.log('ACCEPT', agent.label, `grant «${bid.sub}» · ${bid.credits}cr · ${bid.maxQ}q · ttl ${bid.ttl}s · ${grant.token.slice(0,14)}…`);
+  UI.renderFeed(); UI.renderGrants();
+
+  // the winning agent spends part of its query budget, then builds an offer
+  setTimeout(()=>{
+    UI.lightFlow('query');
+    const res=Falkor.scopedQuery(grant, bid.sub);
+    UI.renderGrants(grant.token, res);
+    if(res.ok) setTimeout(()=>buildOffer(bid, grant, res.rows), 700);
+  }, 1000);
+
+  // Amazon can't resist trying an out-of-scope read — the point of the demo
+  if(bid.agentId==='amazon'){
+    setTimeout(()=>{
+      const res=Falkor.scopedQuery(grant, 'travel');
+      UI.renderGrants(grant.token, res, 'travel');
+    }, 2600);
+  }
+}
+
+function buildOffer(bid, grant, rows){
+  const g=Linkup.search(bid.sub);
+  if(!g) return;
+  const deal=Math.round(g.list*(1-bid.discount/100));
+  S.offers.unshift({
+    agent:AGENTS[bid.agentId].label, product:g.product, list:g.list, deal, url:g.url,
+    note:g.note, discount:bid.discount, shared:rows, sub:bid.sub,
+  });
+  Guild.log('OFFER', AGENTS[bid.agentId].label, `grounded offer rendered · ${g.product}`);
+  UI.lightFlow('audit');
+  UI.renderOffers();
+}
+
+/* ---------- graph rendering ---------- */
+const GraphView = (()=>{
+  const LAYOUT = {
+    user:{x:280,y:212},
+    hulls:{
+      running_gear:{cx:120,cy:88,rx:108,ry:74,label:'running_gear'},
+      travel:{cx:445,cy:100,rx:100,ry:80,label:'travel'},
+      home_tech:{cx:120,cy:345,rx:100,ry:62,label:'home_tech'},
+      health:{cx:448,cy:340,rx:100,ry:72,label:'health'},
+    },
+    prefs:{
+      p1:{x:72,y:62}, p2:{x:168,y:52}, p3:{x:118,y:120},
+      p4:{x:400,y:64}, p5:{x:492,y:88}, p6:{x:440,y:138},
+      p7:{x:78,y:328}, p8:{x:166,y:366},
+      p9:{x:404,y:312}, p10:{x:498,y:332}, p11:{x:448,y:376},
+    },
+  };
+  const tierColor={open:'var(--good)',guarded:'var(--warn)',never:'var(--never)'};
+  function render(){
+    const svg=document.getElementById('graph');
+    let out='';
+    // hulls
+    for(const [k,h] of Object.entries(LAYOUT.hulls)){
+      const sg=SUBGRAPHS[k];
+      out+=`<ellipse class="hull hull-${k}" cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" stroke="${tierColor[sg.tier]}"/>`;
+      out+=`<text class="hull-label" x="${h.cx}" y="${h.cy+h.ry+14}" text-anchor="middle" fill="${tierColor[sg.tier]}">${h.label}${sg.tier==='never'?' ⛔':' · floor '+sg.price_floor+'cr'}</text>`;
+    }
+    // edges user->pref
+    for(const p of PREFERENCES){
+      const pos=LAYOUT.prefs[p.id];
+      out+=`<path class="gedge" d="M${LAYOUT.user.x},${LAYOUT.user.y} L${pos.x},${pos.y}"/>`;
+    }
+    // pref nodes
+    for(const p of PREFERENCES){
+      const pos=LAYOUT.prefs[p.id];
+      out+=`<g class="gnode"><circle cx="${pos.x}" cy="${pos.y}" r="7" fill="${tierColor[p.tier]}" opacity=".85"><title>${p.category}: ${p.value} [${p.tier}]</title></circle>
+        <text class="gsub" x="${pos.x}" y="${pos.y-11}" text-anchor="middle">${p.category}</text></g>`;
+    }
+    // user node
+    out+=`<g><circle cx="${LAYOUT.user.x}" cy="${LAYOUT.user.y}" r="17" fill="var(--accent)"/>
+      <text class="glabel" x="${LAYOUT.user.x}" y="${LAYOUT.user.y+4}" text-anchor="middle" fill="#fff" style="font-weight:700">you</text>
+      <text class="gsub" x="${LAYOUT.user.x}" y="${LAYOUT.user.y+34}" text-anchor="middle">(:User)</text></g>`;
+    svg.innerHTML=out;
+  }
+  function scan(sub){
+    const svg=document.getElementById('graph');
+    svg.querySelectorAll('.hull').forEach(h=>h.classList.remove('hull-active'));
+    const h=svg.querySelector('.hull-'+sub);
+    if(!h) return;
+    h.classList.add('hull-active');
+    svg.classList.add('scanning');
+    setTimeout(()=>{svg.classList.remove('scanning');h.classList.remove('hull-active');},2200);
+  }
+  return {render, scan};
+})();
+
+/* ---------- UI ---------- */
+const UI = {
+  el:id=>document.getElementById(id),
+  renderAgents(flashId){
+    this.el('agents').innerHTML=Object.values(AGENTS).map(a=>`
+      <div class="agent">
+        <div class="aname">${a.label}
+          <span class="trust" style="color:${a.trust>=MIN_TRUST?'var(--good)':'var(--bad)'}">trust ${a.trust.toFixed(2)}</span></div>
+        <div class="bal ${a.id===flashId?'flash':''}" id="bal-${a.id}">${S.wallets[a.id].toFixed(0)} cr</div>
+        <div class="adesc">${a.desc}</div>
+      </div>`).join('');
+    if(flashId) setTimeout(()=>{const b=this.el('bal-'+flashId); if(b) b.classList.remove('flash');},600);
+  },
+  renderEarnings(){
+    const e=this.el('earn');
+    e.textContent=S.earnings.toFixed(2);
+    e.classList.add('tick'); setTimeout(()=>e.classList.remove('tick'),250);
+  },
+  renderMeter(){
+    this.el('meterlog').innerHTML=S.meter.slice(0,40).map(m=>
+      `<div><span>${m.t} · ${m.who} · ${m.memo}</span><span class="amt ${m.amt<0?'neg':''}">${m.amt>0?'+':''}${m.amt===0?'—':m.amt.toFixed(0)+'cr'}</span></div>`).join('');
+  },
+  renderFeed(){
+    this.el('feed').innerHTML=S.bids.map(b=>{
+      const a=AGENTS[b.agentId];
+      const sealed=b.status==='sealed';
+      return `<div class="bidcard ${b.status}">
+        <div class="brow"><span class="bwho">${a.label} → «${b.sub}»</span>
+          <span class="bstatus">${sealed?'sealed · resolving':b.status}</span></div>
+        <div class="bdetail">${sealed
+          ? '{ ████ cr · ██% off · ttl ██s · ██ queries } — terms sealed'
+          : `{ ${b.credits} cr · ${b.discount}% off · ttl ${b.ttl}s · ≤${b.maxQ} queries }`}</div>
+        ${b.status==='rejected'?`<div class="bverdict">rejected — bidder sees only <code>${b.code}</code> <span style="color:var(--faint)">(${REJECT_REASONS[b.code]})</span>. No data exposed.</div>`:''}
+        ${b.status==='accepted'?`<div class="bverdict">accepted — escrow debited, credential minted, access metered.</div>`:''}
+      </div>`;
+    }).join('');
+  },
+  grantOutputs:{}, // token -> html log of query results
+  renderGrants(token, res, deniedSub){
+    if(token && res){
+      const log=this.grantOutputs[token]||(this.grantOutputs[token]='');
+      let entry;
+      if(res.ok){
+        entry=`<span class="ok">▸ ${res.cypher.split('\n')[0]}</span>\n`+
+          res.rows.map(r=>`  ${r.category.padEnd(9)} ${r.value}`).join('\n');
+      }else if(res.code==='OUT_OF_SCOPE'){
+        entry=`<span class="deny">▸ MATCH … {name:'${deniedSub}'} … ⟵ DENIED: OUT_OF_SCOPE</span>\n  credential is scoped to one subgraph; attempt audited.`;
+      }else{
+        entry=`<span class="deny">▸ query ⟵ DENIED: ${res.code}</span>`;
+      }
+      this.grantOutputs[token]=log+(log?'\n':'')+entry;
+    }
+    const now=Date.now();
+    this.el('grants').innerHTML=S.grants.length?S.grants.map(g=>{
+      const left=Math.max(0,Math.ceil((g.expires-now)/1000));
+      const dead=left===0||g.revoked;
+      return `<div class="grant ${dead?'expired':''}">
+        <div class="gtop"><span class="token">${g.token}</span>
+          ${dead?'<span class="expired-tag">expired</span>':`<span style="font-family:var(--mono);font-size:.7rem;color:var(--dim)" data-ttl="${g.token}">ttl ${left}s</span>`}</div>
+        <div class="gmeta"><span>${AGENTS[g.agentId].label}</span><span>scope: «${g.sub}» only</span><span>queries ${g.used}/${g.maxQueries}</span></div>
+        <div class="qbar"><i style="width:${(g.used/g.maxQueries)*100}%"></i></div>
+        ${this.grantOutputs[g.token]?`<div class="queryout">${this.grantOutputs[g.token]}</div>`:''}
+      </div>`;
+    }).join(''):'<div style="color:var(--faint);font-family:var(--mono);font-size:.75rem;">no grants yet</div>';
+  },
+  renderOffers(){
+    this.el('offers').innerHTML=S.offers.length?S.offers.map(o=>`
+      <div class="offer">
+        <div class="oname">${o.product}</div>
+        <div class="oprice"><s>$${o.list}</s> → <b>$${o.deal}</b> <span style="color:var(--dim)">(${o.discount}% off, paid to reach you)</span></div>
+        <div class="osrc">via ${o.agent} · grounded by Linkup: ${o.url} · ${o.note}</div>
+        <div class="oshared"><b>exactly what was shared</b><br>${o.shared.map(r=>`· ${r.category}: ${r.value}`).join('<br>')}</div>
+      </div>`).join(''):'<div style="color:var(--faint);font-family:var(--mono);font-size:.75rem;">no winning offers yet</div>';
+  },
+  renderAudit(){
+    const cls={BID:'',ACCEPT:'ev-accept',REJECT:'ev-reject',HARD_BLOCK:'ev-block',QUERY:'ev-query',SCOPE_DENY:'ev-block',OFFER:'ev-accept',EXPIRE:''};
+    this.el('auditbody').innerHTML=S.audit.slice().reverse().map(e=>`
+      <tr><td>${e.t}</td><td class="${cls[e.event]||''}">${e.event}</td><td>${e.actor}</td><td>${e.detail}</td><td class="hash">${e.hash.slice(0,10)}…</td></tr>`).join('');
+    this.el('chainok').textContent=S.audit.length
+      ? (Guild.verifyChain()?`✓ chain verified — ${S.audit.length} entries, head ${S.prevHash.slice(0,12)}…`:'✗ CHAIN BROKEN')
+      : '';
+  },
+  scanSubgraph(sub){ GraphView.scan(sub); },
+  lightFlow(step){
+    document.querySelectorAll('#flow span').forEach(s=>s.classList.toggle('lit', s.dataset.f===step));
+    clearTimeout(this._flowT);
+    this._flowT=setTimeout(()=>document.querySelectorAll('#flow span').forEach(s=>s.classList.remove('lit')),2500);
+  },
+  narrate(step,text,ms){
+    const n=this.el('narration');
+    this.el('n-step').textContent=step;
+    this.el('n-text').textContent=text;
+    n.classList.add('show');
+    clearTimeout(this._narT);
+    this._narT=setTimeout(()=>n.classList.remove('show'),ms||5200);
+  },
+  renderAll(){
+    this.renderAgents(); this.renderEarnings(); this.renderMeter();
+    this.renderFeed(); this.renderGrants(); this.renderOffers();
+    this.renderAudit(); GraphView.render();
+  },
+};
+
+/* ttl countdown + expiry sweep */
+setInterval(()=>{
+  if(!S) return;
+  let changed=false;
+  for(const g of S.grants){
+    if(!g.revoked && Date.now()>g.expires && !g._expiredLogged){
+      g._expiredLogged=true; changed=true;
+      Guild.log('EXPIRE', AGENTS[g.agentId].label, `grant «${g.sub}» expired · ${g.token.slice(0,14)}…`);
+    }
+  }
+  if(S.grants.length) UI.renderGrants();
+},1000);
+
+/* ---------- demo script (the 3-minute stage run) ---------- */
+const DEMO=[
+  {at:0,    step:'1 / graph', text:'This is me, as my agent knows me — a FalkorDB preference graph. Green subgraphs are sellable, amber are guarded (higher floor), purple is NEVER: unsellable by construction.',
+    run:()=>{GraphView.scan('health');}},
+  {at:5200, step:'2 / sealed bids', text:'Three sealed bids arrive at once. Amazon wants the health subgraph. AdSpray lowballs running gear. Nike bids properly on running_gear.',
+    run:()=>{
+      submitBid({agentId:'amazon',  sub:'health',       credits:120, discount:30, ttl:60, maxQ:5});
+      setTimeout(()=>submitBid({agentId:'wanderly',sub:'travel',  credits:12,  discount:15, ttl:45, maxQ:3}),350);
+      setTimeout(()=>submitBid({agentId:'nike',    sub:'running_gear', credits:18, discount:25, ttl:45, maxQ:3}),700);
+    }},
+  {at:12500, step:'3 / policy engine', text:'health → HARD_BLOCK (never tier — no price buys it). Wanderly → BELOW_FLOOR (guarded floor is 25cr). Nike clears tier, floor, trust and wallet checks → ACCEPT.'},
+  {at:19500, step:'4 / payment + scoped query', text:'Flexprice debits Nike, your earnings tick up live. Guild.ai mints a credential scoped to running_gear only, ≤3 queries, 45s TTL. Nike runs its one scoped Cypher read.'},
+  {at:26500, step:'5 / grounded offer', text:'Nike grounds its offer in live product data via Linkup — a real shoe, a real price, 25% off because reaching you cost money. Irrelevant ads were filtered out economically before you ever saw them.'},
+  {at:33500, step:'6 / trust score matters', text:'AdSpray Inc. has a fat wallet and bids high on running_gear anyway — and still bounces: LOW_TRUST. Money can\'t launder a bad reputation.',
+    run:()=>{submitBid({agentId:'shadyad', sub:'running_gear', credits:80, discount:50, ttl:45, maxQ:5});}},
+  {at:40500, step:'7 / scope is enforced', text:'A second accepted bidder — Amazon, on home_tech this time — tries to sneak a query against your travel subgraph mid-grant. DENIED, and the attempt itself lands in the audit log.',
+    run:()=>{submitBid({agentId:'amazon', sub:'home_tech', credits:15, discount:20, ttl:40, maxQ:4});}},
+  {at:50000, step:'8 / the receipts', text:'Close on the audit view: every access consented, scoped, paid, logged — hash-chained so nothing can be quietly rewritten. That\'s the whole loop, live.',
+    run:()=>{document.querySelector('.audit').scrollIntoView({behavior:'smooth',block:'center'});}},
+];
+let demoTimers=[];
+function runDemo(){
+  resetMarket();
+  const btn=UI.el('btn-demo');
+  btn.disabled=true; btn.textContent='demo running…';
+  for(const s of DEMO){
+    demoTimers.push(setTimeout(()=>{
+      UI.narrate(s.step, s.text, 6600);
+      if(s.run) s.run();
+    }, s.at));
+  }
+  demoTimers.push(setTimeout(()=>{
+    btn.disabled=false; btn.textContent='▶ Run the 3-minute demo';
+  }, 56000));
+}
+function resetMarket(){
+  demoTimers.forEach(clearTimeout); demoTimers=[];
+  S=freshState(); UI.grantOutputs={};
+  const btn=UI.el('btn-demo');
+  btn.disabled=false; btn.textContent='▶ Run the 3-minute demo';
+  UI.el('narration').classList.remove('show');
+  UI.renderAll();
+}
+
+/* ---------- wiring ---------- */
+function initForm(){
+  UI.el('f-agent').innerHTML=Object.values(AGENTS).map(a=>`<option value="${a.id}">${a.label}</option>`).join('');
+  UI.el('f-sub').innerHTML=Object.values(SUBGRAPHS).map(s=>
+    `<option value="${s.name}">${s.name} (${s.tier}${s.tier==='never'?'':', floor '+s.price_floor})</option>`).join('');
+}
+UI.el('btn-bid').onclick=()=>{
+  submitBid({
+    agentId:UI.el('f-agent').value, sub:UI.el('f-sub').value,
+    credits:Math.max(0,+UI.el('f-credits').value||0),
+    discount:Math.min(90,Math.max(0,+UI.el('f-disc').value||0)),
+    ttl:Math.max(5,+UI.el('f-ttl').value||45),
+    maxQ:Math.max(1,+UI.el('f-maxq').value||1),
+  });
+};
+UI.el('btn-three').onclick=()=>{
+  submitBid({agentId:'amazon',  sub:'health',       credits:120, discount:30, ttl:60, maxQ:5});
+  setTimeout(()=>submitBid({agentId:'wanderly',sub:'travel',       credits:12,  discount:15, ttl:45, maxQ:3}),350);
+  setTimeout(()=>submitBid({agentId:'nike',    sub:'running_gear', credits:18,  discount:25, ttl:45, maxQ:3}),700);
+};
+UI.el('btn-demo').onclick=runDemo;
+UI.el('btn-reset').onclick=resetMarket;
+
+initForm();
+resetMarket();
+</script>
