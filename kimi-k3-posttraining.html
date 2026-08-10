@@ -149,6 +149,11 @@ footer a{color:var(--accent)}
 .trilogy a:hover{border-color:var(--accent)}
 .trilogy .n{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:4px}
 .trilogy .t{font-weight:620;font-size:14.5px;color:var(--ink)}
+.xref{margin:26px 0 0;padding:16px 18px;border:1px solid var(--rule);border-left:3px solid var(--accent);border-radius:8px;background:var(--panel-2)}
+.xref .xr-label{font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px}
+.xref p{margin:0 0 10px;font-size:14.5px;max-width:66ch}
+.xref a{font-family:var(--mono);font-size:13px;color:var(--ink);text-decoration:none;border-bottom:1px solid var(--accent);padding-bottom:1px}
+.xref a:hover{color:var(--accent)}
 </style>
 
 <header class="top"><div class="wrap">
@@ -371,6 +376,12 @@ ranking = tournament(candidates, compare=judge)</pre></figure>
 <span class="c"># showed no advantage in convergence speed or final performance.</span></pre></figure>
 
   <p>The clip matters for the same reason it does anywhere in RL — an unbounded log-ratio on a rare token produces an advantage spike that wrecks the update. But the structural point is the one the report emphasizes: because the distillation signal is expressed as a <em class="term">dense per-token reward</em>, it drops into the existing RL machinery unchanged. Partial rollout, the sandbox infrastructure, the off-policy tolerance — MOPD inherits all of it instead of needing a separate training path.</p>
+
+  <div class="xref">
+    <span class="xr-label">Related · is this OPSD?</span>
+    <p>MOPD is often filed under "on-policy self-distillation." It isn't: every teacher here is a <em>separate</em> RL expert, never the student conditioned on privileged context. That distinction — and why the research literature argues the privileged-self version is unstable — is the subject of a companion page.</p>
+    <a href="opsd.html">On-Policy Self-Distillation: the field, its failure modes, and where K3 fits →</a>
+  </div>
 </section>
 
 <!-- ========== DEPLOY ========== -->
@@ -607,6 +618,7 @@ reward = hidden_verifier.evaluate(state, held_out_scenarios) \
   <div class="trilogy">
     <a href="kimi-k3-architecture.html"><span class="n">Part 01</span><span class="t">Architecture &amp; systems →</span></a>
     <a href="kimi-k3-pretraining.html"><span class="n">Part 02</span><span class="t">Pre-training →</span></a>
+    <a href="opsd.html"><span class="n">Companion</span><span class="t">On-policy self-distillation →</span></a>
     <a href="index.html"><span class="n">Library</span><span class="t">All explainers →</span></a>
   </div>
 </footer>

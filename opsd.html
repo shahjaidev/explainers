@@ -369,6 +369,13 @@
   .cs-caveat .cx { font-family:var(--mono); color:var(--collapse); flex:none; font-weight:600; }
   .cs-caveat p { margin:0; font-size:.87rem; color:var(--dim); }
   .cs-caveat p strong { color:var(--text); }
+  .cs-link { display:block; margin-top:16px; padding:15px 18px; border:1px solid var(--line);
+    border-left:3px solid var(--verifier); border-radius:10px; background:var(--surface);
+    text-decoration:none; transition:border-color .15s, transform .15s; }
+  .cs-link:hover { border-color:var(--verifier); transform:translateX(3px); }
+  .csl-label { display:block; font-family:var(--mono); font-size:.64rem; letter-spacing:.13em;
+    text-transform:uppercase; color:var(--verifier); margin-bottom:5px; }
+  .csl-title { display:block; font-size:.92rem; color:var(--text); font-weight:600; line-height:1.45; }
 
   /* ---------- caveats ---------- */
   .caveats { display:grid; gap: 10px; }
@@ -769,6 +776,10 @@
             <span class="cx">!</span>
             <p>K3 cites the Thinking Machines OPD blog, <strong>not</strong> RLSD, and never frames this as a leakage fix. Read it as convergent engineering, not acknowledged influence.</p>
           </div>
+          <a class="cs-link" href="kimi-k3-posttraining.html">
+            <span class="csl-label">Companion explainer</span>
+            <span class="csl-title">Kimi K3 post-training — the full nine-expert pipeline, effort-conditioned RL, and MOPD in detail →</span>
+          </a>
         </div>
       </div>
     </div>
