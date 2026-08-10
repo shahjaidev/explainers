@@ -315,6 +315,61 @@
   .box li { font-size:.9rem; color: var(--dim); margin-bottom: 8px; }
   .box li b { color: var(--text); }
 
+  /* ---------- kimi k3 case study ---------- */
+  .casestudy {
+    margin-top: 28px; background: var(--surface); border:1px solid var(--line); border-radius:16px;
+    padding: clamp(22px,3.5vw,34px); box-shadow: var(--shadow-lg); position:relative; overflow:hidden;
+  }
+  .casestudy::before { content:""; position:absolute; left:0; right:0; top:0; height:3px;
+    background: linear-gradient(90deg, var(--teacher), var(--verifier)); }
+  .cs-head { display:flex; justify-content:space-between; align-items:flex-start; gap:18px; flex-wrap:wrap; }
+  .cs-eyebrow { font-family:var(--mono); font-size:.68rem; letter-spacing:.14em; text-transform:uppercase; color:var(--verifier); margin-bottom:.6em; }
+  .cs-title { font-size: clamp(1.3rem,2.6vw,1.75rem); margin:0; }
+  .cs-ref { padding-top:6px; }
+  .cs-lead { color: var(--dim); font-size:1.03rem; margin:14px 0 0; max-width: 70ch; }
+  .cs-grid { display:grid; grid-template-columns: 1.25fr 1fr; gap:16px; margin-top:22px; }
+  @media (max-width:820px){ .cs-grid{ grid-template-columns:1fr; } }
+  .cs-panel { background: var(--surface-2); border:1px solid var(--line-soft); border-radius:12px; padding:20px; }
+  .cs-wide { margin-top:16px; }
+  .cs-plabel { font-family:var(--mono); font-size:.68rem; letter-spacing:.09em; text-transform:uppercase; color:var(--dim); margin-bottom:14px; }
+  .cs-body { font-size:.92rem; color:var(--dim); margin:0; }
+  .cs-body strong, .cs-note strong { color: var(--text); }
+  .cs-note { font-size:.87rem; color:var(--dim); margin:14px 0 0; padding-top:13px; border-top:1px solid var(--line); }
+
+  .pipeline { display:flex; align-items:stretch; gap:8px; flex-wrap:wrap; }
+  .pstage { flex:1; min-width:118px; background:var(--surface); border:1px solid var(--line); border-radius:10px;
+    padding:13px 14px; display:flex; flex-direction:column; gap:3px; position:relative; }
+  .pstage.on { border-color: var(--verifier); box-shadow: 0 0 0 1px var(--verifier-soft) inset; }
+  .pnum { font-family:var(--mono); font-size:.6rem; color:var(--faint); letter-spacing:.08em; }
+  .pstage b { font-family:var(--mono); font-size:.92rem; color:var(--text); letter-spacing:.02em; }
+  .pstage.on b { color: var(--verifier); }
+  .pstage span:last-child { font-size:.78rem; color:var(--dim); line-height:1.4; }
+  .parrow { align-self:center; color:var(--faint); font-size:1rem; flex:none; }
+  @media (max-width:560px){ .parrow{ transform:rotate(90deg); } }
+
+  .cs-fact { display:flex; align-items:flex-start; gap:14px; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+  .cs-factnum { font-family:var(--serif); font-size:2.1rem; line-height:1; color:var(--collapse); flex:none; }
+  .cs-fact span:last-child { font-size:.85rem; color:var(--dim); line-height:1.5; }
+
+  .formula { background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:18px 20px;
+    font-family:var(--mono); font-size:.88rem; color:var(--text); display:flex; align-items:center; gap:10px;
+    flex-wrap:wrap; overflow-x:auto; }
+  .formula big { font-size:1.5em; font-weight:300; color:var(--faint); }
+  .f-lhs { color: var(--teacher); }
+  .f-eq { color: var(--faint); }
+  .f-rhs { display:flex; align-items:center; gap:7px; flex-wrap:nowrap; }
+  .frac { display:inline-flex; flex-direction:column; text-align:center; vertical-align:middle; margin:0 3px; }
+  .fnum { border-bottom:1px solid var(--neutral-line); padding:0 6px 2px; }
+  .fden { padding:2px 6px 0; }
+  .cs-props { display:flex; flex-wrap:wrap; gap:7px; margin:14px 0; }
+  .prop { font-family:var(--mono); font-size:.66rem; letter-spacing:.04em; padding:4px 9px; border-radius:100px;
+    background:var(--verifier-soft); color:var(--verifier); }
+  .cs-caveat { display:flex; gap:12px; margin-top:14px; padding:13px 15px; border-radius:9px;
+    background:var(--collapse-soft); }
+  .cs-caveat .cx { font-family:var(--mono); color:var(--collapse); flex:none; font-weight:600; }
+  .cs-caveat p { margin:0; font-size:.87rem; color:var(--dim); }
+  .cs-caveat p strong { color:var(--text); }
+
   /* ---------- caveats ---------- */
   .caveats { display:grid; gap: 10px; }
   .cav { display:flex; gap: 14px; padding: 14px 0; border-top:1px solid var(--line-soft); }
@@ -643,6 +698,7 @@
         <div class="box notreal">
           <div class="bh">◆ Shipped, but external-teacher OPD</div>
           <ul>
+            <li><b>Kimi K3</b> — consolidates nine RL-trained experts via multi-teacher OPD. Verified against the report: the teacher is a separate expert, never a privileged self. <em>See the case study below.</em></li>
             <li><b>DeepSeek-V4</b> — replaces its mixed-RL stage with OPD, but it's multi-teacher consolidation from 10+ domain experts. Not privileged self-teaching.</li>
             <li><b>Qwen3 / Qwen3-Omni</b> — "Strong-to-Weak Distillation," external teacher.</li>
             <li><b>NVIDIA Nemotron-Cascade 2</b> — multi-teacher, multi-domain "MOPD."</li>
@@ -655,8 +711,64 @@
             <li><b>Still overwhelmingly a research technique</b>, not a shipped production recipe.</li>
             <li>Real gains exist (origin paper, SDPO) but are narrow and backbone-specific.</li>
             <li>Tooling <em>does</em> support it: TRL's <span class="m">trl.experimental.sdpo</span>, NeMo-RL, veRL/rllm, official code at <span class="m">siyan-zhao/OPSD</span>, <span class="m">lasgroup/SDPO</span>.</li>
-            <li>Do not cite DeepSeek-V4/Qwen3 as production OPSD.</li>
+            <li>Do not cite DeepSeek-V4/Qwen3/Kimi-K3 as production OPSD.</li>
           </ul>
+        </div>
+      </div>
+
+      <!-- KIMI K3 CASE STUDY -->
+      <div class="casestudy reveal">
+        <div class="cs-head">
+          <div>
+            <div class="cs-eyebrow">Case study · verified against the primary source</div>
+            <h3 class="cs-title">Kimi K3 — the conflation, and an accidental convergence</h3>
+          </div>
+          <span class="aid cs-ref">arXiv 2607.24653</span>
+        </div>
+
+        <p class="cs-lead">K3's 47-page report is the clearest recent example of the OPD/OPSD mix-up — and, unexpectedly, of frontier practice landing on the exact objective <em>shape</em> the OPSD-critique literature argued for.</p>
+
+        <div class="cs-grid">
+          <div class="cs-panel">
+            <div class="cs-plabel">The pipeline — three distinct stages</div>
+            <div class="pipeline">
+              <div class="pstage"><span class="pnum">1</span><b>SFT</b><span>cold-start on expert traces</span></div>
+              <div class="parrow">→</div>
+              <div class="pstage"><span class="pnum">2</span><b>RL</b><span>9 experts: 3 domains × 3 effort levels</span></div>
+              <div class="parrow">→</div>
+              <div class="pstage on"><span class="pnum">3</span><b>MOPD</b><span>consolidate into one checkpoint</span></div>
+            </div>
+            <p class="cs-note">Expert trajectories feed <em>both</em> SFT and MOPD — settling a common confusion: distillation here is a stage <strong>after</strong> SFT, not a form of it.</p>
+          </div>
+
+          <div class="cs-panel">
+            <div class="cs-plabel">Why it isn't OPSD</div>
+            <p class="cs-body">The teacher is selected per-sample as <span class="m">π<sub>teacher</sub><sup>(d,e)</sup></span> from the nine <strong>separate</strong> expert models — never the same model conditioned on privileged context.</p>
+            <div class="cs-fact">
+              <span class="cs-factnum">1</span>
+              <span>occurrence of the word "privileged" in all 47 pages — and it refers to Linux kernel <em>privilege escalation</em> in the security eval, not distillation.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="cs-panel cs-wide">
+          <div class="cs-plabel">The objective — reward-shaped, not KL imitation</div>
+          <div class="formula">
+            <span class="f-lhs">r<sub>opd</sub>(y<sub>t</sub>)</span>
+            <span class="f-eq">=</span>
+            <span class="f-rhs">clip<big>(</big> sg<big>(</big> log <span class="frac"><span class="fnum">π<sub>teacher</sub>(y<sub>t</sub> | x, y<sub>&lt;t</sub>)</span><span class="fden">π<sub>θ</sub>(y<sub>t</sub> | e, x, y<sub>&lt;t</sub>)</span></span> <big>)</big>, −R<sub>max</sub>, R<sub>max</sub> <big>)</big></span>
+          </div>
+          <div class="cs-props">
+            <span class="prop">sampled-token</span>
+            <span class="prop">stop-gradient</span>
+            <span class="prop">clipped</span>
+            <span class="prop">dense reward inside RL</span>
+          </div>
+          <p class="cs-body">That is structurally the <strong>RLSD-family pattern</strong> — teacher/student ratio modulating magnitude, folded into the RL objective rather than applied as a vocabulary-wide KL gradient. They also tried finer-grained top-k distillation objectives and report <strong>no clear advantage</strong>, independently echoing RLSD's sampled-token-over-vocab-wide recommendation.</p>
+          <div class="cs-caveat">
+            <span class="cx">!</span>
+            <p>K3 cites the Thinking Machines OPD blog, <strong>not</strong> RLSD, and never frames this as a leakage fix. Read it as convergent engineering, not acknowledged influence.</p>
+          </div>
         </div>
       </div>
     </div>
@@ -672,6 +784,7 @@
           <div class="cav"><span class="cx">!</span><p><b>Backbone dependence is severe.</b> Nearly all evidence is Qwen3-1.7B/4B/8B and OLMo-3; almost nothing on Llama, and results flip sign between instruction-tuned and thinking models. Do not assume transfer.</p></div>
           <div class="cav"><span class="cx">!</span><p><b>Reverse vs. forward KL confusion.</b> Much secondary coverage assumes reverse KL, but the origin OPSD default is forward KL; SDPO uses JSD; RLSD uses sampled-token magnitude modulation. Be precise about which objective a result used.</p></div>
           <div class="cav"><span class="cx">!</span><p><b>Secondary-source numbers.</b> The widely-quoted "8–12× token efficiency" and "52.2% vs 51.3%" figures come from aggregators, not primary tables (which show 64.8 vs 64.0 on AIME/HMMT avg@12). Treat aggregator figures cautiously.</p></div>
+          <div class="cav"><span class="cx">!</span><p><b>Check the teacher, not the label.</b> "On-policy distillation" in a technical report almost never means privileged self-distillation. Kimi K3 was verified here by reading the report directly — nine separate expert teachers, zero privileged-context self-teaching. Apply the same test before citing any production system as OPSD.</p></div>
           <div class="cav"><span class="cx">!</span><p><b>Recency.</b> June–July 2026 papers (DemoPSD, RLCSD, CRPO, Purified OPSD, AD-OPSD, COPSD, OPD+) are single-version preprints; their claims are unreplicated.</p></div>
         </div>
       </div>
