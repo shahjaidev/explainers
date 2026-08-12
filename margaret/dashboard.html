@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Margaret — caregiver dashboard</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="margaret.css">
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   The caregiver dashboard. Data-dense but gentle. The copy is never
+   judgemental: it reports what happened, it does not score her, and it
+   does not score the family either.
+   ══════════════════════════════════════════════════════════════════ */
+
+body { background: #f4f1ed; }
+
+.wrap { max-width: 1500px; margin: 0 auto; padding: 0 28px 72px; }
+
+.hdr {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  padding: 18px 28px; background: var(--ink); color: #fff;
+  position: sticky; top: 0; z-index: 30;
+}
+.hdr .brand { font-family: var(--font-heading); font-weight: 800; font-size: 21px; letter-spacing: -.02em; }
+.hdr .who { font-size: 13px; letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+.hdr .live {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: rgba(255,255,255,.7);
+}
+.hdr .live i { width: 8px; height: 8px; background: #6fd3a0; border-radius: 50%; animation: blip 2.4s infinite; }
+@keyframes blip { 0%,100%{opacity:.35} 50%{opacity:1} }
+.hdr a { color: #fff; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; }
+.hdr .spacer { margin-left: auto; }
+
+/* — the mood bar: the first thing a daughter looks at — */
+.moodbar {
+  display: grid; grid-template-columns: minmax(260px, 1fr) 3fr;
+  gap: 0; background: #fff; border: 1px solid var(--line); border-top: 0;
+}
+.moodnow { padding: 26px 28px; border-right: 1px solid var(--line); }
+.moodnow .dot {
+  width: 74px; height: 74px; border-radius: 50%;
+  box-shadow: 0 0 0 10px rgba(0,0,0,.04);
+  transition: background 1600ms ease;
+}
+.moodnow .word {
+  font-family: var(--font-heading); font-weight: 800; font-size: 34px;
+  letter-spacing: -.03em; margin-top: 16px;
+}
+.moodnow .sub { font-size: 13px; color: var(--neutral-700); }
+.moodchart { padding: 18px 22px 12px; }
+
+/* — layout — */
+.cols {
+  display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 20px; margin-top: 20px;
+  align-items: start;
+}
+@media (max-width: 1180px) { .cols { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 780px)  { .cols { grid-template-columns: 1fr; } .moodbar { grid-template-columns: 1fr; } }
+
+/* — feed — */
+.feed { max-height: 560px; }
+.ix { padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.ix:last-child { border-bottom: 0; }
+.ix.fresh { animation: slideIn 700ms cubic-bezier(.2,.7,.2,1); background: #f0f8f8; }
+@keyframes slideIn { from { opacity: 0; transform: translateY(-8px); } }
+.ix .t { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+.ix .said { font-size: 16px; margin: 4px 0 6px; }
+.ix .said b { font-weight: 800; font-family: var(--font-heading); }
+.ix .reply { font-size: 14px; color: var(--neutral-800); border-left: 2px solid var(--line); padding-left: 12px; }
+.ix .tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+/* — alerts — */
+.alert { padding: 13px 18px; border-bottom: 1px solid var(--line); display: flex; gap: 12px; align-items: flex-start; }
+.alert .bar { width: 3px; align-self: stretch; background: var(--mood-watch); }
+.alert[data-kind="distress"] .bar { background: var(--mood-alarm); }
+.alert[data-resolved="true"] .bar { background: var(--mood-calm); }
+.alert .m { font-size: 14px; }
+.alert .t { font-family: var(--font-mono); font-size: 11px; color: var(--muted); }
+
+/* — comfort ranking — */
+.strat { padding: 12px 18px; border-bottom: 1px solid var(--line); }
+.strat:last-child { border-bottom: 0; }
+.strat .row { display: flex; align-items: baseline; gap: 10px; }
+.strat .name { font-size: 14px; }
+.strat .pct { margin-left: auto; font-family: var(--font-heading); font-weight: 800; font-size: 17px; }
+.strat .track { height: 6px; background: var(--pale); margin-top: 8px; }
+.strat .fill { height: 100%; background: var(--teal); transition: width 900ms cubic-bezier(.2,.7,.2,1); }
+.strat.retire .fill { background: var(--mood-warn); }
+.strat .note { font-size: 11px; color: var(--muted); margin-top: 5px; }
+.strat.bump { animation: bump 900ms ease; }
+@keyframes bump { 0%{background:#e9f6f0} 100%{background:transparent} }
+
+/* — the agent's working, shown honestly — */
+.trace { font-family: var(--font-mono); font-size: 11.5px; line-height: 1.7; max-height: 250px; }
+.trace div { padding: 3px 18px; border-bottom: 1px solid rgba(188,220,223,.4); }
+.trace .k { color: var(--teal); text-transform: uppercase; letter-spacing: .08em; }
+
+/* — report — */
+.report { background: #fff; border: 1px solid var(--line); margin-top: 20px; scroll-margin-top: 84px; }
+.report-head {
+  padding: 26px 30px; border-bottom: 2px solid var(--text);
+  display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap;
+}
+.report-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; padding: 26px 30px; }
+@media (max-width: 900px) { .report-grid { grid-template-columns: repeat(2, 1fr); } }
+.report-grid > div { border-top: 2px solid var(--text); padding-top: 12px; }
+.report-body { padding: 0 30px 30px; display: grid; grid-template-columns: 1.1fr 1fr; gap: 34px; }
+@media (max-width: 900px) { .report-body { grid-template-columns: 1fr; } }
+.report h4 { font-size: 13px; letter-spacing: .12em; text-transform: uppercase; margin: 22px 0 10px; }
+.report ul { margin: 0; padding-left: 18px; }
+.report li { margin-bottom: 9px; font-size: 14px; line-height: 1.6; }
+.episode { border-left: 3px solid var(--mood-warn); padding: 8px 0 8px 12px; margin-bottom: 12px; font-size: 14px; }
+.disclaim {
+  margin: 0 30px 30px; padding: 14px 16px; background: var(--pale);
+  border-left: 3px solid var(--teal); font-size: 13px; color: var(--neutral-800);
+}
+
+/* — intake — */
+.intake-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+.intake-grid figure { border: 1px solid var(--line); }
+.intake-grid img { aspect-ratio: 4/3; object-fit: cover; width: 100%; }
+.intake-grid figcaption { padding: 8px 10px; font-size: 12px; color: var(--neutral-700); }
+.consent {
+  display: flex; gap: 10px; align-items: flex-start; padding: 14px;
+  border: 1px solid var(--line); background: var(--pale); font-size: 13px; margin-top: 12px;
+}
+.consent input { margin-top: 3px; }
+
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 20px 0 0; }
+@media print {
+  .hdr, .toolbar, .cols, .moodbar, .no-print { display: none !important; }
+  body { background: #fff; }
+  .report { border: 0; }
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <span class="brand">Margaret</span>
+  <span class="who" id="whoLine">Eleanor · 82</span>
+  <span class="live"><i></i><span id="liveLabel">Live — change stream connected</span></span>
+  <span class="spacer"></span>
+  <a href="patient.html" target="_blank">Patient screen ↗</a>
+  <a href="index.html">About ↗</a>
+</header>
+
+<div class="wrap">
+
+  <!-- ══ mood now + today's timeline ══ -->
+  <section class="moodbar">
+    <div class="moodnow">
+      <div class="kicker">How she is right now</div>
+      <div class="dot" id="moodDot"></div>
+      <div class="word" id="moodWord">Settled</div>
+      <div class="sub" id="moodSub">Read from the camera every few seconds.</div>
+      <div class="sub" style="margin-top:10px" id="moodSource">Sources: vision · transcript</div>
+    </div>
+    <div class="moodchart">
+      <div class="kicker">Today, hour by hour</div>
+      <svg id="timeline" viewBox="0 0 1000 190" preserveAspectRatio="none" style="width:100%;height:190px"></svg>
+    </div>
+  </section>
+
+  <div class="toolbar no-print">
+    <button class="btn btn-sm" id="btnReport">End the day &amp; write the report</button>
+    <button class="btn btn-sm btn-outline" id="btnPrint">Print the one-pager</button>
+    <button class="btn btn-sm btn-outline" id="btnAck">Acknowledge all flags</button>
+    <button class="btn btn-sm btn-outline" id="btnReset">Reset the demo data</button>
+    <span class="muted" style="font-size:12px;margin-left:auto" id="saveNote"></span>
+  </div>
+
+  <!-- ══ three columns ══ -->
+  <div class="cols">
+
+    <section class="panel">
+      <div class="panel-head"><h3>What she said today</h3><span class="count" id="ixCount"></span></div>
+      <div class="feed scroll" id="feed"></div>
+    </section>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <section class="panel">
+        <div class="panel-head"><h3>Flags &amp; alerts</h3><span class="count" id="alertCount"></span></div>
+        <div class="scroll" id="alerts" style="max-height:280px"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>Margaret's working</h3><span class="count">live</span></div>
+        <div class="trace scroll" id="trace"></div>
+      </section>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <section class="panel">
+        <div class="panel-head"><h3>What soothes her</h3><span class="count">learned</span></div>
+        <div id="strategies"></div>
+        <div class="panel-body" style="border-top:1px solid var(--line);font-size:12px;color:var(--muted)">
+          Ranked by whether her mood actually recovered afterwards. Updates itself as she is
+          comforted — nothing here was set by hand.
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head"><h3>The week</h3><span class="count">7 days</span></div>
+        <div class="panel-body">
+          <div class="kicker" style="margin-bottom:6px">Repetition rate</div>
+          <svg id="trendRepeat" viewBox="0 0 320 70" style="width:100%;height:70px"></svg>
+          <div class="kicker" style="margin:14px 0 6px">Agitation episodes a day</div>
+          <svg id="trendAgit" viewBox="0 0 320 70" style="width:100%;height:70px"></svg>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ══ the nightly one-pager ══ -->
+  <section class="report" id="report">
+    <div class="report-head">
+      <div>
+        <div class="kicker">Clinician-ready observations</div>
+        <h2 style="font-size:34px;margin:0" id="repTitle">Eleanor — daily record</h2>
+        <div class="muted" id="repDate">Not written yet. Press “End the day”.</div>
+      </div>
+      <div style="margin-left:auto;text-align:right" class="muted" id="repMeta"></div>
+    </div>
+    <div class="report-grid" id="repStats"></div>
+    <div class="report-body">
+      <div>
+        <h4>Agitation episodes</h4>
+        <div id="repEpisodes" class="muted">—</div>
+        <h4>What she asked most</h4>
+        <div id="repQuestions" class="muted">—</div>
+      </div>
+      <div>
+        <h4>Care plan suggestions for review</h4>
+        <ul id="repSuggestions"><li class="muted">—</li></ul>
+        <h4>What soothes her, ranked</h4>
+        <ol id="repComfort" style="padding-left:18px"><li class="muted">—</li></ol>
+      </div>
+    </div>
+    <div class="disclaim" id="repDisclaim">
+      Clinician-ready observations and care plan suggestions for a doctor to review.
+      Not a diagnosis, not medical advice, and not a substitute for the people who care for her.
+    </div>
+  </section>
+
+  <!-- ══ intake ══ -->
+  <section class="panel no-print" style="margin-top:20px">
+    <div class="panel-head"><h3>Intake — photographs, voices, consent</h3><span class="count">family only</span></div>
+    <div class="panel-body" style="display:grid;grid-template-columns:1.6fr 1fr;gap:32px">
+      <div>
+        <div class="kicker">Her photograph library</div>
+        <div class="intake-grid" id="mediaGrid"></div>
+      </div>
+      <div>
+        <div class="kicker">Recorded voices</div>
+        <div id="voiceList"></div>
+        <label class="consent">
+          <input type="checkbox" id="consentBox" checked>
+          <span><b>Sarah has consented to her voice being cloned.</b> Recorded by Sarah herself, in person,
+          used only for comfort messages to her mother, and deletable by her at any time.</span>
+        </label>
+        <div class="muted" style="font-size:12px;margin-top:12px">
+          Nothing here is sold and nothing here trains anything. The patient is told, in plain
+          words, that she is speaking to an assistant.
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { Store, Agent, moodColor, moodWord, labelForAction, fmtHour } = window.Margaret;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const time = (ts) => new Date(ts).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+  Store.init();
+  $('whoLine').textContent = `${Store.patient.name} · ${Store.patient.profile.age}`;
+
+  /* ══ mood ══ */
+
+  function renderMood() {
+    const m = Store.currentMood();
+    $('moodDot').style.background = moodColor(m);
+    $('moodWord').textContent = moodWord(m);
+    const latest = Store.moodEvents[Store.moodEvents.length - 1];
+    $('moodSub').textContent = latest
+      ? `Last read ${time(latest.ts)} — ${(latest.labels || []).join(', ')}`
+      : 'Waiting for the patient screen.';
+    const srcs = Array.from(new Set(Store.moodEvents.slice(-20).map(e => e.source)));
+    $('moodSource').textContent = 'Sources: ' + (srcs.join(' · ') || 'none yet');
+  }
+
+  /* today's mood, 7am → 10pm, as a filled area over an hour axis */
+  function renderTimeline() {
+    const svg = $('timeline');
+    const W = 1000, H = 190, padL = 34, padB = 26, padT = 10;
+    const today = new Date().toDateString();
+    const pts = Store.moodEvents
+      .filter(e => new Date(e.ts).toDateString() === today)
+      .map(e => {
+        const d = new Date(e.ts);
+        return { h: d.getHours() + d.getMinutes() / 60, v: e.score };
+      })
+      .filter(p => p.h >= 7 && p.h <= 22)
+      .sort((a, b) => a.h - b.h);
+
+    const x = h => padL + (h - 7) / 15 * (W - padL - 8);
+    const y = v => padT + (1 - (v + 1) / 2) * (H - padT - padB);
+
+    let g = '';
+    // hour grid + the sundowning band
+    g += `<rect x="${x(16)}" y="${padT}" width="${x(19) - x(16)}" height="${H - padT - padB}" fill="#f0dcc4" opacity=".55"/>`;
+    g += `<text x="${x(17.5)}" y="${padT + 14}" font-size="11" fill="#8a5a12" text-anchor="middle"
+            font-family="ui-monospace,monospace" letter-spacing="1">SUNDOWNING</text>`;
+    for (let h = 7; h <= 22; h += 3) {
+      g += `<line x1="${x(h)}" y1="${padT}" x2="${x(h)}" y2="${H - padB}" stroke="#e2ded9"/>`;
+      g += `<text x="${x(h)}" y="${H - 8}" font-size="11" fill="#7d7979" text-anchor="middle"
+              font-family="ui-monospace,monospace">${fmtHour(h)}</text>`;
+    }
+    g += `<line x1="${padL}" y1="${y(0)}" x2="${W - 8}" y2="${y(0)}" stroke="#bcdcdf" stroke-dasharray="3 4"/>`;
+    g += `<text x="4" y="${y(0.95)}" font-size="10" fill="#7d7979" font-family="ui-monospace,monospace">calm</text>`;
+    g += `<text x="4" y="${y(-0.8)}" font-size="10" fill="#7d7979" font-family="ui-monospace,monospace">low</text>`;
+
+    if (pts.length > 1) {
+      // Smooth the samples so the line reads as a mood, not as sensor noise.
+      const sm = pts.map((p, i) => {
+        const w = pts.slice(Math.max(0, i - 2), i + 3);
+        return { h: p.h, v: w.reduce((a, b) => a + b.v, 0) / w.length };
+      });
+      const d = sm.map((p, i) => `${i ? 'L' : 'M'}${x(p.h).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' ');
+      g += `<path d="${d} L${x(sm[sm.length - 1].h).toFixed(1)} ${y(-1)} L${x(sm[0].h).toFixed(1)} ${y(-1)} Z"
+              fill="#0f7d8a" opacity=".10"/>`;
+      g += `<path d="${d}" fill="none" stroke="#0f7d8a" stroke-width="2.5" stroke-linejoin="round"/>`;
+      const last = sm[sm.length - 1];
+      g += `<circle cx="${x(last.h).toFixed(1)}" cy="${y(last.v).toFixed(1)}" r="5" fill="${moodColor(last.v)}"
+              stroke="#fff" stroke-width="2"/>`;
+    }
+
+    // Mark each exchange along the bottom; repeats sit hollow.
+    Store.todaysInteractions().forEach(ix => {
+      const d = new Date(ix.ts), h = d.getHours() + d.getMinutes() / 60;
+      if (h < 7 || h > 22) return;
+      const cy = H - padB - 6;
+      g += ix.repeatOf
+        ? `<circle cx="${x(h).toFixed(1)}" cy="${cy}" r="3.4" fill="none" stroke="#0b4a52" stroke-width="1.4"/>`
+        : `<circle cx="${x(h).toFixed(1)}" cy="${cy}" r="3" fill="#0b4a52" opacity=".55"/>`;
+    });
+
+    svg.innerHTML = g;
+  }
+
+  /* ══ feed ══ */
+
+  function ixRow(ix, fresh) {
+    const tags = [];
+    if (ix.repeatOf) tags.push(`<span class="pill">asked before · ${(ix.repeatSimilarity || 0.9)}</span>`);
+    if (ix.intent === 'distress') tags.push('<span class="pill pill-alarm">distress</span>');
+    if (ix.actionTaken && ix.actionTaken !== 'answer') tags.push(`<span class="pill">${esc(labelForAction(ix.actionTaken))}</span>`);
+    if (ix.outcome) tags.push(`<span class="pill ${ix.outcome.helped ? 'pill-good' : 'pill-warn'}">${ix.outcome.helped ? 'she settled' : 'no change'} · ${ix.outcome.moodAfter}</span>`);
+    if (ix.source === 'claude') tags.push('<span class="pill">claude</span>');
+    return `<div class="ix ${fresh ? 'fresh' : ''}" data-id="${ix._id}">
+      <div class="t">${time(ix.ts)}</div>
+      <div class="said"><b>“${esc(ix.patientSaid)}”</b></div>
+      <div class="reply">${esc(ix.agentSaid)}</div>
+      <div class="tags">${tags.join('')}</div>
+    </div>`;
+  }
+
+  function renderFeed() {
+    const ixs = Store.todaysInteractions().slice().sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    $('feed').innerHTML = ixs.map(i => ixRow(i, false)).join('') || '<div class="panel-body muted">Nothing yet today.</div>';
+    const repeats = ixs.filter(i => i.repeatOf).length;
+    $('ixCount').textContent = `${ixs.length} exchanges · ${repeats} repeated`;
+  }
+
+  function prependFeed(ix) {
+    const el = document.createElement('div');
+    el.innerHTML = ixRow(ix, true);
+    $('feed').prepend(el.firstChild);
+    const ixs = Store.todaysInteractions();
+    $('ixCount').textContent = `${ixs.length} exchanges · ${ixs.filter(i => i.repeatOf).length} repeated`;
+  }
+
+  function updateFeedRow(ix) {
+    const el = $('feed').querySelector(`[data-id="${ix._id}"]`);
+    if (!el) return renderFeed();
+    const holder = document.createElement('div');
+    holder.innerHTML = ixRow(ix, false);
+    el.replaceWith(holder.firstChild);
+  }
+
+  /* ══ alerts ══ */
+
+  function renderAlerts() {
+    const as = Store.alerts.slice().sort((a, b) => new Date(b.ts) - new Date(a.ts));
+    $('alerts').innerHTML = as.map(a => `
+      <div class="alert" data-kind="${a.kind}" data-resolved="${!!a.resolved}">
+        <div class="bar"></div>
+        <div>
+          <div class="t">${time(a.ts)} · ${a.kind.replace('_', ' ')}${a.acknowledged ? ' · seen' : ''}</div>
+          <div class="m">${esc(a.message)}</div>
+        </div>
+      </div>`).join('') || '<div class="panel-body muted">Nothing to flag.</div>';
+    $('alertCount').textContent = as.filter(a => !a.acknowledged).length + ' new';
+  }
+
+  /* ══ comfort ranking ══ */
+
+  function renderStrategies(bumpId) {
+    const ranked = Store.rankedStrategies();
+    $('strategies').innerHTML = ranked.map(s => {
+      const pct = Math.round(s.effectiveness * 100);
+      const retire = s.effectiveness < 0.4;
+      return `<div class="strat ${retire ? 'retire' : ''} ${s._id === bumpId ? 'bump' : ''}" data-id="${s._id}">
+        <div class="row"><span class="name">${esc(s.strategy)}</span><span class="pct">${pct}%</span></div>
+        <div class="track"><div class="fill" style="width:${pct}%"></div></div>
+        <div class="note">helped ${s.timesHelped} of ${s.timesUsed} times${retire ? ' · used to work, now seems to sadden her' : ''}</div>
+      </div>`;
+    }).join('');
+  }
+
+  /* ══ week trends ══ */
+
+  function sparkline(svgEl, values, opts) {
+    opts = opts || {};
+    const W = 320, H = 70, pad = 8;
+    const max = Math.max(opts.max || 0, ...values) || 1;
+    const x = i => pad + i / Math.max(1, values.length - 1) * (W - pad * 2);
+    const y = v => H - pad - (v / max) * (H - pad * 2);
+    const d = values.map((v, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)} ${y(v).toFixed(1)}`).join(' ');
+    const bars = values.map((v, i) =>
+      `<circle cx="${x(i).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3" fill="${opts.color || '#0f7d8a'}"/>`).join('');
+    svgEl.innerHTML =
+      `<path d="${d} L${x(values.length - 1)} ${H - pad} L${x(0)} ${H - pad} Z" fill="${opts.color || '#0f7d8a'}" opacity=".12"/>` +
+      `<path d="${d}" fill="none" stroke="${opts.color || '#0f7d8a'}" stroke-width="2"/>` + bars +
+      `<text x="${pad}" y="${H - 1}" font-size="9" fill="#7d7979" font-family="ui-monospace,monospace">7 days ago</text>` +
+      `<text x="${W - pad}" y="${H - 1}" font-size="9" fill="#7d7979" text-anchor="end" font-family="ui-monospace,monospace">today</text>`;
+  }
+
+  function renderTrends() {
+    const days = Store.dayStats.slice().sort((a, b) => b.dayOffset - a.dayOffset);
+    sparkline($('trendRepeat'), days.map(d => d.repetitionRate), { color: '#0f7d8a', max: 1 });
+    sparkline($('trendAgit'), days.map(d => d.agitationEpisodes), { color: '#d9682b' });
+  }
+
+  /* ══ trace: what the agent is doing, as it does it ══ */
+
+  const TRACE_LABEL = {
+    perceive: 'heard', classify: 'intent', retrieve: 'memory', decide: 'reply',
+    escalate: 'escalate', resolved: 'resolved', learn: 'learn', outcome: 'outcome', consolidate: 'report'
+  };
+
+  function pushTrace(step, payload) {
+    const el = $('trace');
+    const line = document.createElement('div');
+    let text;
+    if (step === 'retrieve') text = payload.length ? payload.map(p => `${p.sim} ${p.content.slice(0, 46)}…`).join(' | ') : 'nothing above threshold';
+    else if (step === 'decide') text = `${payload.action}${payload.mediaId ? ' · ' + payload.mediaId : ''} · via ${payload._source}`;
+    else if (step === 'classify') text = `${payload.intent} · agitation ${payload.agitation.toFixed(2)}${payload.repeatOf ? ' · repeat ' + payload.repeatSimilarity : ''}`;
+    else if (step === 'perceive') text = `“${payload.text}” · mood ${payload.mood.toFixed(2)}`;
+    else text = JSON.stringify(payload);
+    line.innerHTML = `<span class="k">${TRACE_LABEL[step] || step}</span> ${esc(text)}`;
+    el.prepend(line);
+    while (el.children.length > 60) el.removeChild(el.lastChild);
+  }
+  // The agent runs in the patient tab, so most traces arrive over the
+  // channel; this covers the ones raised here (the nightly consolidation).
+  Agent.onTrace = pushTrace;
+
+  /* ══ report ══ */
+
+  function renderReport(rep) {
+    if (!rep) return;
+    const s = rep.stats;
+    $('repTitle').textContent = `${Store.patient.name} — daily record`;
+    $('repDate').textContent = new Date(rep.generatedAt).toLocaleString([], { dateStyle: 'full', timeStyle: 'short' });
+    $('repMeta').innerHTML = `compiled by Margaret<br>for review by her GP`;
+
+    $('repStats').innerHTML = [
+      [Math.round(s.repetitionRate * 100) + '%', `of her questions were repeats (${s.repeats} of ${s.questions})`],
+      [s.agitationEpisodes.length, s.agitationEpisodes.length === 1 ? 'agitation episode today' : 'agitation episodes today'],
+      [s.medAdherence === null ? '—' : Math.round(s.medAdherence * 100) + '%',
+       s.medAdherence === null ? 'no doses due yet today' : `of the ${s.medDue} doses due today confirmed`],
+      [s.sundown ? `${fmtHour(s.sundown.from)}–${fmtHour(s.sundown.to)}` : '—', 'when she is least settled']
+    ].map(([v, l]) => `<div><div class="stat-value">${v}</div><div class="stat-label">${l}</div></div>`).join('');
+
+    $('repEpisodes').innerHTML = s.agitationEpisodes.length ? s.agitationEpisodes.map(e => `
+      <div class="episode">
+        <b>${time(e.start)} – ${time(e.end)}</b>, down to ${e.low}.<br>
+        ${esc(e.trigger)} — resolved by ${esc(e.resolvedBy)}.
+      </div>`).join('') : '<span class="muted">None recorded today.</span>';
+
+    $('repQuestions').innerHTML = '<ul>' + s.topQuestions.map(q =>
+      `<li>“${esc(q.example)}” — ${q.n}×</li>`).join('') + '</ul>';
+
+    $('repSuggestions').innerHTML = rep.carePlanSuggestions.map(t => `<li>${esc(t)}</li>`).join('');
+    $('repComfort').innerHTML = s.comfortRanking.map(c =>
+      `<li>${esc(c.strategy)} — <b>${Math.round(c.effectiveness * 100)}%</b> across ${c.timesUsed} attempts</li>`).join('');
+    $('repDisclaim').textContent = rep.disclaimer;
+  }
+
+  /* ══ intake ══ */
+
+  function renderIntake() {
+    $('mediaGrid').innerHTML = Store.media.filter(m => m.kind === 'photo').map(m => `
+      <figure><img src="${m.url}" alt="${esc(m.caption)}">
+        <figcaption>${esc(m.caption)}<br><span class="muted">comfort ${Math.round(m.comfortScore * 100)}%</span></figcaption>
+      </figure>`).join('');
+    $('voiceList').innerHTML = Store.voiceMessages.map(v => `
+      <div class="strat" style="border-bottom:1px solid var(--line)">
+        <div class="row"><span class="name"><b>${esc(v.speaker)}</b> — comfort message</span></div>
+        <div class="note" style="font-size:12px;color:var(--neutral-700)">“${esc(v.text.slice(0, 96))}…”</div>
+      </div>`).join('');
+  }
+
+  /* ══ live wiring — this is the change stream ══ */
+
+  Store.watch(({ collection, doc, op }) => {
+    if (op === 'reset') return renderAll();
+    if (collection === '_trace') {
+      pushTrace(doc.step, doc.payload);
+    } else if (collection === 'interactions') {
+      if (op === 'insert') prependFeed(doc); else updateFeedRow(doc);
+      renderTimeline();
+    } else if (collection === 'moodEvents') {
+      renderMood();
+      clearTimeout(renderTimeline._t);
+      renderTimeline._t = setTimeout(renderTimeline, 400);
+    } else if (collection === 'alerts') {
+      renderAlerts();
+      if (op === 'insert' && !doc.acknowledged) buzz();
+    } else if (collection === 'comfortStrategies') {
+      renderStrategies(doc._id);
+    } else if (collection === 'reports') {
+      renderReport(doc);
+      $('report').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (collection === 'memories') {
+      $('saveNote').textContent = 'memory written · ' + new Date().toLocaleTimeString();
+    }
+  });
+
+  /* The caregiver's phone buzzing, on a laptop. */
+  function buzz() {
+    try { if (navigator.vibrate) navigator.vibrate([28, 60, 28]); } catch (e) { /* needs a gesture first */ }
+    document.title = '● Margaret — new flag';
+    const hdr = document.querySelector('.hdr');
+    hdr.animate([{ background: '#0b4a52' }, { background: '#8e2f21' }, { background: '#0b4a52' }], { duration: 1100 });
+    setTimeout(() => { document.title = 'Margaret — caregiver dashboard'; }, 6000);
+  }
+
+  /* ══ controls ══ */
+
+  $('btnReport').onclick = () => renderReport(Agent.consolidate());
+  $('btnPrint').onclick = () => window.print();
+  $('btnAck').onclick = () => {
+    Store.alerts.forEach(a => { if (!a.acknowledged) { a.acknowledged = true; Store.write('alerts', a, 'update'); } });
+    renderAlerts();
+  };
+  $('btnReset').onclick = () => { Store.reset(); renderAll(); };
+
+  function renderAll() {
+    renderMood(); renderTimeline(); renderFeed(); renderAlerts();
+    renderStrategies(); renderTrends(); renderIntake();
+    if (Store.reports.length) renderReport(Store.reports[Store.reports.length - 1]);
+  }
+  renderAll();
+
+  // The mood reading comes from the patient screen; if that tab is closed
+  // the numbers here are simply the last thing we heard.
+  setInterval(() => {
+    const latest = Store.moodEvents[Store.moodEvents.length - 1];
+    const stale = !latest || Date.now() - new Date(latest.ts).getTime() > 30000;
+    $('liveLabel').textContent = stale
+      ? 'Change stream connected — patient screen idle'
+      : 'Live — change stream connected';
+  }, 5000);
+})();
+</script>
+</body>
+</html>

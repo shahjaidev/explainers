@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Margaret — the patient screen</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="margaret.css">
+<style>
+/* ══════════════════════════════════════════════════════════════════════
+   The patient screen. Full bleed, warm, huge type, no buttons, no menus,
+   no navigation. Everything moves in slow cross-fades — nothing on this
+   screen is ever allowed to be sudden.
+
+   Panel choreography (spec §6):
+     idle          face only, the other two panels recede
+     conversation  camera left + words centre
+     comfort       camera left (watching her come back) + words + photo
+   ══════════════════════════════════════════════════════════════════ */
+
+html, body { height: 100%; overflow: hidden; background: var(--ink-2); }
+body { color: #fff; }
+
+#stage {
+  display: grid;
+  grid-template-columns: 30fr 44fr 26fr;
+  height: 100vh; width: 100vw;
+  transition: grid-template-columns 1200ms cubic-bezier(.4,0,.2,1);
+}
+body[data-mode="idle"]   #stage { grid-template-columns: 62fr 38fr 0fr; }
+body[data-mode="talk"]   #stage { grid-template-columns: 32fr 68fr 0fr; }
+body[data-photo="on"][data-mode="talk"] #stage { grid-template-columns: 28fr 42fr 30fr; }
+body[data-photo="on"][data-mode="idle"] #stage { grid-template-columns: 30fr 40fr 30fr; }
+body[data-mode="photo"]  #stage { grid-template-columns: 26fr 40fr 34fr; }
+body[data-mode="comfort"]#stage { grid-template-columns: 24fr 34fr 42fr; }
+
+.panel-x { position: relative; overflow: hidden; }
+
+/* ── LEFT — the face ─────────────────────────────────────────────────
+   Idle is the companion's face with a slow breathing zoom. When she
+   speaks it cross-fades to her own camera, ringed by a mood aura. */
+
+#faceWrap { background: #0a2f35; }
+#companion, #camWrap {
+  position: absolute; inset: 0;
+  transition: opacity 1400ms ease;
+}
+#companion { opacity: 1; }
+#companion img {
+  width: 100%; height: 100%; object-fit: cover;
+  animation: breathe 26s ease-in-out infinite;
+}
+@keyframes breathe {
+  0%, 100% { transform: scale(1.04) translateY(0); }
+  50%      { transform: scale(1.11) translateY(-1.2%); }
+}
+#camWrap { opacity: 0; }
+body[data-face="camera"] #companion { opacity: 0; }
+body[data-face="camera"] #camWrap  { opacity: 1; }
+
+#cam, #clip {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%; object-fit: cover;
+  transform: scaleX(-1);           /* mirrored, so it reads as a mirror */
+  filter: saturate(0.92) contrast(1.02);
+}
+#clip { display: none; transform: none; }
+body[data-source="clip"] #cam  { display: none; }
+body[data-source="clip"] #clip { display: block; }
+
+/* the aura: a soft colour glow at the edge, mood-mapped. No numbers, no
+   charts — she never sees a score. */
+#aura {
+  position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 90px 30px rgba(47,143,111,.55);
+  transition: box-shadow 2200ms ease;
+}
+#faceLabel {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 22px 26px;
+  background: linear-gradient(to top, rgba(7,50,56,.85), transparent);
+  font-size: 15px; letter-spacing: .14em; text-transform: uppercase;
+  color: rgba(255,255,255,.62);
+  transition: opacity 900ms ease;
+}
+
+/* ── MIDDLE — the words ─────────────────────────────────────────────── */
+
+#wordsWrap {
+  background: var(--ink-2);
+  display: flex; flex-direction: column; justify-content: center;
+  padding: 5vh 4.2vw;
+  position: relative;
+}
+#enactment {
+  position: absolute; inset: 0; opacity: 0;
+  transition: opacity 1600ms ease;
+}
+#enactment img {
+  width: 100%; height: 100%; object-fit: cover;
+  animation: kenburns 34s ease-in-out infinite alternate;
+}
+#enactment::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(105deg, rgba(7,50,56,.93) 0%, rgba(7,50,56,.78) 55%, rgba(7,50,56,.62) 100%);
+}
+body[data-enact="on"] #enactment { opacity: 1; }
+@keyframes kenburns {
+  from { transform: scale(1.05) translate3d(-1.5%, -1%, 0); }
+  to   { transform: scale(1.22) translate3d(2%, 1.5%, 0); }
+}
+
+#lines {
+  position: relative; z-index: 2;
+  display: flex; flex-direction: column; justify-content: flex-end;
+  max-height: 62vh; overflow: hidden;
+}
+.line {
+  font-family: var(--font-heading); font-weight: 800;
+  font-size: clamp(30px, 3.5vw, 62px);
+  line-height: 1.12; letter-spacing: -.03em;
+  text-wrap: pretty; margin: 0 0 .3em;
+  opacity: 0; transform: translateY(14px);
+  animation: rise 900ms cubic-bezier(.2,.7,.2,1) forwards;
+  transition: font-size 1200ms ease, opacity 1200ms ease, margin 1200ms ease;
+}
+/* The line before last stays legible but small — she is never asked to
+   read a wall of text, and the newest sentence is always the loudest. */
+.line.past {
+  font-size: clamp(16px, 1.5vw, 24px); font-weight: 600;
+  opacity: .30; margin-bottom: .8em;
+  animation: none;
+}
+@keyframes rise { to { opacity: 1; transform: none; } }
+.line.family {
+  font-weight: 400; font-style: italic;
+  color: #ffd9c2;
+}
+
+#heard {
+  position: relative; z-index: 2;
+  margin-top: 3vh; min-height: 2em;
+  font-size: clamp(15px, 1.35vw, 22px); letter-spacing: .04em;
+  color: rgba(255,255,255,.45);
+  transition: opacity 600ms ease;
+}
+#heard b { font-weight: 400; color: rgba(255,255,255,.72); }
+
+/* the listening pulse — the only moving affordance she ever gets */
+#ear {
+  position: relative; z-index: 2;
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 2.4vh; font-size: 14px; letter-spacing: .18em;
+  text-transform: uppercase; color: rgba(255,255,255,.34);
+  opacity: 0; transition: opacity 800ms ease;
+}
+body[data-listening="on"] #ear { opacity: 1; }
+#ear .dot {
+  width: 12px; height: 12px; border-radius: 50%;
+  background: var(--cyan); animation: pulse 2.6s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{ transform: scale(.72); opacity:.45 } 50%{ transform: scale(1.25); opacity:1 } }
+
+/* ── RIGHT — the memories ───────────────────────────────────────────── */
+
+#memWrap { background: #0a2f35; }
+#ambient {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 20% 20%, rgba(23,162,176,.30), transparent 60%),
+    radial-gradient(120% 90% at 80% 80%, rgba(224,180,140,.24), transparent 62%),
+    #0a2f35;
+  animation: drift 40s ease-in-out infinite alternate;
+  transition: opacity 1400ms ease;
+}
+@keyframes drift {
+  from { transform: scale(1.05) translate(-1%, 1%); }
+  to   { transform: scale(1.18) translate(2%, -2%); }
+}
+#photo {
+  position: absolute; inset: 0; opacity: 0;
+  transition: opacity 1600ms ease;
+}
+#photo img { width: 100%; height: 100%; object-fit: cover; animation: kenburns 40s ease-in-out infinite alternate; }
+body[data-photo="on"] #photo   { opacity: 1; }
+body[data-photo="on"] #ambient { opacity: 0; }
+#caption {
+  position: absolute; left: 0; right: 0; bottom: 0; z-index: 2;
+  padding: 28px 26px 30px;
+  background: linear-gradient(to top, rgba(7,50,56,.94), rgba(7,50,56,.0));
+  font-family: var(--font-heading); font-weight: 800;
+  font-size: clamp(19px, 1.7vw, 30px); line-height: 1.2; letter-spacing: -.02em;
+  opacity: 0; transition: opacity 1200ms ease;
+}
+body[data-photo="on"] #caption { opacity: 1; }
+#voiceBadge {
+  position: absolute; top: 22px; left: 22px; z-index: 3;
+  display: none; align-items: center; gap: 10px;
+  background: rgba(255,217,194,.16); border: 1px solid rgba(255,217,194,.5);
+  color: #ffd9c2; padding: 9px 14px;
+  font-size: 12px; letter-spacing: .14em; text-transform: uppercase;
+}
+body[data-voice="on"] #voiceBadge { display: inline-flex; }
+#voiceBadge .bar {
+  display: inline-block; width: 3px; height: 13px; background: #ffd9c2;
+  animation: vu .9s ease-in-out infinite;
+}
+#voiceBadge .bar:nth-child(2){ animation-delay:.15s } #voiceBadge .bar:nth-child(3){ animation-delay:.3s }
+@keyframes vu { 0%,100%{ transform: scaleY(.4) } 50%{ transform: scaleY(1) } }
+
+/* ── the operator drawer ─────────────────────────────────────────────
+   Not part of the patient's world. Hidden until the operator moves to the
+   very top of the screen or presses D. Everything the demo needs — camera
+   source, OBS device, the scripted arc, the type-to-speak fallback — is
+   here so the patient screen itself stays free of controls. */
+
+#drawer {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 60;
+  background: rgba(6,38,43,.97);
+  border-bottom: 1px solid rgba(188,220,223,.28);
+  transform: translateY(-100%);
+  transition: transform 420ms cubic-bezier(.2,.7,.2,1);
+  font-family: var(--font-body);
+}
+#drawer.open { transform: none; }
+#drawerHot { position: fixed; top: 0; left: 0; right: 0; height: 10px; z-index: 59; }
+.dRow { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 18px; }
+.dRow + .dRow { border-top: 1px solid rgba(188,220,223,.14); }
+.dLabel {
+  font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  color: rgba(255,255,255,.45); margin-right: 4px;
+}
+#drawer .btn {
+  background: transparent; border: 1px solid rgba(188,220,223,.4); color: #eaf6f7;
+  padding: 8px 13px; font-size: 11px; letter-spacing: .09em;
+}
+#drawer .btn:hover { background: rgba(23,162,176,.28); color: #fff; }
+#drawer .btn.on { background: var(--cyan); border-color: var(--cyan); color: #06262b; }
+#drawer select, #drawer input[type="text"] {
+  background: rgba(255,255,255,.07); color: #eaf6f7;
+  border: 1px solid rgba(188,220,223,.35); padding: 8px 10px;
+  font: inherit; font-size: 13px; border-radius: 0;
+}
+#drawer input[type="text"] { min-width: 320px; flex: 1; }
+#drawer a { color: var(--cyan); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+#status { font-size: 12px; color: rgba(255,255,255,.5); margin-left: auto; font-family: var(--font-mono); }
+.hint { font-size: 11px; color: rgba(255,255,255,.34); letter-spacing: .04em; }
+
+#curtain {
+  position: fixed; inset: 0; z-index: 80;
+  background: var(--ink-2);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 26px; text-align: center; padding: 40px;
+  transition: opacity 900ms ease;
+}
+#curtain.gone { opacity: 0; pointer-events: none; }
+#curtain h1 { font-size: clamp(40px, 6vw, 88px); margin: 0; letter-spacing: -.035em; }
+#curtain p { max-width: 54ch; color: rgba(255,255,255,.62); font-size: 17px; line-height: 1.65; }
+#curtain .btn { background: var(--cyan); color: #06262b; padding: 18px 30px; font-size: 14px; }
+#curtain .btn:hover { background: #fff; color: var(--ink); }
+#curtain .row { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+#curtain .btn.ghost { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+
+@media (max-width: 900px) {
+  #stage, body[data-mode] #stage { grid-template-columns: 1fr; grid-template-rows: 34fr 40fr 26fr; }
+}
+</style>
+</head>
+<body data-mode="idle" data-face="companion" data-photo="off" data-enact="off" data-voice="off" data-source="camera" data-listening="off">
+
+<!-- ══ the three panels ══ -->
+<div id="stage">
+
+  <section class="panel-x" id="faceWrap" aria-label="Face">
+    <div id="companion"><img id="companionImg" alt=""></div>
+    <div id="camWrap">
+      <video id="cam" playsinline muted></video>
+      <video id="clip" playsinline loop></video>
+      <div id="aura"></div>
+    </div>
+    <div id="faceLabel">Margaret is here</div>
+  </section>
+
+  <section class="panel-x" id="wordsWrap" aria-live="polite">
+    <div id="enactment"><img id="enactImg" alt=""></div>
+    <div id="lines"></div>
+    <div id="heard"></div>
+    <div id="ear"><span class="dot"></span><span>Listening</span></div>
+  </section>
+
+  <section class="panel-x" id="memWrap" aria-label="Memories">
+    <div id="ambient"></div>
+    <div id="photo"><img id="photoImg" alt=""></div>
+    <div id="voiceBadge"><span class="bar"></span><span class="bar"></span><span class="bar"></span><span id="voiceWho">Sarah's voice</span></div>
+    <div id="caption"></div>
+  </section>
+
+</div>
+
+<!-- ══ operator drawer ══ -->
+<div id="drawerHot"></div>
+<div id="drawer">
+  <div class="dRow">
+    <span class="dLabel">Camera</span>
+    <select id="devSel"><option value="">Default camera</option></select>
+    <button class="btn" id="btnCam">Start camera</button>
+    <button class="btn" id="btnClip">Use a video file</button>
+    <input type="file" id="fileIn" accept="video/*" style="display:none">
+    <span class="dLabel" style="margin-left:14px">Mood</span>
+    <button class="btn" id="btnArc">Run the distress arc</button>
+    <button class="btn" id="btnMic">Mic on</button>
+    <span id="status">idle</span>
+  </div>
+  <div class="dRow">
+    <span class="dLabel">Say to her</span>
+    <input type="text" id="sayIn" placeholder="Type what Eleanor says, then Enter — e.g. “Did I take my pills?”">
+    <button class="btn" id="btnSay">Send</button>
+    <button class="btn" id="btnListen">Listen for speech</button>
+    <a href="dashboard.html" target="_blank">Caregiver dashboard ↗</a>
+    <a href="index.html">About Margaret ↗</a>
+  </div>
+  <div class="dRow">
+    <span class="hint" id="drawerHint">Press <b>D</b> to hide this drawer · <b>1–5</b> plays a scripted question · <b>E</b> ends the day and writes the report</span>
+  </div>
+</div>
+
+<!-- ══ curtain: nothing autoplays; the operator opens the day ══ -->
+<div id="curtain">
+  <h1>Margaret</h1>
+  <p>The patient screen. Camera and microphone stay on this device — the mood reading runs
+     locally on the frames. On stage, point the camera at the OBS Virtual Camera: for privacy
+     and dignity the patient is synthetic, and we say so out loud.</p>
+  <div class="row">
+    <button class="btn" id="btnBegin">Begin the day</button>
+    <button class="btn ghost" id="btnBeginNoCam">Begin without the camera</button>
+  </div>
+  <p class="hint" style="font-size:13px;color:rgba(255,255,255,.4)">Move the pointer to the top edge, or press D, for the operator controls.</p>
+</div>
+
+<script src="data.js"></script>
+<script src="engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { Store, Agent, Voice, VisionMood, moodColor, moodWord } = window.Margaret;
+  const $ = (id) => document.getElementById(id);
+  const body = document.body;
+
+  Store.init();
+
+  /* ── panels ─────────────────────────────────────────────────────── */
+
+  $('companionImg').src = window.MargaretSeed.companionFace;
+
+  let modeTimer = null;
+  function setMode(mode, holdMs) {
+    body.dataset.mode = mode;
+    clearTimeout(modeTimer);
+    if (holdMs) modeTimer = setTimeout(() => setMode('idle'), holdMs);
+  }
+
+  function showFace(which) { body.dataset.face = which; }
+
+  function say(text, opts) {
+    opts = opts || {};
+    const lines = $('lines');
+    Array.from(lines.children).forEach(el => el.classList.add('past'));
+    // One line of history is all that stays: the sentence she is hearing,
+    // and the one before it, small.
+    while (lines.children.length > 1) lines.removeChild(lines.firstChild);
+    const el = document.createElement('div');
+    el.className = 'line' + (opts.family ? ' family' : '');
+    el.textContent = text;
+    lines.appendChild(el);
+  }
+
+  function showPhoto(mediaId, opts) {
+    opts = opts || {};
+    const m = Store.mediaById(mediaId);
+    if (!m) return;
+    $('photoImg').src = m.url;
+    $('caption').textContent = opts.caption || m.caption;
+    body.dataset.photo = 'on';
+    setMode(opts.comfort ? 'comfort' : 'photo', opts.holdMs || 40000);
+  }
+  function hidePhoto() { body.dataset.photo = 'off'; body.dataset.voice = 'off'; }
+
+  function showEnactment(mediaId) {
+    const m = Store.mediaById(mediaId);
+    if (!m) return;
+    $('enactImg').src = m.url;
+    body.dataset.enact = 'on';
+    clearTimeout(showEnactment._t);
+    showEnactment._t = setTimeout(() => { body.dataset.enact = 'off'; }, 26000);
+  }
+
+  function setAura(score) {
+    const c = moodColor(score);
+    const spread = 26 + Math.max(0, -score) * 46;
+    const alpha = 0.42 + Math.max(0, -score) * 0.4;
+    $('aura').style.boxShadow = `inset 0 0 ${70 + spread * 1.4}px ${spread}px ${c.replace('rgb', 'rgba').replace(')', ',' + alpha.toFixed(2) + ')')}`;
+    $('faceLabel').textContent = score < -0.5 ? 'Margaret is staying with her'
+      : score < -0.15 ? 'Margaret is listening closely' : 'Margaret is here';
+    $('status').textContent = `mood ${score.toFixed(2)} · ${moodWord(score)}`;
+  }
+  setAura(0.4);
+
+  /* ── the agent's hands on this screen ───────────────────────────── */
+
+  Agent.onAct = async function (decision) {
+    showFace('camera');
+    const isFamily = decision.action === 'family_voice';
+
+    if (isFamily) {
+      body.dataset.voice = 'on';
+      $('voiceWho').textContent = (decision.voice ? decision.voice.speaker : 'Sarah') + "'s voice";
+      say(decision.speech, { family: true });
+      if (decision.mediaId) showPhoto(decision.mediaId, { comfort: true, holdMs: 70000 });
+      setMode('comfort');
+      const spoken = Voice.speak(decision.speech, { kind: 'family' });
+      // Hold the badge for the length of the message even where the browser
+      // has no voice to speak it with — the judges have to see whose it is.
+      await Promise.all([spoken, new Promise(r => setTimeout(r, 9000))]);
+      body.dataset.voice = 'off';
+      return;
+    }
+
+    say(decision.speech);
+
+    // Rule from the spec: a real photograph always beats a generated
+    // enactment. Only when there is no photo does the middle panel paint.
+    if (decision.mediaId) {
+      showPhoto(decision.mediaId, { comfort: decision.action === 'comfort_topic' });
+      body.dataset.enact = 'off';
+    } else if (decision.enactment) {
+      hidePhoto();
+      showEnactment(decision.enactment);
+      setMode('talk', 30000);
+    } else {
+      hidePhoto();
+      setMode('talk', 30000);
+    }
+
+    await Voice.speak(decision.speech);
+  };
+
+  /* ── input: her voice, or the operator's keyboard ────────────────── */
+
+  let busy = false;
+  async function utter(text) {
+    if (!text || busy) return;
+    busy = true;
+    $('heard').innerHTML = '<b>' + text + '</b>';
+    showFace('camera');
+    setMode('talk');
+    try { await Agent.handleUtterance(text); } finally { busy = false; }
+    setTimeout(() => { if (!busy) $('heard').textContent = ''; }, 9000);
+  }
+
+  Voice.onPartial = (t) => { $('heard').textContent = t; };
+  Voice.onFinal = (t) => utter(t);
+  Voice.onState = (on) => {
+    body.dataset.listening = on ? 'on' : 'off';
+    $('btnListen').classList.toggle('on', on);
+    $('btnListen').textContent = on ? 'Stop listening' : 'Listen for speech';
+  };
+
+  /* ── camera, video file, mood ────────────────────────────────────── */
+
+  async function fillDevices() {
+    const devs = await VisionMood.listDevices();
+    const sel = $('devSel');
+    sel.innerHTML = '<option value="">Default camera</option>';
+    devs.forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId;
+      o.textContent = d.label || ('Camera ' + (i + 1));
+      // OBS Virtual Camera is what the synthetic patient arrives on.
+      if (/obs/i.test(d.label)) o.textContent += '  ← synthetic patient';
+      sel.appendChild(o);
+    });
+  }
+
+  async function startCamera(deviceId) {
+    try {
+      $('status').textContent = 'opening camera…';
+      await VisionMood.openCamera($('cam'), deviceId);
+      body.dataset.source = 'camera';
+      VisionMood.start($('cam'), { periodMs: 2500 });
+      VisionMood.onScore = setAura;
+      showFace('camera');
+      $('btnCam').classList.add('on');
+      $('btnCam').textContent = 'Camera running';
+      await fillDevices();
+      return true;
+    } catch (e) {
+      $('status').textContent = 'camera unavailable — ' + e.name;
+      return false;
+    }
+  }
+
+  function startClip(file) {
+    const clip = $('clip');
+    clip.src = URL.createObjectURL(file);
+    clip.loop = true; clip.muted = false;
+    clip.play().catch(() => { clip.muted = true; clip.play(); });
+    body.dataset.source = 'clip';
+    VisionMood.start(clip, { periodMs: 2000 });
+    VisionMood.onScore = setAura;
+    showFace('camera');
+    $('status').textContent = 'reading the clip';
+  }
+
+  $('btnCam').onclick = () => startCamera($('devSel').value || undefined);
+  $('devSel').onchange = () => { if (VisionMood.stream) startCamera($('devSel').value || undefined); };
+  $('btnClip').onclick = () => $('fileIn').click();
+  $('fileIn').onchange = (e) => { if (e.target.files[0]) startClip(e.target.files[0]); };
+  $('btnArc').onclick = () => {
+    VisionMood.runScriptedArc(80);
+    if (!VisionMood.running) { VisionMood.start($('cam'), { periodMs: 2000 }); VisionMood.onScore = setAura; }
+    showFace('camera');
+    $('status').textContent = 'distress arc running…';
+  };
+  $('btnMic').onclick = async () => {
+    const ok = await VisionMood.openMic();
+    $('btnMic').classList.toggle('on', ok);
+    $('btnMic').textContent = ok ? 'Mic reading voice' : 'Mic blocked';
+  };
+  $('btnListen').onclick = () => {
+    if (Voice.listening) Voice.stopListening();
+    else if (!Voice.startListening()) $('status').textContent = 'speech recognition not available in this browser';
+  };
+  $('btnSay').onclick = () => { utter($('sayIn').value.trim()); $('sayIn').value = ''; };
+  $('sayIn').onkeydown = (e) => { if (e.key === 'Enter') $('btnSay').click(); };
+
+  /* ── drawer ──────────────────────────────────────────────────────── */
+
+  const drawer = $('drawer');
+  let drawerPinned = false;
+  $('drawerHot').onmouseenter = () => drawer.classList.add('open');
+  drawer.onmouseleave = () => { if (!drawerPinned) drawer.classList.remove('open'); };
+
+  const SCRIPT = [
+    'Did I take my pills?',
+    'Who is Sarah?',
+    'Where is Robert?',
+    'Why do I feel upset?',
+    'Did the girl come by today?'
+  ];
+
+  window.addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'd' || e.key === 'D') { drawerPinned = !drawerPinned; drawer.classList.toggle('open', drawerPinned); }
+    if (e.key >= '1' && e.key <= '5') utter(SCRIPT[+e.key - 1]);
+    if (e.key === 'e' || e.key === 'E') {
+      const r = Agent.consolidate();
+      say('That\'s the day written up, Eleanor. Sleep well.');
+      $('status').textContent = 'report ' + r.date + ' written — open the dashboard';
+    }
+    if (e.key === 'Escape') hidePhoto();
+  });
+
+  /* ── the curtain ─────────────────────────────────────────────────── */
+
+  async function begin(withCamera) {
+    $('curtain').classList.add('gone');
+    setTimeout(() => { $('curtain').style.display = 'none'; }, 900);
+    if (withCamera) {
+      const ok = await startCamera();
+      if (ok) { await VisionMood.openMic(); $('btnMic').classList.add('on'); $('btnMic').textContent = 'Mic reading voice'; }
+      if (Voice.supported()) Voice.startListening();
+    } else {
+      showFace('companion');
+    }
+    setTimeout(() => {
+      say('Good afternoon, Eleanor.');
+      setTimeout(() => say('I\'m here whenever you want me.'), 3600);
+    }, 1200);
+  }
+  $('btnBegin').onclick = () => begin(true);
+  $('btnBeginNoCam').onclick = () => begin(false);
+
+  // The operator drawer opens once on load so the controls are findable.
+  setTimeout(() => { drawer.classList.add('open'); setTimeout(() => { if (!drawerPinned) drawer.classList.remove('open'); }, 4200); }, 600);
+})();
+</script>
+</body>
+</html>

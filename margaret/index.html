@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Margaret — an AI memory companion</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Margaret is a voice companion that acts as an external memory for a person living with dementia — answering with infinite patience, watching for distress, and compiling a clinician-ready record each night.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="margaret.css">
+<style>
+/* The landing page, built to the Margaret design doc: deep-teal ground,
+   cream paper, Archivo 800 at display sizes, square corners, hairline
+   teal rules, uppercase letterspaced kickers, photographs that carry
+   their caption in a slab at the lower-left. */
+
+.band { padding: 100px 48px; }
+.inner { max-width: 1240px; margin: 0 auto; }
+.notice {
+  background: var(--ink); color: #fff; text-align: center;
+  font-size: 13px; letter-spacing: .04em; padding: 9px 20px;
+}
+.notice a { color: #fff; text-decoration: underline; }
+
+.hero { display: grid; grid-template-columns: 1fr 1fr; min-height: 640px; }
+.hero .plate { position: relative; background: var(--pale); }
+.hero .plate img { width: 100%; height: 100%; object-fit: cover; }
+.hero .copy {
+  background: var(--ink); color: #fff;
+  padding: 96px 72px; display: flex; flex-direction: column; justify-content: center;
+}
+.hero h1 { font-size: clamp(44px, 5.1vw, 74px); line-height: 1.02; letter-spacing: -.03em; text-wrap: pretty; margin: 0; }
+.hero .sub { font-size: 19px; line-height: 1.6; color: rgba(255,255,255,.82); margin-top: 26px; max-width: 46ch; }
+.hero .cta { display: flex; gap: 14px; margin-top: 36px; flex-wrap: wrap; }
+.hero .cta .btn { padding: 18px 28px; }
+
+.slab {
+  position: absolute; left: 14px; bottom: 14px;
+  background: rgba(11,74,82,.88); color: #fff;
+  font-size: 12px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 8px 12px; pointer-events: none;
+}
+.plate { position: relative; background: var(--pale); overflow: hidden; }
+.plate img { width: 100%; height: 100%; object-fit: cover; }
+
+.ticker {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 16px 40px; padding: 26px 48px;
+  background: var(--pale); font-size: 13px; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink);
+}
+
+.display { font-size: clamp(36px, 4.2vw, 54px); line-height: 1.05; letter-spacing: -.025em; max-width: 24ch; }
+.lede { font-size: 18px; line-height: 1.65; color: var(--neutral-800); max-width: 60ch; }
+
+.pillars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 56px; }
+.pillar { background: #fff; border: 1px solid var(--line); display: flex; flex-direction: column; }
+.pillar .plate { height: 240px; }
+.pillar .txt { padding: 28px 26px 30px; }
+.pillar h3 { font-size: 26px; line-height: 1.15; margin: 0 0 12px; }
+.pillar p { font-size: 16px; line-height: 1.6; color: var(--neutral-800); margin: 0; }
+
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 72px; align-items: center; }
+.split h2 { font-size: clamp(32px, 3.6vw, 46px); line-height: 1.08; }
+.split p.lede { font-size: 17px; line-height: 1.7; max-width: 52ch; }
+.numbered > div {
+  display: flex; gap: 16px; align-items: baseline;
+  padding: 16px 0; border-top: 1px solid var(--line);
+}
+.numbered .n { font-family: var(--font-heading); font-weight: 800; font-size: 15px; color: var(--teal); width: 28px; }
+.numbered .t { font-size: 16px; line-height: 1.55; color: var(--neutral-800); }
+
+.statgrid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.statgrid > div { border-top: 2px solid var(--text); padding-top: 14px; }
+
+.quote { background: var(--ink); color: #fff; padding: 90px 48px; }
+.quote .q {
+  font-family: var(--font-heading); font-weight: 400;
+  font-size: clamp(26px, 3.1vw, 40px); line-height: 1.25; letter-spacing: -.02em; text-wrap: pretty;
+  max-width: 1000px; margin: 0 auto;
+}
+.quote .attr {
+  max-width: 1000px; margin: 26px auto 0; font-size: 15px;
+  color: var(--cyan); letter-spacing: .1em; text-transform: uppercase;
+}
+
+.dashes > div {
+  display: flex; gap: 18px; padding: 18px 0; border-top: 1px solid var(--line);
+  font-size: 16px; color: var(--neutral-800);
+}
+.dashes .em { color: var(--teal); font-family: var(--font-heading); font-weight: 800; }
+
+/* the two product doors */
+.doors { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 46px; }
+.door {
+  display: block; border: 1px solid var(--line); background: #fff; color: inherit;
+  transition: border-color .18s, transform .18s;
+}
+.door:hover { border-color: var(--teal); transform: translateY(-2px); color: inherit; }
+.door .plate { height: 260px; }
+.door .txt { padding: 26px 26px 30px; }
+.door h3 { font-size: 24px; margin: 0 0 8px; }
+.door p { font-size: 15px; color: var(--neutral-800); margin: 0 0 14px; }
+.door .go { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); }
+
+.cta-band {
+  background: var(--teal); color: #fff; padding: 70px 48px;
+  display: flex; align-items: center; gap: 40px; flex-wrap: wrap;
+}
+.cta-band h2 { font-size: clamp(32px, 3.5vw, 44px); line-height: 1.05; max-width: 22ch; margin: 0; }
+.cta-band .btn { margin-left: auto; background: #fff; color: var(--ink); padding: 20px 32px; font-size: 15px; }
+.cta-band .btn:hover { background: var(--ink); color: #fff; }
+
+.stackfoot { background: var(--ink); color: rgba(255,255,255,.72); padding: 60px 48px 34px; }
+.stackfoot .inner { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 32px; }
+.stackfoot h4 { color: #fff; font-size: 13px; letter-spacing: .14em; text-transform: uppercase; margin: 0 0 12px; }
+.stackfoot li { font-size: 14px; margin-bottom: 7px; list-style: none; }
+.stackfoot ul { margin: 0; padding: 0; }
+.stackfoot .who { border-top: 1px solid rgba(255,255,255,.18); margin-top: 40px; padding-top: 22px;
+  display: flex; gap: 28px; flex-wrap: wrap; font-size: 14px; max-width: 1240px; margin-left: auto; margin-right: auto; }
+
+@media (max-width: 980px) {
+  .hero, .split, .pillars, .doors, .statgrid { grid-template-columns: 1fr; }
+  .hero .copy { padding: 60px 32px; }
+  .band { padding: 64px 24px; }
+  .split { gap: 40px; }
+  .hero .plate { min-height: 320px; }
+}
+</style>
+</head>
+<body>
+
+<div class="notice">
+  A hackathon build, made with care. Everything you see is a synthetic patient and a synthetic family.
+  <a href="#how">See how it works</a>
+</div>
+
+<div class="topbar">
+  <span class="brand">Margaret</span>
+  <nav>
+    <a href="#how">How it works</a>
+    <a href="#family">For families</a>
+    <a href="#clinicians">For clinicians</a>
+    <a href="#privacy">Privacy</a>
+    <a href="#build">How it's built</a>
+  </nav>
+  <a class="btn" style="margin-left:auto" href="patient.html">See the product</a>
+</div>
+
+<!-- ══ hero ══ -->
+<section class="hero">
+  <div class="plate">
+    <img id="imgHero" alt="A painterly portrait of a woman in her eighties, at home">
+    <div class="slab">Portrait · a woman in her eighties, at home</div>
+  </div>
+  <div class="copy">
+    <div class="kicker kicker-light">An external memory, always patient</div>
+    <h1>She asks. Margaret answers. Every time, as if it were the first.</h1>
+    <p class="sub">A voice companion that remembers her life, reorients her gently when she's lost,
+      and shows her the faces that calm her — while her family sees how she really is, all day.</p>
+    <div class="cta">
+      <a class="btn" href="patient.html">Open the patient screen</a>
+      <a class="btn btn-on-dark" href="dashboard.html">Open the dashboard</a>
+    </div>
+  </div>
+</section>
+
+<div class="ticker">
+  <span>Consent-first voice cloning</span>
+  <span>Clinician one-pager nightly</span>
+  <span>Synthetic patient on stage</span>
+  <span>Data stays in the family</span>
+  <span>Never says “you already asked”</span>
+</div>
+
+<!-- ══ how ══ -->
+<section class="band" id="how">
+  <div class="inner">
+    <div class="kicker">How it works</div>
+    <h2 class="display">The questions never stop. Neither does she.</h2>
+    <p class="lede" style="margin-top:18px">A person with dementia can ask the same question forty times in an
+      afternoon. Margaret answers each one warmly and completely, then quietly records what happened so no one
+      has to remember on her behalf.</p>
+
+    <div class="pillars" id="pillars"></div>
+  </div>
+</section>
+
+<!-- ══ family ══ -->
+<section class="band" id="family" style="background:#fff">
+  <div class="inner split">
+    <div>
+      <div class="kicker">For the family</div>
+      <h2>You stop guessing how her day went.</h2>
+      <p class="lede">Instead of a phone call that tells you nothing, you get what actually happened — what she
+        asked, when she got frightened, what settled her, and whether the tablets went down.</p>
+      <div class="numbered" id="familyList"></div>
+    </div>
+    <div class="plate" style="height:560px">
+      <img id="imgFamily" alt="A daughter and her mother with a tablet between them">
+      <div class="slab">Daughter and mother, tablet between them</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ clinicians ══ -->
+<section class="band" id="clinicians">
+  <div class="inner split">
+    <div class="plate" style="height:520px">
+      <img id="imgClinic" alt="A printed one-page report on a kitchen table">
+      <div class="slab">The printed one-pager</div>
+    </div>
+    <div>
+      <div class="kicker">For clinicians</div>
+      <h2>One page a night, written from evidence.</h2>
+      <p class="lede">Repetition rate, agitation by hour, medication adherence, and what changed since last week —
+        compiled at eleven, printable, and defensible in a ten-minute appointment. Observations and suggestions
+        for a doctor to review, never a diagnosis.</p>
+      <div class="statgrid">
+        <div><div class="stat-value">11 s</div><div class="stat-label">median time from distress to comfort</div></div>
+        <div><div class="stat-value">96%</div><div class="stat-label">medication prompts confirmed</div></div>
+        <div><div class="stat-value">4–7pm</div><div class="stat-label">her sundowning window, found in week one</div></div>
+        <div><div class="stat-value">1 page</div><div class="stat-label">nightly, printable, timestamped</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ quote ══ -->
+<section class="quote">
+  <p class="q">“She asked me where her mother was, and I had to tell her the truth for the fortieth time that week.
+    Margaret takes that from me — and I get to be her daughter again.”</p>
+  <div class="attr">Sarah, daughter and primary carer</div>
+</section>
+
+<!-- ══ the two doors ══ -->
+<section class="band">
+  <div class="inner">
+    <div class="kicker">The product</div>
+    <h2 class="display">Two screens, one memory.</h2>
+    <p class="lede" style="margin-top:18px">Both run live in the browser. The patient screen uses the camera to
+      read how she is; the dashboard updates the moment anything is written, the way a change stream would.</p>
+    <div class="doors">
+      <a class="door" href="patient.html">
+        <div class="plate"><img id="imgDoor1" alt=""><div class="slab">The patient screen</div></div>
+        <div class="txt">
+          <h3>The three panels</h3>
+          <p>Her face with a mood aura on the left, Margaret's words in the middle, the photograph that
+             calms her on the right. Camera, microphone, and a video file for the synthetic patient.</p>
+          <span class="go">Open it ↗</span>
+        </div>
+      </a>
+      <a class="door" href="dashboard.html">
+        <div class="plate"><img id="imgDoor2" alt=""><div class="slab">The caregiver dashboard</div></div>
+        <div class="txt">
+          <h3>What the family sees</h3>
+          <p>The live feed of what she asked, her mood hour by hour, the flags, the ranked list of what
+             soothes her, and the nightly one-pager.</p>
+          <span class="go">Open it ↗</span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ privacy ══ -->
+<section class="band" id="privacy" style="background:#fff">
+  <div class="inner split">
+    <div>
+      <div class="kicker">Privacy</div>
+      <h2>Consent is the first screen, not the small print.</h2>
+      <p class="lede">A cloned voice is only ever recorded by the person it belongs to, is used only for comfort
+        messages, and can be deleted by them at any moment. Recordings stay in the family's own store. Nothing is
+        sold, and nothing trains anything.</p>
+    </div>
+    <div class="dashes" id="privacyList"></div>
+  </div>
+</section>
+
+<!-- ══ how it's built ══ -->
+<section class="band" id="build" style="background:var(--pale)">
+  <div class="inner">
+    <div class="kicker">How it's built</div>
+    <h2 class="display">One memory, and the seams to hang services on.</h2>
+    <p class="lede" style="margin-top:18px">The demo runs entirely in the browser so it never depends on a
+      conference network. Every hosted service in the plan has a named seam in <code>engine.js</code> — search for
+      <code>SEAM:</code> — and the shape of the data either side of it is already right.</p>
+
+    <div class="pillars" style="grid-template-columns:repeat(2,1fr);margin-top:40px">
+      <div class="pillar"><div class="txt">
+        <div class="kicker">Running now, in this browser</div>
+        <h3>The whole loop, offline</h3>
+        <p>Hashed lexical embeddings and cosine retrieval over one memory collection; intent and repeat
+          detection at a 0.85 similarity threshold; a dementia-care rules engine for what she is told;
+          frame-difference and voice-energy analysis of the live camera for mood; the browser's own speech
+          recognition and synthesis; and a BroadcastChannel carrying every write to the dashboard.</p>
+      </div></div>
+      <div class="pillar"><div class="txt">
+        <div class="kicker">What each seam is for</div>
+        <h3>Where the services go</h3>
+        <p><b>MongoDB Atlas</b> — the store and its change streams. <b>Voyage AI</b> — text and multimodal
+          embeddings. <b>Atlas Vector Search</b> — retrieval and reranking. <b>Fireworks</b> — the fast
+          classifier and the vision model reading the room. <b>Claude via OpenRouter</b> — everything she is
+          actually told, and the nightly report. <b>ElevenLabs</b> — Scribe for her speech, TTS for Margaret's
+          voice, and the consented clone of her daughter's.</p>
+      </div></div>
+    </div>
+
+    <p class="lede" style="margin-top:32px">Put an OpenRouter key in the browser console —
+      <code>Margaret.Settings.set('openrouterKey', 'sk-or-…')</code> — and the decide step calls Claude with the
+      real system prompt instead of the local rules. If the call fails, it falls back silently, because a demo
+      that depends on a network is not a demo.</p>
+  </div>
+</section>
+
+<!-- ══ cta ══ -->
+<section class="cta-band">
+  <h2>See a whole afternoon, in three screens.</h2>
+  <a class="btn" href="patient.html">Open the product</a>
+</section>
+
+<footer class="stackfoot">
+  <div class="inner">
+    <div>
+      <h4>What it does</h4>
+      <ul>
+        <li>Answers, every time, as if it were the first</li>
+        <li>Watches for distress and escalates comfort</li>
+        <li>Learns what settles this particular person</li>
+        <li>Writes the day up for the doctor</li>
+      </ul>
+    </div>
+    <div>
+      <h4>What it never does</h4>
+      <ul>
+        <li>Say “you already asked me that”</li>
+        <li>Correct her bluntly, or lie to her</li>
+        <li>Claim to be medical-grade, or a therapy</li>
+        <li>Use anyone's voice without their consent</li>
+      </ul>
+    </div>
+    <div>
+      <h4>The screens</h4>
+      <ul>
+        <li><a href="patient.html" style="color:#fff">Patient screen</a></li>
+        <li><a href="dashboard.html" style="color:#fff">Caregiver dashboard</a></li>
+        <li><a href="../index.html" style="color:#fff">Back to the library</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="who">
+    <span style="font-family:var(--font-heading);font-weight:800;color:#fff">Margaret</span>
+    <span>An AI memory companion</span>
+    <span style="margin-left:auto">Built for families living with dementia</span>
+  </div>
+</footer>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const S = window.MargaretSeed;
+  const byId = (id) => S.media.find(m => m._id === id);
+
+  document.getElementById('imgHero').src   = S.IMG.eleanorPortrait;
+  document.getElementById('imgFamily').src = S.IMG.sarahTea;
+  document.getElementById('imgClinic').src = S.IMG.enactMorning;
+  document.getElementById('imgDoor1').src  = S.IMG.companionFace;
+  document.getElementById('imgDoor2').src  = S.IMG.garden;
+
+  const pillars = [
+    { img: S.IMG.kitchen, photo: 'Hands holding a mug of tea', kicker: 'All day, out loud',
+      title: 'Answers without a sigh',
+      body: '“Did I take my pills?” “Who is Sarah?” “Why am I upset?” Asked once or asked forty times, the answer comes back warm, specific and unhurried.' },
+    { img: S.IMG.sarahWedding, photo: 'An old photograph held in both hands', kicker: 'When she’s frightened',
+      title: 'The face that calms her',
+      body: 'Distress is read from her face and heard in her voice. A photograph fills the screen, and a daughter’s recorded voice — consented, cloned — speaks to her.' },
+    { img: S.IMG.enactPills, photo: 'A printed report on a kitchen table', kicker: 'Every night at eleven',
+      title: 'A page a doctor respects',
+      body: 'The day becomes evidence: repetition, agitation by hour, sundowning patterns, adherence, and what worked — ready for the next appointment.' }
+  ];
+  document.getElementById('pillars').innerHTML = pillars.map(p => `
+    <div class="pillar">
+      <div class="plate"><img src="${p.img}" alt=""><div class="slab">${p.photo}</div></div>
+      <div class="txt">
+        <div class="kicker">${p.kicker}</div>
+        <h3>${p.title}</h3>
+        <p>${p.body}</p>
+      </div>
+    </div>`).join('');
+
+  const family = [
+    'A live view of what she asked and how she sounds right now.',
+    'Gentle flags — “asked about Sarah four times since two” — as data, never as judgement.',
+    'A ranked list of what soothes her, updated as the agent learns.',
+    'Alerts the moment distress starts, with a one-tap way to join her.'
+  ];
+  document.getElementById('familyList').innerHTML = family.map((t, i) =>
+    `<div><span class="n">0${i + 1}</span><span class="t">${t}</span></div>`).join('');
+
+  const privacy = [
+    'Voice clones are recorded in person, by the owner of the voice.',
+    'The patient is told, in plain words, that she is speaking to an assistant.',
+    'Family controls who sees the daily record — carers, GP, or no one.',
+    'Delete a memory, a photo or a voice at any time; it goes for good.',
+    'The camera never leaves the device in this build; the mood reading is computed on the frames locally.'
+  ];
+  document.getElementById('privacyList').innerHTML = privacy.map(t =>
+    `<div><span class="em">—</span><span>${t}</span></div>`).join('');
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+/* ══════════════════════════════════════════════════════════════════════════
+   Margaret — shared design system.
+   Tokens lifted from the Margaret landing design doc: deep-teal ground,
+   cream paper, Archivo at 400/600/800, square corners, hairline teal rules,
+   uppercase letterspaced kickers.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* — brand ground — */
+  --ink:        #0b4a52;   /* deep teal — headers, dark panels */
+  --ink-2:      #073238;   /* deeper, for patient-screen full bleed */
+  --teal:       #0f7d8a;   /* primary action */
+  --cyan:       #17a2b0;   /* kickers on dark */
+  --cream:      #fdf7f3;   /* paper */
+  --pale:       #e3f1f2;   /* tinted fill */
+  --line:       #bcdcdf;   /* hairline */
+  --white:      #ffffff;
+
+  --text:       #201e1d;
+  --neutral-700:#605d5d;
+  --neutral-800:#444141;
+  --muted:      color-mix(in srgb, var(--text) 55%, transparent);
+
+  /* — mood ramp: green → amber → red, used for aura + timeline — */
+  --mood-calm:  #2f8f6f;
+  --mood-ok:    #7fa93f;
+  --mood-watch: #d99a2b;
+  --mood-warn:  #d9682b;
+  --mood-alarm: #c3402e;
+
+  --font-heading: "Archivo", system-ui, -apple-system, sans-serif;
+  --font-body:    "Archivo", system-ui, -apple-system, sans-serif;
+  --font-mono:    ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --heading-weight: 800;
+
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px;
+  --space-4: 16px; --space-6: 24px; --space-8: 32px;
+
+  --radius: 0px;                      /* the system is square, deliberately */
+  --shadow-sm: 0 1px 2px rgba(11,74,82,.14);
+  --shadow-md: 0 3px 10px rgba(11,74,82,.16);
+  --shadow-lg: 0 12px 32px rgba(11,74,82,.22);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--cream);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-heading);
+  font-weight: var(--heading-weight);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  margin: 0 0 var(--space-2);
+}
+p { margin: 0 0 var(--space-3); }
+a { color: var(--teal); text-decoration: none; }
+a:hover { color: var(--ink); }
+img, video, canvas { display: block; max-width: 100%; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+::selection { background: color-mix(in srgb, var(--cyan) 35%, transparent); }
+
+/* — the kicker: small caps label that appears above every heading — */
+.kicker {
+  font-size: 12px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: var(--space-3);
+}
+.kicker-light { color: var(--cyan); }
+
+.mono { font-family: var(--font-mono); }
+.muted { color: var(--muted); }
+
+/* — buttons: square, uppercase, letterspaced — */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: var(--font-heading); font-weight: 600;
+  font-size: 13px; letter-spacing: .1em; text-transform: uppercase;
+  padding: 14px 22px; border: 1px solid transparent; border-radius: var(--radius);
+  cursor: pointer; background: var(--teal); color: #fff;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn:hover { background: var(--ink); color: #fff; }
+.btn-outline { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-outline:hover { background: var(--pale); color: var(--ink); }
+.btn-on-dark { background: transparent; color: #fff; border-color: rgba(255,255,255,.4); }
+.btn-on-dark:hover { background: rgba(255,255,255,.12); color: #fff; }
+.btn-sm { padding: 8px 12px; font-size: 11px; letter-spacing: .08em; }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* — surfaces — */
+.panel {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.panel-head {
+  display: flex; align-items: baseline; gap: var(--space-3);
+  padding: 14px 18px; border-bottom: 1px solid var(--line);
+}
+.panel-head h3 { font-size: 15px; margin: 0; letter-spacing: -.01em; }
+.panel-head .count {
+  margin-left: auto; font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+}
+.panel-body { padding: 18px; }
+
+.stat-value {
+  font-family: var(--font-heading); font-weight: 800;
+  font-size: 38px; letter-spacing: -.03em; line-height: 1;
+}
+.stat-label { font-size: 13px; color: var(--neutral-700); margin-top: 6px; }
+
+/* — pills — */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; letter-spacing: .06em; text-transform: uppercase;
+  padding: 4px 9px; border: 1px solid var(--line); color: var(--ink);
+  background: var(--pale);
+}
+.pill-warn   { background: #fbeee0; border-color: #eccd9d; color: #8a5a12; }
+.pill-alarm  { background: #fae4e0; border-color: #eeb3a9; color: #8e2f21; }
+.pill-good   { background: #e3f2ea; border-color: #a9d5bf; color: #1f6b50; }
+
+/* — scrollbars, kept quiet — */
+.scroll { overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+.scroll::-webkit-scrollbar { width: 8px; }
+.scroll::-webkit-scrollbar-thumb { background: var(--line); }
+
+/* — the site chrome shared by landing + dashboard — */
+.topbar {
+  display: flex; align-items: center; gap: 28px;
+  padding: 16px 32px; background: var(--cream);
+  border-bottom: 1px solid var(--line);
+  position: sticky; top: 0; z-index: 20;
+}
+.topbar .brand {
+  font-family: var(--font-heading); font-weight: 800;
+  font-size: 22px; letter-spacing: -.02em;
+}
+.topbar nav { display: flex; gap: 22px; font-size: 14px; color: var(--neutral-800); }
+
+/* — a11y helper — */
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important; animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
