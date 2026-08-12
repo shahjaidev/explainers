@@ -193,7 +193,7 @@
           embedding: embed(i.patientSaid),
           intent: i.intent, repeatOf: i.repeat ? 'seeded' : null,
           moodAtTime: i.mood, actionTaken: i.action,
-          outcome: { moodAfter: i.mood + 0.25, helped: true }, seeded: true
+          outcome: { moodAfter: +(i.mood + 0.25).toFixed(2), helped: true }, seeded: true
         };
       });
 

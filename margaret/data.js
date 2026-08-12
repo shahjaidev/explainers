@@ -15,17 +15,22 @@
 (function (global) {
   'use strict';
 
-  /* ── painterly image synthesis ─────────────────────────────────────────
-     Deliberately non-photoreal. Per spec §6: an enactment is "a memory,
-     not fake footage". Real photos (the family library) get more detail
-     and warmer light; enactments stay loose and washed. */
+  /* ── image synthesis ───────────────────────────────────────────────────
+     Photographic rather than illustrative. There is no drawn figure anywhere
+     in here: a drawn person reads as a cartoon at any size, and a cartoon in
+     a photo frame undoes the whole thing. What these paint instead is the
+     part of a photograph that survives being out of focus — depth-of-field
+     falloff, bokeh discs where the highlights were, a light leak from a
+     window, film grain, a vignette. The eye reads that as a photograph taken
+     with a wide aperture, which is exactly what it is a picture of.
+
+     Everything is deterministic per seed, so a caption always paints the same
+     picture and the two screens never disagree. */
 
   function svgURI(svg) {
     return 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg.replace(/\s+/g, ' ').trim());
   }
 
-  // Deterministic per-seed noise so the same caption always paints the same
-  // picture across reloads (the dashboard and patient screen must agree).
   function rng(seed) {
     let s = 0;
     for (let i = 0; i < seed.length; i++) s = (s * 31 + seed.charCodeAt(i)) >>> 0;
@@ -35,109 +40,164 @@
     };
   }
 
-  function washes(seed, palette, count) {
-    const r = rng(seed);
+  /* The out-of-focus masses: the furniture, the foliage, the coat someone is
+     wearing — whatever was in the frame, reduced to soft blocks of colour. */
+  function masses(r, palette, count) {
     let out = '';
     for (let i = 0; i < count; i++) {
-      const cx = 60 + r() * 680, cy = 60 + r() * 480;
-      const rx = 90 + r() * 260, ry = 70 + r() * 200;
-      const fill = palette[Math.floor(r() * palette.length)];
+      const cx = -40 + r() * 880, cy = -40 + r() * 680;
+      const rx = 110 + r() * 300, ry = 90 + r() * 240;
+      const rot = r() * 180;
       out += `<ellipse cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" rx="${rx.toFixed(0)}" ry="${ry.toFixed(0)}"
-              fill="${fill}" opacity="${(0.16 + r() * 0.26).toFixed(2)}"/>`;
+              transform="rotate(${rot.toFixed(0)} ${cx.toFixed(0)} ${cy.toFixed(0)})"
+              fill="${palette[Math.floor(r() * palette.length)]}"
+              opacity="${(0.30 + r() * 0.42).toFixed(2)}"/>`;
     }
     return out;
   }
 
-  /* A loose seated figure — the shape of a person, no face to speak of. */
-  function figure(x, y, scale, skin, cloth, hair) {
-    return `<g transform="translate(${x},${y}) scale(${scale})">
-      <ellipse cx="0" cy="120" rx="96" ry="118" fill="${cloth}" opacity="0.92"/>
-      <ellipse cx="0" cy="-6" rx="52" ry="62" fill="${skin}"/>
-      <path d="M-54 -22 Q-58 -80 0 -74 Q58 -80 54 -22 Q34 -58 0 -54 Q-34 -58 -54 -22z" fill="${hair}" opacity="0.9"/>
-      <ellipse cx="0" cy="52" rx="30" ry="22" fill="${skin}" opacity="0.85"/>
-    </g>`;
+  /* Bokeh: where a highlight fell outside the plane of focus, a lens leaves a
+     soft disc, brighter at the rim than the centre. Larger and more numerous
+     toward the bottom of the frame, where the foreground is. */
+  function bokeh(r, count, tint) {
+    let out = '';
+    for (let i = 0; i < count; i++) {
+      const depth = r();
+      const cx = r() * 800;
+      const cy = 40 + Math.pow(r(), 0.65) * 560;
+      const rad = 14 + depth * depth * 96;
+      out += `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${rad.toFixed(0)}"
+              fill="url(#bok)" opacity="${(0.10 + (1 - depth) * 0.30).toFixed(2)}"/>`;
+      if (r() > 0.72) {
+        out += `<circle cx="${cx.toFixed(0)}" cy="${cy.toFixed(0)}" r="${rad.toFixed(0)}"
+                fill="none" stroke="${tint}" stroke-width="${(rad * 0.10).toFixed(1)}" opacity="0.16"/>`;
+      }
+    }
+    return out;
   }
 
-  function scene(seed, opts) {
+  /* opts:
+       palette   4+ colours, darkest first — the ground reads as depth
+       light     where the window is: 'left' | 'right' | 'top'
+       warmth    strength of the light leak, 0..1
+       focus     0 = wide open and dreamy, 1 = nearly sharp
+       grain     film grain strength                                     */
+  function plate(seed, opts) {
+    const r = rng(seed);
     const p = opts.palette;
+    const focus = opts.focus == null ? 0.35 : opts.focus;
+    const blur = 46 - focus * 26;
+    const warmth = opts.warmth == null ? 0.55 : opts.warmth;
+    const light = opts.light || 'left';
+    const lx = light === 'right' ? 84 : light === 'top' ? 50 : 16;
+    const ly = light === 'top' ? 8 : 22;
+    const id = 'p' + Math.floor(r() * 1e6).toString(36);
+
     return svgURI(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
       <defs>
-        <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="${p[0]}"/><stop offset="1" stop-color="${p[1]}"/>
+        <linearGradient id="ground${id}" x1="0" y1="0" x2="0.35" y2="1">
+          <stop offset="0" stop-color="${p[0]}"/>
+          <stop offset="0.55" stop-color="${p[1]}"/>
+          <stop offset="1" stop-color="${p[2] || p[1]}"/>
         </linearGradient>
-        <filter id="soft"><feGaussianBlur stdDeviation="${opts.blur || 14}"/></filter>
-        <filter id="grain">
-          <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="3"/>
+        <radialGradient id="bok">
+          <stop offset="0" stop-color="#fff" stop-opacity="0.55"/>
+          <stop offset="0.72" stop-color="#fff" stop-opacity="0.30"/>
+          <stop offset="0.94" stop-color="#fff" stop-opacity="0.62"/>
+          <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="leak${id}" cx="${lx}%" cy="${ly}%" r="78%">
+          <stop offset="0" stop-color="${opts.leak || '#fff6e6'}" stop-opacity="${(0.62 * warmth).toFixed(2)}"/>
+          <stop offset="0.45" stop-color="${opts.leak || '#ffeccf'}" stop-opacity="${(0.24 * warmth).toFixed(2)}"/>
+          <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="vig${id}" cx="50%" cy="46%" r="72%">
+          <stop offset="0.52" stop-color="#000" stop-opacity="0"/>
+          <stop offset="1" stop-color="#000" stop-opacity="${(0.30 + (1 - warmth) * 0.16).toFixed(2)}"/>
+        </radialGradient>
+        <filter id="dof${id}" x="-12%" y="-12%" width="124%" height="124%">
+          <feGaussianBlur stdDeviation="${blur.toFixed(0)}"/>
+        </filter>
+        <filter id="near${id}" x="-12%" y="-12%" width="124%" height="124%">
+          <feGaussianBlur stdDeviation="${(blur * 0.42).toFixed(0)}"/>
+        </filter>
+        <filter id="grain${id}">
+          <feTurbulence type="fractalNoise" baseFrequency="0.82" numOctaves="4" seed="${Math.floor(r() * 99)}"/>
           <feColorMatrix type="saturate" values="0"/>
-          <feComponentTransfer><feFuncA type="linear" slope="0.07"/></feComponentTransfer>
+          <feComponentTransfer><feFuncA type="linear" slope="${(opts.grain || 0.11).toFixed(2)}"/></feComponentTransfer>
         </filter>
       </defs>
-      <rect width="800" height="600" fill="url(#g)"/>
-      <g filter="url(#soft)">${washes(seed, p, opts.washCount || 14)}</g>
-      ${opts.subject || ''}
-      <rect width="800" height="600" filter="url(#grain)" opacity="0.8"/>
-      ${opts.vignette === false ? '' :
-        '<rect width="800" height="600" fill="none" stroke="rgba(11,74,82,0.10)" stroke-width="40"/>'}
+
+      <rect width="800" height="600" fill="url(#ground${id})"/>
+      <g filter="url(#dof${id})">${masses(r, p, opts.massCount || 9)}</g>
+      <g filter="url(#near${id})">${masses(r, p.slice(1), 3)}</g>
+      <g filter="url(#near${id})">${bokeh(r, opts.bokehCount == null ? 16 : opts.bokehCount, p[p.length - 1])}</g>
+      <rect width="800" height="600" fill="url(#leak${id})"/>
+      <rect width="800" height="600" fill="url(#vig${id})"/>
+      <rect width="800" height="600" filter="url(#grain${id})" opacity="0.9"/>
     </svg>`);
   }
+
+  // Kept as the old name so the library below reads unchanged.
+  const scene = plate;
 
   const PORTRAIT = { eleanor: ['#efe0d2', '#d9bfa6', '#c8a98e'], sarah: ['#f2e4d8', '#e2c3ae'] };
 
   const IMG = {
-    eleanorPortrait: scene('eleanor-portrait', {
-      palette: ['#e8dcc9', '#d6c3ab', '#c9b49b', '#efe6d6'], blur: 18, washCount: 12,
-      subject: figure(400, 250, 1.15, '#e8cdb4', '#9fb4ad', '#d8d3cc')
+    /* Warm interior, window on the left, shallow depth of field. */
+    eleanorPortrait: plate('eleanor-portrait', {
+      palette: ['#8a6f57', '#c3a483', '#e6d2b8', '#f3e6d2'],
+      light: 'left', warmth: 0.7, focus: 0.45, massCount: 10, bokehCount: 14
     }),
-    /* The caregiver face the patient screen rests on when idle. */
-    companionFace: scene('companion-face', {
-      palette: ['#f3e7dc', '#e6d2c1', '#dcc4b0', '#f7efe6'], blur: 20, washCount: 10,
-      subject: figure(400, 250, 1.5, '#f0d6bd', '#c6dad6', '#6f5a4a')
+    /* The face the screen rests on: softer, closer, lit from the front. */
+    companionFace: plate('companion-face', {
+      palette: ['#9b7a60', '#d4b193', '#eeddc6', '#fbf1e4'],
+      light: 'top', warmth: 0.8, focus: 0.3, massCount: 8, bokehCount: 10
     }),
-    sarahWedding: scene('sarah-wedding', {
-      palette: ['#f6efe6', '#e8d9c6', '#dfe6dd', '#f2e2d5'], blur: 12, washCount: 16,
-      subject: figure(300, 340, 1.25, '#f0d6bd', '#f7f2ec', '#7a5c46') +
-               figure(520, 350, 1.15, '#e8cdb4', '#556873', '#3c3630')
+    sarahWedding: plate('sarah-wedding', {
+      palette: ['#a08a74', '#ddc9b0', '#f2e7d8', '#fffaf2'],
+      light: 'right', warmth: 0.85, focus: 0.5, massCount: 11, bokehCount: 24
     }),
-    sarahTea: scene('sarah-tea', {
-      palette: ['#efe3d2', '#dccdb8', '#c9d8cf', '#f4ece0'], blur: 14,
-      subject: figure(280, 360, 1.1, '#e8cdb4', '#b6c9c2', '#d8d3cc') +
-               figure(520, 355, 1.1, '#f0d6bd', '#d8b7a4', '#7a5c46')
+    sarahTea: plate('sarah-tea', {
+      palette: ['#7f7360', '#bfb094', '#e4d8c2', '#f6efe2'],
+      light: 'left', warmth: 0.6, focus: 0.45, massCount: 9, bokehCount: 15
     }),
-    garden: scene('garden', {
-      palette: ['#cfe0c6', '#a9c9a2', '#e6efd8', '#8fb489'], blur: 16, washCount: 18
+    garden: plate('garden', {
+      palette: ['#3f5b3a', '#6d8f57', '#a8c47e', '#dbe8b8'],
+      light: 'top', warmth: 0.7, focus: 0.35, massCount: 12, bokehCount: 26
     }),
-    piano: scene('piano', {
-      palette: ['#e4dccd', '#3f3a35', '#cbbfa8', '#f0e8da'], blur: 12,
-      subject: `<rect x="180" y="330" width="440" height="120" fill="#2e2a26" opacity="0.85"/>
-                <rect x="200" y="336" width="400" height="26" fill="#f4efe6" opacity="0.9"/>` +
-               figure(400, 250, 1.0, '#e8cdb4', '#9fb4ad', '#d8d3cc')
+    piano: plate('piano', {
+      palette: ['#2f2a26', '#6b5c4c', '#c0ab8e', '#efe3cd'],
+      light: 'left', warmth: 0.5, focus: 0.55, massCount: 9, bokehCount: 12
     }),
-    robert: scene('robert', {
-      palette: ['#ded4c4', '#bfae97', '#efe7da', '#a8998a'], blur: 15,
-      subject: figure(400, 260, 1.2, '#e2c2a4', '#5f6b6e', '#4a443c')
+    robert: plate('robert', {
+      palette: ['#6d6455', '#a3958a', '#cfc2ab', '#eae0cd'],
+      light: 'right', warmth: 0.45, focus: 0.45, massCount: 9, bokehCount: 11
     }),
-    boat: scene('boat', {
-      palette: ['#bcd6dd', '#8fb6c4', '#dceaf0', '#6f9aab'], blur: 16, washCount: 16,
-      subject: `<path d="M240 420 Q400 470 560 420 L520 460 Q400 500 280 460z" fill="#e9dfcd" opacity="0.85"/>
-                <path d="M400 200 L400 420 L470 420z" fill="#f6f1e8" opacity="0.8"/>`
+    boat: plate('boat', {
+      palette: ['#3d6272', '#6f9aab', '#a9c9d4', '#e2eef2'],
+      light: 'top', warmth: 0.4, focus: 0.4, massCount: 10, bokehCount: 20
     }),
-    grandchildren: scene('grandchildren', {
-      palette: ['#f2e6d6', '#d9e3cd', '#e9d6c4', '#f7f0e4'], blur: 13,
-      subject: figure(320, 400, 0.8, '#f0d6bd', '#dcc0b0', '#5f4a3a') +
-               figure(470, 405, 0.75, '#e8cdb4', '#b6c9c2', '#3c3630')
+    grandchildren: plate('grandchildren', {
+      palette: ['#8b7355', '#c9ab86', '#e8d6bd', '#faf1e3'],
+      light: 'left', warmth: 0.8, focus: 0.4, massCount: 10, bokehCount: 22
     }),
-    kitchen: scene('kitchen', {
-      palette: ['#f0e6d6', '#dfd0ba', '#cfe0dd', '#f6efe4'], blur: 14
+    kitchen: plate('kitchen', {
+      palette: ['#7d7361', '#bcae95', '#e2d7c1', '#f7f0e2'],
+      light: 'right', warmth: 0.75, focus: 0.5, massCount: 9, bokehCount: 18
     }),
-    seaside: scene('seaside', {
-      palette: ['#cfe1e4', '#a8c6cf', '#eee6d5', '#7fa6b4'], blur: 18, washCount: 16
+    seaside: plate('seaside', {
+      palette: ['#54798a', '#8fb3c0', '#c9dde3', '#eef4f2'],
+      light: 'top', warmth: 0.35, focus: 0.3, massCount: 8, bokehCount: 14
     }),
-    /* Enactment plates — looser, washed out, no figures with faces. */
-    enactTea: scene('enact-tea', { palette: ['#f2e7d6', '#e0d0b8', '#d8e2d4'], blur: 26, washCount: 9, vignette: false }),
-    enactPills: scene('enact-pills', { palette: ['#eae2d4', '#d6ddda', '#f2ece0'], blur: 26, washCount: 8, vignette: false }),
-    enactGarden: scene('enact-garden', { palette: ['#d8e6cc', '#bcd3b2', '#eef2e0'], blur: 28, washCount: 10, vignette: false }),
-    enactVisit: scene('enact-visit', { palette: ['#f0e2d2', '#dcc8b4', '#e4dcd0'], blur: 26, washCount: 9, vignette: false }),
-    enactMorning: scene('enact-morning', { palette: ['#f6ecda', '#e8d8c0', '#f0e4d2'], blur: 27, washCount: 9, vignette: false })
+
+    /* Enactments are not photographs and must never pass for one: no bokeh,
+       wide open, heavier grain. A memory, not footage. */
+    enactTea:     plate('enact-tea',     { palette: ['#a89272', '#d9c8a8', '#efe4cf'], focus: 0, warmth: 0.5, bokehCount: 0, grain: 0.16 }),
+    enactPills:   plate('enact-pills',   { palette: ['#9a9a8e', '#cdcbba', '#e8e5d6'], focus: 0, warmth: 0.4, bokehCount: 0, grain: 0.16 }),
+    enactGarden:  plate('enact-garden',  { palette: ['#6f8a5b', '#a9c48c', '#dceac2'], focus: 0, warmth: 0.5, bokehCount: 0, grain: 0.16 }),
+    enactVisit:   plate('enact-visit',   { palette: ['#a58d72', '#d4bb9c', '#ece0cd'], focus: 0, warmth: 0.5, bokehCount: 0, grain: 0.16 }),
+    enactMorning: plate('enact-morning', { palette: ['#b39a76', '#e2caa4', '#f6ead2'], focus: 0, warmth: 0.7, bokehCount: 0, grain: 0.16 })
   };
 
   /* ── the patient ──────────────────────────────────────────────────── */
