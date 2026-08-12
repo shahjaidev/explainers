@@ -136,6 +136,11 @@
 
     init(opts) {
       opts = opts || {};
+      // Both screens call init. On separate pages that is two stores; folded
+      // into one document it is the same one, and re-seeding would throw away
+      // whatever the other screen had already written.
+      if (this._inited && !opts.fresh) return this;
+      this._inited = true;
       const restored = opts.fresh ? null : this._load();
       if (restored) {
         Object.assign(this, restored);
