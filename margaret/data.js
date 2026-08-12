@@ -141,9 +141,19 @@
   // Kept as the old name so the library below reads unchanged.
   const scene = plate;
 
+  /* ── real photographs, when there are any ──────────────────────────────
+     The plates above are a stand-in. Where a real photograph exists for a
+     slot it always wins: set window.MARGARET_PHOTOS before this file loads,
+     as a map of slot name to any image URL — a relative path when the pages
+     are served from a folder, a data URI when everything has to travel in
+     one file. A slot left out keeps its plate, so a half-finished shoot
+     degrades one picture at a time rather than breaking the page. */
+  const REAL = (global.MARGARET_PHOTOS && typeof global.MARGARET_PHOTOS === 'object')
+    ? global.MARGARET_PHOTOS : {};
+
   const PORTRAIT = { eleanor: ['#efe0d2', '#d9bfa6', '#c8a98e'], sarah: ['#f2e4d8', '#e2c3ae'] };
 
-  const IMG = {
+  const PLATES = {
     /* Warm interior, window on the left, shallow depth of field. */
     eleanorPortrait: plate('eleanor-portrait', {
       palette: ['#8a6f57', '#c3a483', '#e6d2b8', '#f3e6d2'],
@@ -199,6 +209,10 @@
     enactVisit:   plate('enact-visit',   { palette: ['#a58d72', '#d4bb9c', '#ece0cd'], focus: 0, warmth: 0.5, bokehCount: 0, grain: 0.16 }),
     enactMorning: plate('enact-morning', { palette: ['#b39a76', '#e2caa4', '#f6ead2'], focus: 0, warmth: 0.7, bokehCount: 0, grain: 0.16 })
   };
+
+  /* A real photograph beats a plate, every time. */
+  const IMG = {};
+  Object.keys(PLATES).forEach(function (slot) { IMG[slot] = REAL[slot] || PLATES[slot]; });
 
   /* ── the patient ──────────────────────────────────────────────────── */
 
