@@ -1,17 +1,16 @@
-import os
-import sqlite3
+import taskdb
 
 
 def connect():
-    return sqlite3.connect(os.environ.get("TASK_DB", "../db.sqlite"))
+    return taskdb.connect()
 
 
 def comment_parent(conn, comment_id):
-    row = conn.execute(
+    rows = conn.execute(
         "SELECT parent_type, parent_id FROM comments WHERE id = ?", (comment_id,)
-    ).fetchone()
-    return (row[0], row[1]) if row else None
+    )
+    return (rows[0][0], rows[0][1]) if rows else None
 
 
 def comment_count(conn):
-    return conn.execute("SELECT count(*) FROM comments").fetchone()[0]
+    return taskdb.as_int(taskdb.one(conn, "SELECT count(*) FROM comments"))

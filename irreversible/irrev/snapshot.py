@@ -4,8 +4,8 @@ A snapshot is taken immediately *before* every agent action, so ``undo``
 restores the state the last action was taken from. The budget K is enforced
 by the toolbox, not here; this class only knows how to save and restore.
 
-Local backend copies the tree. The container backend (overlayfs upper-dir
-plus a Postgres dump) has the same interface — see README for the mapping.
+The tree is always copied; the database artefact comes from the backend, so
+this class is identical for SQLite (a file copy) and Postgres (a pg_dump).
 """
 
 from __future__ import annotations
@@ -31,7 +31,8 @@ class Snapshot:
 
     @property
     def db(self) -> Path:
-        return self.path / "db.sqlite"
+        """Directory holding this snapshot's database artefact."""
+        return self.path
 
 
 class SnapshotStore:
@@ -49,8 +50,7 @@ class SnapshotStore:
             shutil.rmtree(path)
         path.mkdir(parents=True)
         shutil.copytree(self.state.repo, path / "repo")
-        if self.state.db.exists():
-            shutil.copy2(self.state.db, path / "db.sqlite")
+        self.state.database.dump(path)
         snap = Snapshot(sid, label, path)
         self.stack.append(snap)
         return snap
@@ -63,10 +63,7 @@ class SnapshotStore:
         if self.state.repo.exists():
             shutil.rmtree(self.state.repo)
         shutil.copytree(snap.repo, self.state.repo)
-        if snap.db.exists():
-            shutil.copy2(snap.db, self.state.db)
-        elif self.state.db.exists():
-            self.state.db.unlink()
+        self.state.database.load(snap.path)
         return snap
 
     def reachable(self, budget: float) -> List[Snapshot]:

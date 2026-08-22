@@ -27,24 +27,32 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from demo import make_database  # noqa: E402
 from irrev import PLANS, HazardAgent, load_task, run_episode  # noqa: E402
 from sim.hazard_model import binom_cdf  # noqa: E402
 
 TASKS_DIR = Path(__file__).resolve().parents[1] / "tasks"
 
 
-def run_arm(task, plans, hazard: float, budget: float, episodes: int, seed0: int, workroot: Path):
+def run_arm(task, plans, hazard: float, budget: float, episodes: int, seed0: int,
+            workroot: Path, backend: str = "sqlite"):
     wins = 0
     pnrs = []
     for i in range(episodes):
         agent = HazardAgent(hazard=hazard, seed=seed0 + i, plans=plans)
-        traj = run_episode(
-            task,
-            agent,
-            root=workroot / f"ep{i}",
-            undo_budget=budget,
-            max_steps=task.horizon + (0 if budget == math.inf else int(budget) * 2) + 4,
-        )
+        database = make_database(backend, "sweep")
+        try:
+            traj = run_episode(
+                task,
+                agent,
+                root=workroot / f"ep{i}",
+                undo_budget=budget,
+                max_steps=task.horizon + (0 if budget == math.inf else int(budget) * 2) + 4,
+                database=database,
+            )
+        finally:
+            if database is not None:
+                database.drop()
         wins += 1 if traj.success else 0
         if traj.pnr is not None:
             pnrs.append(traj.pnr + 1)
@@ -63,6 +71,8 @@ def main() -> int:
     ap.add_argument("--include-inf", action="store_true", default=True)
     ap.add_argument("--seed", type=int, default=1000)
     ap.add_argument("--out", type=str, default="sweep.csv")
+    ap.add_argument("--backend", choices=("sqlite", "postgres"), default="sqlite",
+                    help="postgres is correct but slow: each episode creates and drops a database")
     args = ap.parse_args()
 
     task = load_task(TASKS_DIR / args.task)
@@ -79,10 +89,10 @@ def main() -> int:
     try:
         for budget in budgets:
             base_win, base_pnr_rate, base_pnr = run_arm(
-                task, plans, args.hazard, budget, args.episodes, args.seed, work
+                task, plans, args.hazard, budget, args.episodes, args.seed, work, args.backend
             )
             sup_win, sup_pnr_rate, sup_pnr = run_arm(
-                task, plans, supervised_hazard, budget, args.episodes, args.seed, work
+                task, plans, supervised_hazard, budget, args.episodes, args.seed, work, args.backend
             )
             k = "inf" if budget == math.inf else int(budget)
             predicted = (

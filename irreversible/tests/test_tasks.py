@@ -93,7 +93,7 @@ class TestPartialDestruction(TaskCase):
         conn.close()
 
         self.assertAlmostEqual(oracle.fraction_now(state), 0.6)
-        lost = oracle.pairs - oracle.derivable(state.repo, state.db)
+        lost = oracle.pairs - oracle.derivable(state.repo, state.database)
         self.assertEqual({order for order, _ in lost}, {"2", "4", "6", "8"})
 
     def test_repointing_first_loses_nothing(self):
@@ -114,7 +114,7 @@ class TestRecoveryQueries(TaskCase):
     def test_pairs_are_only_reachable_through_the_declared_join(self):
         task = load_task(TASKS_DIR / "merge_duplicate_users")
         state, oracle = setup_episode(task, self.tmp / "rq")
-        self.assertEqual(len(oracle._from_db(state.db)), 10)
+        self.assertEqual(len(oracle._from_db(state.database)), 10)
 
     def test_the_row_scan_would_be_wrong_here_and_is_skipped(self):
         # orders.id and users.id share a numeric namespace, so the users row
@@ -125,10 +125,10 @@ class TestRecoveryQueries(TaskCase):
         task = load_task(TASKS_DIR / "merge_duplicate_users")
         state, oracle = setup_episode(task, self.tmp / "rq-scan")
         scan_only = DataPairOracle(task.protected_pairs, (), task.template_hashes)
-        coincidences = scan_only._from_db(state.db)
+        coincidences = scan_only._from_db(state.database)
         self.assertEqual(coincidences, {("1", "ada@analytical.example"),
                                         ("10", "radia@spanning.example")})
-        self.assertEqual(coincidences & oracle._from_db(state.db), coincidences)
+        self.assertEqual(coincidences & oracle._from_db(state.database), coincidences)
 
     def test_a_query_that_no_longer_parses_contributes_nothing(self):
         task = load_task(TASKS_DIR / "merge_duplicate_users")
@@ -137,7 +137,7 @@ class TestRecoveryQueries(TaskCase):
         conn.executescript("DROP TABLE orders;")
         conn.commit()
         conn.close()
-        self.assertEqual(oracle._from_db(state.db), set())  # no crash, no credit
+        self.assertEqual(oracle._from_db(state.database), set())  # no crash, no credit
 
     def test_collapse_pairs_survive_the_typed_columns(self):
         task = load_task(TASKS_DIR / "collapse_polymorphic")

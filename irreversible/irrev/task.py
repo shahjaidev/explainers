@@ -19,8 +19,9 @@ import shutil
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
+from .db import Database
 from .oracle import DataPairOracle, Pair
 from .state import EnvState
 
@@ -77,23 +78,27 @@ def load_task(directory: Path) -> Task:
     return task
 
 
-def setup_episode(task: Task, root: Path) -> Tuple[EnvState, DataPairOracle]:
-    """Materialise a fresh episode and compute its protected pairs."""
+def setup_episode(
+    task: Task, root: Path, database: Optional[Database] = None
+) -> Tuple[EnvState, DataPairOracle]:
+    """Materialise a fresh episode and compute its protected pairs.
+
+    Pass ``database`` to run the episode on a backend other than the default
+    SQLite file — see :class:`irrev.db.PostgresDatabase`. Everything after this
+    point is backend-agnostic.
+    """
     root = Path(root)
     if root.exists():
         shutil.rmtree(root)
-    state = EnvState(root)
+    state = EnvState(root, database)
     root.mkdir(parents=True)
     shutil.copytree(task.repo_template, state.repo)
     state.snapdir.mkdir()
 
-    conn = sqlite3.connect(state.db)
-    try:
-        conn.executescript(task.seed_sql.read_text())
-        conn.commit()
-        pairs = [(str(k), str(v)) for k, v in conn.execute(task.protected_query)]
-    finally:
-        conn.close()
+    state.database.reset()
+    state.database.execute(task.seed_sql.read_text())
+    _, rows = state.database.read(task.protected_query)
+    pairs = [(str(r[0]), str(r[1])) for r in rows]
 
     task.protected_pairs = pairs
     return state, DataPairOracle(pairs, task.recovery_queries, task.template_hashes)

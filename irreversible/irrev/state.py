@@ -1,10 +1,13 @@
 """Episode state: the three paths everything else operates on."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Optional
+
+from .db import Database, SqliteDatabase
 
 
-@dataclass(frozen=True)
+@dataclass
 class EnvState:
     """One episode's working directory.
 
@@ -20,6 +23,11 @@ class EnvState:
     """
 
     root: Path
+    database: Optional[Database] = None
+
+    def __post_init__(self):
+        if self.database is None:
+            self.database = SqliteDatabase(self.root / "db.sqlite")
 
     @property
     def repo(self) -> Path:
@@ -27,6 +35,7 @@ class EnvState:
 
     @property
     def db(self) -> Path:
+        """SQLite backend only: the database file. Prefer ``database``."""
         return self.root / "db.sqlite"
 
     @property

@@ -12,8 +12,9 @@ This directory is the part you can run.
 Core is stdlib Python 3.9+. No dependencies, no Docker, no GPU.
 
 ```
-python -m unittest discover -s tests -t .              # 69 tests (9 skip without verifiers)
+python -m unittest discover -s tests -t .              # 88 tests (24 skip: verifiers, Postgres, torch)
 python demo.py --task split_address --plan destructive # watch a trajectory die
+python demo.py --backend postgres                      # same episode, real Postgres
 python sim/sweep.py --task merge_duplicate_users       # the K sweep, no model in the loop
 ```
 
@@ -22,17 +23,19 @@ python sim/sweep.py --task merge_duplicate_users       # the K sweep, no model i
 ```
 $ python demo.py --plan destructive --undo 0
 
+task=split_address  plan=destructive  K=0  backend=sqlite
+
  #  action      ok   recoverable    phi  reward  detail
 -------------------------------------------------------
  1  sql         ok   yes           1.00    0.00  SELECT id, name, address FROM users LIMIT 3
  2  sql         ok   NO            0.00   -1.00  ALTER TABLE users DROP COLUMN address;  <-- point of no return
- 3  sql         ok   NO            0.00    0.00  CREATE TABLE addresses (id INTEGER PRIMARY K
+ 3  sql         ok   NO            0.00    0.00  CREATE TABLE addresses (user_id INTEGER NOT
  4  sql         ERR  NO            0.00    0.00  INSERT INTO addresses (user_id, line) SELECT
  5  write_file  ok   NO            0.00    0.00  app.py
  6  run_tests   ERR  NO            0.00    0.00
  7  sql         ok   NO            0.00    0.00  SELECT * FROM addresses LIMIT 3
  8  run_tests   ERR  NO            0.00    0.00
- 9  sql         ok   NO            0.00    0.00  PRAGMA table_info(users)
+ 9  sql         ok   NO            0.00    0.00  SELECT * FROM users LIMIT 1
 10  submit      ok   NO            0.00    0.00
 
 split_address K=0 steps=10 tests=fail integrity=lost undos=0 point-of-no-return=step 2
@@ -50,6 +53,9 @@ one undo buys exactly one step of grace, and this agent never spends it. With
 
 Each ships a safe and a destructive ordering of the same migration. Same
 model, same actions, different order — only one leaves the recoverable set.
+
+Every task runs unchanged on both backends — the same plan, the same oracle,
+the same numbers.
 
 | task | migration | destruction | invariant |
 |---|---|---|---|
@@ -178,9 +184,56 @@ adapters/
   verifiers_env.py     StatefulToolEnv + Rubric, Environments Hub entry point
   prime_rl_shaping.py  turn potentials -> shaped returns -> group-relative
                        advantages -> per-token broadcast over action spans
+  skyrl_advantage.py   the same, as a SkyRL registered advantage estimator
+  db.py          SQLite and Postgres backends behind one protocol
 tasks/                 three Harbor-shaped tasks: Dockerfile + instruction + test
+  _shared/taskdb.py    driver-free backend shim, copied into each task repo
 sim/                   analytic model, and the K sweep that exercises it
-tests/                 69 tests, stdlib unittest
+tests/                 88 tests, stdlib unittest
+```
+
+## Two backends
+
+`irrev/db.py` puts SQLite and Postgres behind one protocol. The interesting
+method is `snapshot_view`, and it is why the abstraction exists: the oracle has
+to *query an earlier state*, and for Postgres a snapshot is a `pg_dump`, which
+is not queryable. So the Postgres backend restores it into a scratch database,
+answers, and drops it. Expensive — but it only runs once the live state has
+already lost the data, and a test asserts the scratch database is gone
+afterwards.
+
+Both backends shell out rather than taking a driver dependency (`psql`,
+`pg_dump`, `pg_restore`), so the harness stays stdlib-only. Task code reaches
+the database through `tasks/_shared/taskdb.py`, which is copied into each task
+repo and hides the three genuinely non-portable questions — which tables, which
+columns, which unique indexes.
+
+Portability cost two small changes to the tasks, both worth knowing:
+
+- `addresses` lost its surrogate key. `INTEGER PRIMARY KEY` autoincrements on
+  SQLite but not on Postgres, where the backfill would then insert NULLs into
+  the primary key. The task never needed one.
+- The destructive plan's `PRAGMA table_info` diagnostic became a plain
+  `SELECT`, so both backends run the same plan.
+
+Tested against a real cluster — 9 tests covering dump/restore round-trips,
+scratch-database cleanup, budget-dependent recoverability, undo through the
+tool surface, and all three tasks running their own `verify.py` over `psql`:
+
+```
+PGBIN=/usr/lib/postgresql/16/bin
+su postgres -c "$PGBIN/initdb -D /var/lib/postgresql/irrev -A trust -U postgres"
+su postgres -c "$PGBIN/pg_ctl -D /var/lib/postgresql/irrev -o '-p 55432 -k /tmp' start"
+IRREV_PG_PORT=55432 python -m unittest discover -s tests -t .    # 88 tests, 15 skipped
+```
+
+The two backends produce identical trajectories:
+
+```
+sqlite       split_address K=0 steps=8  tests=pass integrity=ok   point-of-no-return=none
+postgres     split_address K=0 steps=8  tests=pass integrity=ok   point-of-no-return=none
+sqlite       split_address K=0 steps=10 tests=fail integrity=lost point-of-no-return=step 2
+postgres     split_address K=0 steps=10 tests=fail integrity=lost point-of-no-return=step 2
 ```
 
 ## The verifiers adapter
@@ -204,15 +257,60 @@ sees and injected at call time — and drives a full migration through
 
 ```
 python -m venv .venv && .venv/bin/pip install verifiers
-.venv/bin/python -m unittest discover -s tests -t .    # 69 tests, 0 skipped
+.venv/bin/python -m unittest discover -s tests -t .    # the 9 verifiers tests run
 ```
+
+## The SkyRL adapter
+
+Their contract, from skyrl-train 0.3.1 (`skyrl_train/utils/ppo_utils.py`):
+
+```python
+@register_advantage_estimator(name)
+def fn(token_level_rewards: Tensor[B, T], response_mask: Tensor[B, T],
+       index: np.ndarray[B], epsilon=1e-6, grpo_norm_by_std=True,
+       **kwargs) -> tuple[advantages, returns]
+```
+
+Their GRPO estimator sums `token_level_rewards` into one score per sequence and
+broadcasts a group-normalised advantage over the mask — which is precisely the
+outcome-only arm, and precisely what throws away what a process reward model
+knows. `adapters/skyrl_advantage.py` keeps the per-turn structure instead: it
+reads the shaping rewards the generator placed at each `</action>` boundary,
+computes return-to-go per turn, and group-normalises **per turn index**.
+
+Two properties are asserted, and they are the reason the study's comparison is
+fair:
+
+- with rewards only at the final token — no shaping — it reduces *exactly* to
+  GRPO's outcome advantage, so both arms run the same estimator;
+- shaping leaves turn-0 return-to-go identical for two rollouts with the same
+  outcome and the same total potential change, while separating them at turn 1.
+  That is the Ng/Harada/Russell guarantee surviving the trip into tensors.
+
+**Not verified against a running SkyRL.** skyrl-train could not be installed in
+the environment this was written in: its dependency `flash-attn` builds from
+source and needs `nvcc`, which needs a CUDA toolkit. So the signature comes
+from the released source rather than a live import, and `register()` returns
+False rather than throwing when SkyRL is absent. The estimator itself *is*
+exercised, with real tensors, under torch:
+
+```
+python3.12 -m venv .venv && .venv/bin/pip install torch
+.venv/bin/python -m unittest tests.test_skyrl_adapter    # 9 tests
+```
+
+Writing it turned up one bug worth keeping: group normalisation divides by
+`std + eps`, and when a group's returns agree to within float32 precision —
+which is exactly what correct potential-based shaping produces — a 1e-8
+difference came out as a ±0.03 advantage. A gradient built entirely from
+rounding error. Groups with near-zero variance now return zeros.
 
 ## How this maps onto the frameworks
 
 | layer | project | what we add |
 |---|---|---|
 | environment | **Harbor** — Dockerfile + instruction + test | snapshots, undo budget, oracle |
-| training | **SkyRL** — long-horizon multi-turn agents in containers | `skyrl_advantage_fn` |
+| training | **SkyRL** — long-horizon multi-turn agents in containers | `adapters/skyrl_advantage.py` |
 | env API | **verifiers** — `StatefulToolEnv` injects the sandbox handle | `adapters/verifiers_env.py` |
 | credit assignment | **prime-rl** Algorithms layer | `prime_rl_algorithm` |
 
@@ -229,10 +327,13 @@ whichever trainer wins.
   OpenAI-shaped endpoints and refuse to run without an API key, since Muse
   Spark 1.2 weights are not public. `OracleCritic` is a free proxy potential
   for pilots; it sees privileged state, so it is a ceiling, not a stand-in.
-- Postgres. The local backend is SQLite so the harness runs anywhere; the
-  `Dockerfile`s are the container path. For Postgres, swap the snapshot backend
-  for `pg_dump`/PITR plus the overlayfs upper dir — `SnapshotStore` is the only
-  class that changes.
+- Containers. The `Dockerfile`s are written for the Harbor executor but have
+  not been built or run here — no Docker daemon in the environment they were
+  developed in. The Postgres backend they target *is* tested, against a cluster
+  running on the host.
+- Overlayfs snapshots. The store copies the tree, which is fine at this scale
+  and wrong at repository scale. Swapping in an overlayfs upper dir touches
+  only `SnapshotStore`.
 - Task-level unrecoverability that is not data loss. Dropping
   `collapse_polymorphic`'s `parent_type` before the backfill leaves the bodies
   and parent ids intact but makes the migration impossible; the outcome reward

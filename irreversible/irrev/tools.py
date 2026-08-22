@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import math
 import os
-import sqlite3
 import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict
 
+from .db import is_read_only
 from .snapshot import SnapshotStore
 from .state import EnvState
 
@@ -77,21 +77,14 @@ class Toolbox:
         return target
 
     def _t_sql(self, query: str) -> ToolResult:
-        conn = sqlite3.connect(self.state.db)
-        try:
-            head = query.strip().lstrip("(").split(None, 1)[0].lower() if query.strip() else ""
-            if head in ("select", "pragma", "with", "explain"):
-                cur = conn.execute(query)
-                rows = cur.fetchall()
-                cols = [d[0] for d in cur.description] if cur.description else []
-                body = "\n".join(" | ".join(str(v) for v in r) for r in rows[:50])
-                more = f"\n... {len(rows) - 50} more rows" if len(rows) > 50 else ""
-                return ToolResult(True, (" | ".join(cols) + "\n" + body + more).strip())
-            conn.executescript(query)
-            conn.commit()
-            return ToolResult(True, "ok")
-        finally:
-            conn.close()
+        db = self.state.database
+        if is_read_only(query):
+            cols, rows = db.read(query)
+            body = "\n".join(" | ".join(str(v) for v in r) for r in rows[:50])
+            more = f"\n... {len(rows) - 50} more rows" if len(rows) > 50 else ""
+            return ToolResult(True, (" | ".join(cols) + "\n" + body + more).strip())
+        db.execute(query)
+        return ToolResult(True, "ok")
 
     def _t_read_file(self, path: str) -> ToolResult:
         p = self._resolve(path)
@@ -115,7 +108,7 @@ class Toolbox:
         return ToolResult(True, "\n".join(names))
 
     def _t_run_tests(self) -> ToolResult:
-        env = dict(os.environ, TASK_DB=str(self.state.db.resolve()))
+        env = dict(os.environ, **self.state.database.env())
         try:
             proc = subprocess.run(
                 [sys.executable, "verify.py"],

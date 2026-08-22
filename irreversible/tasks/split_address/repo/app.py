@@ -1,20 +1,16 @@
-import os
-import sqlite3
+import taskdb
 
 
 def connect():
-    return sqlite3.connect(os.environ.get("TASK_DB", "../db.sqlite"))
+    return taskdb.connect()
 
 
 def get_address(conn, user_id):
-    row = conn.execute(
-        "SELECT address FROM users WHERE id = ?", (user_id,)
-    ).fetchone()
-    return row[0] if row else None
+    rows = conn.execute("SELECT address FROM users WHERE id = ?", (user_id,))
+    return rows[0][0] if rows else None
 
 
 def order_total(conn, user_id):
-    row = conn.execute(
-        "SELECT coalesce(sum(total), 0) FROM orders WHERE user_id = ?", (user_id,)
-    ).fetchone()
-    return row[0]
+    return taskdb.one(
+        conn, "SELECT coalesce(sum(total), 0) FROM orders WHERE user_id = ?", (user_id,)
+    )

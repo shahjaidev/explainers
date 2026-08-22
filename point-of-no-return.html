@@ -493,9 +493,10 @@ r_t       = gamma * shaping[t] <span class="k">if</span> t &lt; T-1 <span class=
     <div class="col">
       <p class="eyebrow"><span class="sec-num">10</span> The code</p>
       <h2>The harness exists</h2>
-      <p class="lede">The three pieces no framework provides — snapshot store with a budget, recoverability oracle, potential-based shaping — are implemented in <code>irreversible/</code>, with three migration tasks and a verifiers adapter tested against a real install. Core is stdlib Python: no dependencies, no Docker, no GPU. 69 tests.</p>
-      <pre>python -m unittest discover -s tests -t .              <span class="c"># 69 tests</span>
+      <p class="lede">The three pieces no framework provides — snapshot store with a budget, recoverability oracle, potential-based shaping — are implemented in <code>irreversible/</code>, with three migration tasks, SQLite and Postgres backends, and adapters for verifiers and SkyRL. Core is stdlib Python: no dependencies, no driver, no GPU. 88 tests.</p>
+      <pre>python -m unittest discover -s tests -t .              <span class="c"># 88 tests</span>
 python demo.py --task split_address --plan destructive <span class="c"># watch a trajectory die</span>
+python demo.py --backend postgres                      <span class="c"># same episode, real Postgres</span>
 python sim/sweep.py --task merge_duplicate_users       <span class="c"># the K sweep, no model in the loop</span></pre>
     </div>
 
@@ -508,13 +509,13 @@ python sim/sweep.py --task merge_duplicate_users       <span class="c"># the K s
         <pre> #  action      ok   recoverable    phi  reward  detail
  1  sql         ok   <span class="s">yes</span>           1.00    0.00  SELECT id, name, address FROM users LIMIT 3
  2  sql         ok   NO            0.00   -1.00  ALTER TABLE users DROP COLUMN address;  &lt;-- point of no return
- 3  sql         ok   NO            0.00    0.00  CREATE TABLE addresses (id INTEGER PRIMARY K
+ 3  sql         ok   NO            0.00    0.00  CREATE TABLE addresses (user_id INTEGER NOT
  4  sql         ERR  NO            0.00    0.00  INSERT INTO addresses (user_id, line) SELECT
  5  write_file  ok   NO            0.00    0.00  app.py
  6  run_tests   ERR  NO            0.00    0.00
  7  sql         ok   NO            0.00    0.00  SELECT * FROM addresses LIMIT 3
  8  run_tests   ERR  NO            0.00    0.00
- 9  sql         ok   NO            0.00    0.00  PRAGMA table_info(users)
+ 9  sql         ok   NO            0.00    0.00  SELECT * FROM users LIMIT 1
 10  submit      ok   NO            0.00    0.00
 
 split_address K=0 steps=10 tests=fail integrity=lost undos=0 point-of-no-return=step 2</pre>
@@ -555,6 +556,9 @@ split_address K=0 steps=10 tests=fail integrity=lost undos=0 point-of-no-return=
       <p>Building them turned up three false positives in the oracle, each now a rule and a test. <code>(order, email)</code> is not a fact about any single row, so a task can declare SQL that reconstructs its pairs — and a task that does so <em>opts out</em> of the generic row scan, because <code>orders.id</code> and <code>users.id</code> share a numeric namespace and the users row <code>(1, 'ada@…')</code> otherwise looks like proof that order 1 survived. And a task's own <code>verify.py</code>, which asserts against a real customer email with a <code>2</code> on the same line, scored as "order 2 is recoverable from disk" — so files the agent hasn't touched are skipped by content hash, and count again the moment it edits one.</p>
       <h3>What's in the box</h3>
       <p>The oracle keeps two strictnesses on purpose. Integrity — the outcome reward — reads the live database only. Recoverability reads the database, the working tree, and any snapshot still within budget. A CSV the agent dumped counts as recoverable but not as a completed migration.</p>
+      <h3>Two backends, two adapters</h3>
+      <p>The same episode runs on SQLite or on real Postgres — same plan, same oracle, same trajectory. The interesting method is <code>snapshot_view</code>, and it is why the backend abstraction exists at all: the oracle has to <em>query an earlier state</em>, and a <code>pg_dump</code> is not queryable, so the Postgres path restores it into a scratch database, answers, and drops it. Expensive, but it only runs once the live state has already lost the data — and a test asserts the scratch database is gone afterwards. Both backends shell out to the client tools rather than taking a driver dependency.</p>
+      <p>SkyRL's advantage estimators take <code>(token_level_rewards, response_mask, index)</code> tensors, and their GRPO estimator sums the rewards into one score per sequence — precisely the outcome-only arm, and precisely what discards what a process reward model knows. Our estimator keeps the per-turn structure and group-normalises per turn index; with no shaping it reduces <em>exactly</em> to GRPO's outcome advantage, so both arms of the study run the same estimator. Writing it surfaced a bug worth keeping: group normalisation divides by <code>std + eps</code>, and when a group's returns agree to within float32 precision — exactly what correct potential-based shaping produces — a 1e-8 difference came out as a ±0.03 advantage. A gradient built entirely from rounding error.</p>
       <p>The verifiers adapter is written and tested against verifiers 0.3.0, where the real contract differs from what the docs imply: <code>args_to_skip</code> belongs to <code>add_tool</code> rather than the constructor, <code>update_tool_args</code> takes the tool name first, and the env wraps your Rubric in a <code>RubricGroup</code> alongside its own monitors. The tests drive a full migration through <code>env.tool_map</code> with no model, confirming the handle is absent from every schema the agent sees and injected at call time.</p>
       <p>Adapters do the turn → token expansion that no framework provides: per-turn potentials → shaped return-to-go → group-relative advantages → broadcast over <code>&lt;action&gt;</code> spans only, with observation tokens masked. Plain lists, so it drops into whichever trainer wins. The verifiers adapter uses <code>StatefulToolEnv</code> to inject the sandbox handle and hide it from the model's tool schema.</p>
       <p>The training loop is deliberately absent — that's SkyRL's or prime-rl's job, and <code>adapters/</code> is the seam. <code>SparkCritic</code> refuses to run without an API key.</p>

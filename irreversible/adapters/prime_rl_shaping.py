@@ -12,7 +12,7 @@ above that, so this module does the turn -> token expansion explicitly:
 
 Nothing here is framework-specific; :func:`token_advantages` returns plain
 lists that a prime-rl algorithm, a SkyRL advantage estimator, or a verl-agent
-adapter can consume. The framework-shaped wrappers are at the bottom.
+adapter can consume. :mod:`adapters.skyrl_advantage` is the SkyRL-shaped one.
 
 The one non-obvious choice: advantages are broadcast only over trainable
 spans. Observation tokens are environment-generated and carry no gradient —
@@ -39,6 +39,13 @@ def group_relative_advantages(
         return centred
     var = sum(c * c for c in centred) / n
     std = var**0.5
+    if std <= eps:
+        # A group whose returns agree carries no signal. Dividing by
+        # (std + eps) here would amplify float32 noise instead: two rollouts
+        # whose returns differ only in the last bits of the mantissa come out
+        # at +-0.03 rather than 0 — exactly the case potential-based shaping
+        # is supposed to produce.
+        return [0.0] * n
     return [c / (std + eps) for c in centred]
 
 
@@ -120,7 +127,7 @@ def build_group_advantages(
 
 
 # --------------------------------------------------------------------------
-# Framework wrappers. Both are thin: the arithmetic above is the whole idea.
+# Framework wrapper. Thin: the arithmetic above is the whole idea.
 # --------------------------------------------------------------------------
 
 
@@ -143,20 +150,5 @@ def prime_rl_algorithm(gamma: float = 1.0, mode: str = "potential", scale: float
     return compute_advantages
 
 
-def skyrl_advantage_fn(gamma: float = 1.0, mode: str = "potential", scale: float = 1.0):
-    """Same thing, keyed for SkyRL's trajectory dicts."""
-
-    def fn(trajectories):
-        group = [
-            {
-                "outcome": t["reward"],
-                "phi": t.get("phi", [0.0, 0.0]),
-                "token_spans": t["action_token_spans"],
-                "n_tokens": len(t["token_ids"]),
-                "trainable": t.get("loss_mask"),
-            }
-            for t in trajectories
-        ]
-        return build_group_advantages(group, gamma=gamma, mode=mode, scale=scale)
-
-    return fn
+# SkyRL's advantage estimators take tensors, not trajectory dicts — see
+# adapters/skyrl_advantage.py for the real signature and the registration hook.

@@ -27,12 +27,31 @@ from irrev import (  # noqa: E402
 
 TASKS_DIR = Path(__file__).resolve().parent / "tasks"
 
+def make_database(backend: str, tag: str):
+    """Build the episode's database backend from a --backend flag."""
+    if backend == "sqlite":
+        return None  # EnvState defaults to a SQLite file in the episode dir
+    import os
+    import uuid
+
+    from irrev.db import PostgresDatabase
+
+    return PostgresDatabase(
+        f"irrev_{tag}_{uuid.uuid4().hex[:8]}",
+        host=os.environ.get("IRREV_PG_HOST", "/tmp"),
+        port=int(os.environ.get("IRREV_PG_PORT", "5432")),
+        user=os.environ.get("IRREV_PG_USER", "postgres"),
+        bindir=os.environ.get("IRREV_PG_BINDIR", ""),
+    )
+
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task", choices=sorted(PLANS), default="split_address")
     ap.add_argument("--plan", choices=("safe", "destructive"), default="destructive")
     ap.add_argument("--undo", default="0", help="undo budget K, or 'inf'")
+    ap.add_argument("--backend", choices=("sqlite", "postgres"), default="sqlite")
     args = ap.parse_args()
 
     budget = math.inf if args.undo == "inf" else float(args.undo)
@@ -40,6 +59,7 @@ def main() -> int:
     plans = PLANS[args.task]
     plan = plans.safe if args.plan == "safe" else plans.destructive
     work = Path(tempfile.mkdtemp(prefix="irrev-demo-"))
+    database = make_database(args.backend, "demo")
     try:
         traj = run_episode(
             task,
@@ -48,11 +68,14 @@ def main() -> int:
             undo_budget=budget,
             critic=OracleCritic(task.oracle()),
             max_steps=task.horizon,
+            database=database,
         )
     finally:
+        if database is not None:
+            database.drop()
         shutil.rmtree(work, ignore_errors=True)
 
-    print(f"task={task.name}  plan={args.plan}  K={args.undo}\n")
+    print(f"task={task.name}  plan={args.plan}  K={args.undo}  backend={args.backend}\n")
     header = f"{'#':>2}  {'action':<11} {'ok':<4} {'recoverable':<12} {'phi':>5} {'reward':>7}  detail"
     print(header)
     print("-" * len(header))

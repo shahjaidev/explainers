@@ -25,6 +25,13 @@ class TestGroupAdvantages(unittest.TestCase):
     def test_identical_returns_give_no_signal(self):
         self.assertEqual(group_relative_advantages([0.5, 0.5, 0.5]), [0.0, 0.0, 0.0])
 
+    def test_near_zero_variance_does_not_amplify_float_noise(self):
+        # Returns that agree to within float32 precision must give no signal.
+        # Without the guard, dividing by (std + 1e-6) turns a 1e-8 difference
+        # into a +-0.03 advantage — a gradient built entirely from rounding.
+        adv = group_relative_advantages([1.5000000149, 1.5000000596])
+        self.assertEqual(adv, [0.0, 0.0])
+
     def test_turn_returns_are_return_to_go(self):
         # potential shaping over phi, plus outcome on the last transition
         rets = turn_returns(1.0, [0.0, 0.5, 1.0], gamma=1.0)

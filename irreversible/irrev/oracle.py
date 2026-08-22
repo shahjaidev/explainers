@@ -19,10 +19,10 @@ from __future__ import annotations
 
 import hashlib
 import re
-import sqlite3
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+from .db import Database
 from .snapshot import SnapshotStore
 from .state import EnvState
 
@@ -30,14 +30,6 @@ Pair = Tuple[str, str]
 
 MAX_SCAN_BYTES = 2_000_000
 SKIP_DIRS = {".git", "__pycache__", ".snapshots", "node_modules"}
-
-
-def _tables(conn: sqlite3.Connection) -> List[str]:
-    rows = conn.execute(
-        "SELECT name FROM sqlite_master WHERE type IN ('table','view') "
-        "AND name NOT LIKE 'sqlite_%'"
-    ).fetchall()
-    return [r[0] for r in rows]
 
 
 def _key_present(text: str, key: str) -> bool:
@@ -70,16 +62,15 @@ class DataPairOracle:
 
     # ---------- derivability over one concrete (repo, db) pair ----------
 
-    def _from_db(self, db: Optional[Path]) -> Set[Pair]:
+    def _from_db(self, db: Optional[Database]) -> Set[Pair]:
         found: Set[Pair] = set()
-        if db is None or not Path(db).exists():
+        if db is None or not db.exists():
             return found
-        conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
         try:
             for query in self.recovery_queries:
                 try:
-                    rows = conn.execute(query).fetchall()
-                except sqlite3.Error:
+                    _, rows = db.read(query)
+                except Exception:
                     continue
                 for row in rows:
                     if len(row) < 2:
@@ -95,10 +86,10 @@ class DataPairOracle:
                 # that order 1 still belongs to ada — a coincidence, not a
                 # recovery path.
                 return found
-            for table in _tables(conn):
+            for table in db.tables():
                 try:
-                    rows = conn.execute(f'SELECT * FROM "{table}"').fetchall()
-                except sqlite3.Error:
+                    _, rows = db.read(f'SELECT * FROM "{table}"')
+                except Exception:
                     continue
                 for row in rows:
                     values = {str(v) for v in row if v is not None}
@@ -107,8 +98,8 @@ class DataPairOracle:
                     for key, val in self.pairs:
                         if key in values and val in values:
                             found.add((key, val))
-        finally:
-            conn.close()
+        except Exception:
+            return found
         return found
 
     def _from_files(self, repo: Optional[Path]) -> Set[Pair]:
@@ -139,7 +130,7 @@ class DataPairOracle:
                 remaining -= hit
         return found
 
-    def derivable(self, repo: Optional[Path], db: Optional[Path]) -> Set[Pair]:
+    def derivable(self, repo: Optional[Path], db: Optional[Database]) -> Set[Pair]:
         return self._from_db(db) | self._from_files(repo)
 
     # ---------- the questions the episode runner asks ----------
@@ -147,7 +138,7 @@ class DataPairOracle:
     def fraction_now(self, state: EnvState) -> float:
         if not self.pairs:
             return 1.0
-        return len(self.derivable(state.repo, state.db)) / len(self.pairs)
+        return len(self.derivable(state.repo, state.database)) / len(self.pairs)
 
     def intact_in_db(self, state: EnvState) -> bool:
         """Stricter: the data must be in the live database, not merely on disk.
@@ -156,20 +147,24 @@ class DataPairOracle:
         agent left in the working tree counts as recoverable but not as a
         completed migration.
         """
-        return self._from_db(state.db) >= self.pairs
+        return self._from_db(state.database) >= self.pairs
 
     def intact_now(self, state: EnvState) -> bool:
         """Is the protected data present in the *live* state right now?
 
         This is the integrity half of the outcome reward.
         """
-        return self.derivable(state.repo, state.db) >= self.pairs
+        return self.derivable(state.repo, state.database) >= self.pairs
 
     def recoverable(self, state: EnvState, store: SnapshotStore, budget: float) -> bool:
         """Is the target still reachable, given the undos the agent has left?"""
         if self.intact_now(state):
             return True
         for snap in store.reachable(budget):
-            if self.derivable(snap.repo, snap.db) >= self.pairs:
-                return True
+            # For SQLite this is a free file open; for Postgres it restores the
+            # dump into a scratch database and drops it again. Only reached
+            # once the live state has already lost the data.
+            with state.database.snapshot_view(snap.path) as view:
+                if self.derivable(snap.repo, view) >= self.pairs:
+                    return True
         return False

@@ -27,6 +27,7 @@ from .protocol import parse_turn, render_observation
 from .shaping import assemble_rewards
 from .snapshot import SnapshotStore
 from .state import EnvState
+from .db import Database
 from .task import Task, setup_episode
 from .tools import Toolbox
 
@@ -91,8 +92,9 @@ def run_episode(
     gamma: float = 1.0,
     shaping: str = "potential",
     allow_shell: bool = False,
+    database: Optional[Database] = None,
 ) -> Trajectory:
-    state, oracle = setup_episode(task, Path(root))
+    state, oracle = setup_episode(task, Path(root), database=database)
     store = SnapshotStore(state)
     tools = Toolbox(state, store, undo_budget=undo_budget, allow_shell=allow_shell)
 
