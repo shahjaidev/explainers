@@ -1,0 +1,752 @@
+<meta charset="utf-8">
+<title>The Point of No Return</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;
+    --accent:#4B4FD7;--accent-soft:rgba(75,79,215,0.11);
+    --risk:#C1352F;--risk-soft:rgba(193,53,47,0.11);
+    --safe:#1C8F63;--safe-soft:rgba(28,143,99,0.12);
+    --teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --shadow-lg:0 2px 4px rgba(16,24,40,.08),0 20px 48px rgba(16,24,40,.12);
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+    --measure:66ch;--maxw:1120px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+      --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+      --accent:#8E93F5;--accent-soft:rgba(142,147,245,0.15);
+      --risk:#E76A63;--risk-soft:rgba(231,106,99,0.15);
+      --safe:#4FC98D;--safe-soft:rgba(79,201,141,0.15);
+      --teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+      --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+    --accent:#8E93F5;--accent-soft:rgba(142,147,245,0.15);
+    --risk:#E76A63;--risk-soft:rgba(231,106,99,0.15);
+    --safe:#4FC98D;--safe-soft:rgba(79,201,141,0.15);
+    --teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    --shadow-lg:0 2px 6px rgba(0,0,0,.4),0 24px 60px rgba(0,0,0,.5);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .col{max-width:var(--measure)}
+  a{color:var(--accent)}
+  h1,h2,h3,h4{font-family:var(--serif);letter-spacing:-0.015em;text-wrap:balance}
+  h2{font-size:clamp(1.7rem,3.4vw,2.25rem);line-height:1.14;margin:.1em 0 .5em}
+  h3{font-size:1.16rem;margin:1.6em 0 .4em}
+  p{margin:0 0 1.05em}
+  em{font-style:italic}
+  code,.mono{font-family:var(--mono);font-size:.86em}
+  code{background:var(--surface-2);padding:.12em .38em;border-radius:5px;border:1px solid var(--line-soft)}
+  section{padding:clamp(48px,6.5vw,80px) 0;border-top:1px solid var(--line-soft)}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:1.1em;display:flex;align-items:center;gap:.7em}
+  .sec-num{background:var(--accent-soft);padding:3px 7px;border-radius:5px}
+  .lede{font-size:1.1rem;color:var(--dim)}
+  .pull{font-family:var(--serif);font-size:1.3rem;line-height:1.35;border-left:3px solid var(--accent);padding-left:18px;margin:1.6em 0;color:var(--text)}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px 24px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px;margin:22px 0}
+  .g2{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow)}
+  .stat .n{font-family:var(--serif);font-size:2rem;line-height:1;letter-spacing:-0.02em}
+  .stat .l{font-family:var(--mono);font-size:.66rem;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin-top:.7em}
+  .stat .s{font-size:.86rem;color:var(--dim);margin-top:.45em}
+  .tag{font-family:var(--mono);font-size:.64rem;letter-spacing:.07em;text-transform:uppercase;padding:3px 7px;border-radius:5px;white-space:nowrap;display:inline-block}
+  .t-accent{color:var(--accent);background:var(--accent-soft)}
+  .t-risk{color:var(--risk);background:var(--risk-soft)}
+  .t-safe{color:var(--safe);background:var(--safe-soft)}
+  .t-teacher{color:var(--teacher);background:var(--teacher-soft)}
+  .t-neutral{color:var(--faint);background:var(--surface-2)}
+  table{border-collapse:collapse;width:100%;font-size:.9rem}
+  th,td{padding:9px 11px;text-align:left;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-family:var(--mono);font-size:.65rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);font-weight:400}
+  td.num,th.num{text-align:right;font-family:var(--mono);font-size:.84rem}
+  .scroller{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .note{border-left:3px solid var(--teacher);background:var(--teacher-soft);padding:14px 18px;border-radius:0 10px 10px 0;font-size:.94rem;margin:20px 0}
+  .warn{border-left:3px solid var(--risk);background:var(--risk-soft);padding:14px 18px;border-radius:0 10px 10px 0;font-size:.94rem;margin:20px 0}
+  .note p:last-child,.warn p:last-child{margin-bottom:0}
+  .hero{padding:clamp(56px,10vw,104px) 0 clamp(26px,4vw,42px);border:0}
+  .kicker{font-family:var(--mono);font-size:.72rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:1.5em;display:flex;align-items:center;gap:.7em;flex-wrap:wrap}
+  .kicker::before{content:"";width:26px;height:1px;background:var(--accent);opacity:.6}
+  h1{font-size:clamp(2.4rem,6.2vw,3.9rem);line-height:1.02;margin:0 0 .3em}
+  .sub{font-size:1.18rem;color:var(--dim);max-width:62ch}
+  nav.toc{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--ground) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
+  nav.toc .inner{display:flex;gap:4px;overflow-x:auto;padding:9px 24px;max-width:var(--maxw);margin:0 auto;align-items:center}
+  nav.toc a{font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);text-decoration:none;padding:5px 9px;border-radius:6px;white-space:nowrap}
+  nav.toc a:hover{color:var(--text);background:var(--surface-2)}
+  #themeBtn{margin-left:auto;flex:none;background:var(--surface-2);border:1px solid var(--line);color:var(--dim);border-radius:8px;width:32px;height:28px;cursor:pointer;font-size:.9rem;line-height:1}
+  footer{border-top:1px solid var(--line-soft);padding:34px 0 70px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.85}
+  footer a{color:var(--dim)}
+  .module{background:var(--surface);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow-lg);margin:26px 0;overflow:hidden}
+  .module-head{display:flex;align-items:baseline;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:15px 20px;border-bottom:1px solid var(--line-soft);background:var(--surface-2)}
+  .module-head .t{font-family:var(--mono);font-size:.7rem;letter-spacing:.13em;text-transform:uppercase;color:var(--accent)}
+  .module-head .q{font-size:.82rem;color:var(--faint);font-family:var(--mono)}
+  .module-body{padding:20px}
+  .caption{font-size:.84rem;color:var(--faint);max-width:78ch;margin:.7em 0 0;line-height:1.6}
+  .ctl{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:16px 22px;margin-bottom:20px}
+  .ctl label{display:block;font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  .ctl .val{color:var(--accent);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent);margin:0}
+  input[type=number]{width:100%;background:var(--surface-2);border:1px solid var(--line);border-radius:7px;padding:6px 9px;font-family:var(--mono);font-size:.84rem;color:var(--text)}
+  .btn{background:var(--surface-2);border:1px solid var(--line);border-radius:8px;padding:6px 13px;cursor:pointer;font-size:.85rem;color:var(--text);transition:.15s}
+  .btn:hover{border-color:var(--accent)}
+  .btn.on{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+  .chartwrap{width:100%;overflow-x:auto}
+  canvas{display:block;width:100%;height:auto}
+  .readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-top:18px}
+  .readout .r{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:11px 13px}
+  .readout .r .k{font-family:var(--mono);font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--faint)}
+  .readout .r .v{font-family:var(--serif);font-size:1.5rem;line-height:1.15;margin-top:3px}
+  .steps{display:flex;gap:6px;flex-wrap:wrap;margin:14px 0 6px}
+  .steps .s{flex:1 1 62px;min-width:62px;border:1px solid var(--line);border-radius:9px;padding:8px;background:var(--surface-2);font-family:var(--mono);font-size:.66rem;line-height:1.35;text-align:center;transition:.2s}
+  .steps .s.safe{background:var(--safe-soft);border-color:var(--safe);color:var(--safe)}
+  .steps .s.doom{background:var(--risk-soft);border-color:var(--risk);color:var(--risk)}
+  .steps .s.pnr{outline:2px dashed var(--risk);outline-offset:2px}
+  .steps .s b{display:block;font-size:.78rem;margin-bottom:2px;color:var(--text)}
+  .steps .s.safe b{color:var(--safe)}.steps .s.doom b{color:var(--risk)}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;font-family:var(--mono);font-size:.7rem;color:var(--dim);margin-top:12px}
+  .legend i{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+  pre{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.65;margin:16px 0}
+  pre .c{color:var(--faint)}
+  pre .k{color:var(--accent)}
+  pre .s{color:var(--safe)}
+  ul,ol{margin:0 0 1.05em;padding-left:1.25em}
+  li{margin-bottom:.42em}
+  .flowrow{display:flex;gap:10px;flex-wrap:wrap;margin:20px 0}
+  .flowrow .step{flex:1 1 190px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;box-shadow:var(--shadow)}
+  .flowrow .step .n{font-family:var(--mono);font-size:.63rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint)}
+  .flowrow .step h4{font-size:1.02rem;margin:.35em 0 .3em}
+  .flowrow .step p{font-size:.84rem;color:var(--dim);margin:0}
+  .pick{border:1px solid var(--accent);background:var(--accent-soft)}
+  .footnote{font-size:.86rem;color:var(--faint)}
+</style>
+
+<nav class="toc">
+  <div class="inner">
+    <a href="#claim">1 · Claim</a>
+    <a href="#task">2 · The task</a>
+    <a href="#dial">3 · The dial</a>
+    <a href="#method">4 · Method</a>
+    <a href="#cost">5 · Teacher cost</a>
+    <a href="#plots">6 · Plots</a>
+    <a href="#stack">7 · Stack</a>
+    <a href="#infra">8 · Azure</a>
+    <a href="#null">9 · If it's null</a>
+    <button id="themeBtn" aria-label="Toggle colour theme">◐</button>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <header class="hero">
+    <div class="kicker"><span>Research proposal</span><span>·</span><span>Process supervision</span><span>·</span><span>Aug 2026</span></div>
+    <h1>The Point of<br>No Return</h1>
+    <p class="sub">Process reward models don't beat outcome-only RL because the reward is <em>denser</em>. They beat it when the environment is <em>irreversible</em> — when the mistake at step 3 dooms a trajectory whose outcome reward doesn't arrive until step 12. That predicts a curve nobody has plotted.</p>
+  </header>
+
+  <div class="grid g3">
+    <div class="stat"><div class="n">Muse Spark 1.2</div><div class="l">The teacher</div><div class="s">Meta's flagship coding model, 1M context. Glimmer 30B was distilled from it, so its judgements are already in-distribution.</div></div>
+    <div class="stat"><div class="n">Muse Glimmer 30B</div><div class="l">The policy</div><div class="s">Dense 29.6B, 128K context, sliding-window attention with a global layer every 4th. Channel tokens mark every step boundary.</div></div>
+    <div class="stat"><div class="n">K = 0 … ∞</div><div class="l">The knob</div><div class="s">An <code>undo</code> budget that dials the environment from fully irreversible to fully recoverable. The x-axis of the whole study.</div></div>
+  </div>
+</div>
+
+<section id="claim">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">01</span> The claim</p>
+      <h2>Density is not the mechanism</h2>
+      <p class="lede">The standard story for process reward models is that sparse outcome rewards are hard to learn from, so scoring each step gives the optimizer more to work with. That story is true and mostly uninformative — it predicts PRMs help everywhere, which is not what practitioners observe.</p>
+      <p>Here is a sharper story. Outcome-only RL is fine as long as a trajectory that goes wrong at step 3 can still be rescued by step 12. The final reward is then a fair verdict on the <em>whole</em> policy, and the credit assignment problem is merely statistical — run more rollouts and it washes out. What outcome-only RL cannot handle is a trajectory that became <em>unwinnable</em> at step 3 and spent nine more steps generating tokens that were, in the technical sense, meaningless. Every one of those tokens gets the same negative advantage as the one that actually killed the run.</p>
+      <p class="pull">Process supervision is a hedge against irreversibility. Its value should scale with the fraction of trajectories that die before their outcome is observed — and vanish when the agent can undo.</p>
+      <p>That is a falsifiable prediction with a free parameter you can control experimentally. If you can build an environment whose recoverability you dial, you can measure the advantage as a function of it. If the curve is flat, the density story wins and the irreversibility story is wrong. If it decays to zero as recoverability rises, you have explained a folk belief and given people a rule for when to pay for a teacher.</p>
+      <p>Nobody has plotted that curve because nobody builds environments with a recoverability knob. Everything from SWE-bench to WebArena resets clean. That gap is the opening.</p>
+    </div>
+  </div>
+</section>
+
+<section id="task">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">02</span> The task</p>
+      <h2>Irreversible engineering</h2>
+      <p class="lede">Real operations work is not a sandbox. Dropping a column deletes data. <code>git reset --hard</code> discards the working tree. A botched backfill is a Tuesday with no undo. Benchmarks have systematically excluded exactly the property that makes the work hard.</p>
+      <p>The environment family: a container holding a repository, a populated Postgres instance, and a test suite. The task is a migration that genuinely requires destructive DDL — split a table, rename-and-backfill a column, collapse a polymorphic association, drop a deprecated index that a query planner still depends on.</p>
+    </div>
+
+    <div class="grid g2">
+      <div class="card">
+        <span class="tag t-safe">Success</span>
+        <h3 style="margin-top:.7em">Two conditions, both machine-checked</h3>
+        <p style="font-size:.92rem;margin-bottom:.5em">The test suite passes <strong>and</strong> a row-level integrity check confirms no data was lost. Both are ordinary Python. There is no judge in the outcome reward — that is the point, because the judge is the treatment.</p>
+      </div>
+      <div class="card">
+        <span class="tag t-risk">Irreversibility</span>
+        <h3 style="margin-top:.7em">An <code>undo</code> tool with budget K</h3>
+        <p style="font-size:.92rem;margin-bottom:.5em">Restores the last snapshot — overlayfs for the filesystem, PITR or a dump for the database. <code>K=0</code> is a production console at 2am. <code>K=∞</code> is every RL environment ever published. Sweep <code>K ∈ {0,1,2,4,∞}</code>.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <h3>The instrumentation that makes it a paper</h3>
+      <p>After every step, run an automated <strong>recoverability oracle</strong>: is the target state still reachable from the current state? Concretely — is every pre-migration row still derivable from the live database plus the working tree plus the snapshots the agent has left itself? This is a decidable question over the environment state, not a model judgement.</p>
+      <p>That gives you, for every trajectory, the <strong>point of no return</strong>: the step index at which it became unsalvageable. Almost no agentic RL work has this measurement, and it is what converts "the PRM helped" into "the PRM helped <em>because</em> it moved the death step later, or removed it."</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">Trajectory anatomy</span>
+        <span class="q">task: split <code>users.address</code> → <code>addresses</code>, backfill, drop column</span>
+      </div>
+      <div class="module-body">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:6px">
+          <button class="btn on" id="tOff">Outcome-only</button>
+          <button class="btn" id="tOn">With process supervision</button>
+          <span style="font-family:var(--mono);font-size:.72rem;color:var(--faint);align-self:center">K = 0 · no undo</span>
+        </div>
+        <div class="steps" id="traj"></div>
+        <div class="legend">
+          <span><i style="background:var(--safe)"></i>recoverable</span>
+          <span><i style="background:var(--risk)"></i>unrecoverable</span>
+          <span><i style="background:var(--risk);height:0;border-top:2px dashed var(--risk)"></i>point of no return</span>
+        </div>
+        <p class="caption" id="trajNote"></p>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="warn">
+        <p><strong>Isolate this properly.</strong> The whole premise is that the agent can destroy things. Run the containers on a separate host from the trainer, snapshot with overlayfs, and give the environment process no credentials it does not need. An RL agent exploring a destructive action space is a fuzzer you are paying for.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dial">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">03</span> The dial</p>
+      <h2>What the hypothesis actually predicts</h2>
+      <p class="lede">The prediction is not hand-waving — it falls out of a two-line model. If each step independently has hazard <em>h</em> of causing unrecoverable damage, a trajectory of horizon <em>H</em> survives if the number of hazards it hits is within its undo budget <em>K</em>.</p>
+      <p>So success ≈ <code>base · P(Binomial(H, h) ≤ K)</code>. Process supervision doesn't make the agent smarter at the end; it lowers the hazard rate, <code>h → h(1−r)</code>. The advantage is the gap between two binomial tails — large when K is small, vanishing as K grows past the expected hazard count.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">Predicted advantage vs. undo budget</span>
+        <span class="q">hypothesis, not data — this is the curve the experiment tests</span>
+      </div>
+      <div class="module-body">
+        <div class="ctl">
+          <div>
+            <label>Horizon H — steps per task · <span class="val" id="vH">12</span></label>
+            <input type="range" id="sH" min="4" max="24" step="1" value="12">
+          </div>
+          <div>
+            <label>Step hazard h — P(step is destructive) · <span class="val" id="vh">10%</span></label>
+            <input type="range" id="sh" min="0" max="35" step="1" value="10">
+          </div>
+          <div>
+            <label>Hazard reduction r from supervision · <span class="val" id="vr">45%</span></label>
+            <input type="range" id="sr" min="0" max="80" step="5" value="45">
+          </div>
+          <div>
+            <label>Base competence · <span class="val" id="vb">70%</span></label>
+            <input type="range" id="sb" min="20" max="100" step="5" value="70">
+          </div>
+        </div>
+        <div class="chartwrap"><canvas id="chart" width="1000" height="420"></canvas></div>
+        <div class="readout">
+          <div class="r"><div class="k">Advantage at K=0</div><div class="v" id="rA0">—</div></div>
+          <div class="r"><div class="k">Advantage at K=2</div><div class="v" id="rA2">—</div></div>
+          <div class="r"><div class="k">Crossover — K where gap &lt; 1pt</div><div class="v" id="rX">—</div></div>
+          <div class="r"><div class="k">Expected hazards H·h</div><div class="v" id="rEH">—</div></div>
+        </div>
+        <p class="caption">Solid lines: success rate under outcome-only RL (grey) and process-supervised RL (indigo). Bars: the advantage. Push <em>h</em> to zero and the advantage disappears because there is nothing to save; push <em>K</em> past <code>H·h</code> and it disappears because the agent saves itself. Both limbs matter — a null result at low hazard is not evidence against the hypothesis, which is why the sweep has to cover the corner where the effect should be largest.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <p>Two consequences worth stating before you run anything. First, the effect is predicted to be <em>large at K=0 and zero at K=∞</em>, so a single-point comparison at either end is uninformative about the mechanism — the shape is the result. Second, the model says the crossover sits near <code>K ≈ H·h</code>, which means you should report the hazard rate of your environment or nobody can transfer your conclusion to theirs. That is a small methodological ask that the field currently never satisfies.</p>
+    </div>
+  </div>
+</section>
+
+<section id="method">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">04</span> Method</p>
+      <h2>Three decisions that determine whether this works</h2>
+    </div>
+
+    <div class="col">
+      <h3>Where to score — the channel tokens are free segmentation</h3>
+      <p>Glimmer emits <code>&lt;thought&gt;</code>, <code>&lt;action&gt;</code> and <code>&lt;observation&gt;</code> as vocabulary items, with XML-style ATEM tool calls rather than JSON. Step boundaries are therefore <em>declared by the model</em>, not recovered by a heuristic chunker. Score at <code>&lt;action&gt;</code> boundaries and you get an unambiguous, reproducible segmentation for free.</p>
+      <p>The corresponding masking discipline: <code>&lt;observation&gt;</code> spans are environment-generated and must be excluded from the loss entirely. Training on them teaches the model to predict tool output — useless at best, and a leakage path at worst.</p>
+    </div>
+
+    <div class="col">
+      <h3>How to shape — potential-based, or not at all</h3>
+      <p>Use Spark's step scores as a <strong>potential function</strong>: the shaping reward is <code>Φ(s<sub>t+1</sub>) − Φ(s<sub>t</sub>)</code>, not the raw score. Potential-based shaping is policy-invariant (Ng, Harada &amp; Russell, 1999) — it can change how fast you learn but provably cannot change what you learn toward. Raw per-step scores have no such guarantee, and the failure mode is specific and predictable:</p>
+      <div class="note">
+        <p><strong>The predicted hack.</strong> A critic reading a trajectory sees a confident, well-structured <code>&lt;thought&gt;</code> and scores the step highly — before the action executes. Optimize that directly and you get an agent that narrates beautifully and acts badly. Run both shapings and show the divergence; it is cheap, and it is the single most useful thing you can hand a practitioner.</p>
+      </div>
+      <pre><span class="c"># reward assembly, per trajectory</span>
+r_outcome = tests_pass(env) <span class="k">and</span> rows_intact(env)      <span class="c"># terminal, verifiable</span>
+phi       = [spark_score(prefix_t) <span class="k">for</span> t <span class="k">in</span> action_bounds]  <span class="c"># teacher potential</span>
+shaping   = [phi[t+1] - phi[t] <span class="k">for</span> t <span class="k">in</span> range(len(phi)-1)]
+<span class="c"># telescopes to phi[-1] - phi[0]: policy-invariant by construction</span>
+r_t       = gamma * shaping[t] <span class="k">if</span> t &lt; T-1 <span class="k">else</span> r_outcome</pre>
+    </div>
+
+    <div class="col">
+      <h3>What to score with — distil the teacher, and make that the third contribution</h3>
+      <p>Do the arithmetic before committing. Ten action boundaries per rollout, 32k rollouts per run, ~8k tokens of context per scoring call is billions of teacher input tokens <em>per run</em>. Spark in the inner loop is not viable, and pretending otherwise is how this project dies in week two.</p>
+      <p>The fix is also the most practically valuable result in the post. Label a subset with Spark, train a small critic on those labels — an 8B model, or a value head on frozen Glimmer — and run RL against the distilled critic. Then plot <strong>downstream RL performance against the number of Spark labels</strong>. "How many teacher labels before the cheap critic is as good as the expensive one?" is the question every team with an API budget actually has, and the curve is not published anywhere.</p>
+    </div>
+  </div>
+</section>
+
+<section id="cost">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">05</span> Teacher cost</p>
+      <h2>The baseline that decides whether anyone believes you</h2>
+      <p class="lede">A PRM is not free, so "PRM beats outcome-only at equal <em>steps</em>" is not a result. The honest comparison gives outcome-only RL the teacher's budget to spend on more rollouts. Most published PRM work skips this. Doing it is the cheapest credibility you will ever buy.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">Compute-matching calculator</span>
+        <span class="q">edit any field — everything downstream recomputes</span>
+      </div>
+      <div class="module-body">
+        <div class="ctl">
+          <div><label>RL steps</label><input type="number" id="cSteps" value="400" min="1"></div>
+          <div><label>Rollouts per step</label><input type="number" id="cRoll" value="64" min="1"></div>
+          <div><label>Action boundaries per rollout</label><input type="number" id="cAct" value="10" min="1"></div>
+          <div><label>Avg scoring context (tokens)</label><input type="number" id="cCtx" value="8000" min="100"></div>
+          <div><label>Teacher price ($ / M input tok)</label><input type="number" id="cPrice" value="3" min="0" step="0.5"></div>
+          <div><label>Rollout cost ($ each, GPU-time)</label><input type="number" id="cRollCost" value="0.004" min="0" step="0.001"></div>
+          <div><label>Spark-labelled fraction (distillation) · <span class="val" id="vFrac">3%</span></label><input type="range" id="cFrac" min="1" max="100" step="1" value="3"></div>
+        </div>
+        <div class="readout">
+          <div class="r"><div class="k">Scoring calls / run</div><div class="v" id="oCalls">—</div></div>
+          <div class="r"><div class="k">Teacher tokens — full</div><div class="v" id="oTok">—</div></div>
+          <div class="r"><div class="k">Teacher $ — Spark in the loop</div><div class="v" id="oCostFull">—</div></div>
+          <div class="r"><div class="k">Teacher $ — distilled critic</div><div class="v" id="oCostDist">—</div></div>
+          <div class="r"><div class="k">Compute-matched baseline</div><div class="v" id="oMatch">—</div></div>
+          <div class="r"><div class="k">Extra rollouts it buys</div><div class="v" id="oExtra">—</div></div>
+        </div>
+        <p class="caption">"Compute-matched baseline" is the multiplier on rollouts that outcome-only RL gets when handed the same dollars the PRM arm spends on its teacher. If the PRM arm wins by less than this multiplier buys, the honest headline is that the teacher was not worth it. Default prices are placeholders — Spark 1.2 weights are not public yet, so substitute your actual endpoint pricing.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="plots">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">06</span> The deliverable</p>
+      <h2>Four plots, in priority order</h2>
+    </div>
+    <div class="flowrow">
+      <div class="step"><div class="n">Plot 1 · the money plot</div><h4>Advantage vs. undo budget</h4><p>PRM minus outcome-only success, across K ∈ {0,1,2,4,∞}. Prediction: monotone decreasing, reaching zero near K ≈ H·h. This is the post.</p></div>
+      <div class="step"><div class="n">Plot 2 · the credibility plot</div><h4>Compute-matched comparison</h4><p>Outcome-only given the teacher's budget as extra rollouts. Report dollars and GPU-hours on the x-axis, not steps.</p></div>
+      <div class="step"><div class="n">Plot 3 · the mechanism plot</div><h4>Point-of-no-return distribution</h4><p>Where trajectories die, with and without supervision. Tests whether the gain comes from avoiding early death rather than better endgames.</p></div>
+      <div class="step"><div class="n">Plot 4 · the practical plot</div><h4>Critic scaling</h4><p>Spark vs. distilled-8B vs. Glimmer-as-own-critic vs. <em>random critic</em>. The random arm is the control — if noise helps, you measured an optimization artifact.</p></div>
+    </div>
+    <div class="col">
+      <p>The random-critic control deserves emphasis. Shaped rewards change the entropy and scale of the advantage distribution, and that alone can move results. Several published RL gains have evaporated under exactly this control. Running it costs one arm and immunises the whole post.</p>
+    </div>
+  </div>
+</section>
+
+<section id="stack">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">07</span> Stack</p>
+      <h2>Don't build the trainer</h2>
+      <p class="lede">Every component of this except the environment and the shaping rule already exists in open source, is maintained by people who do this full time, and is more correct than what you would write in three weeks. Build the two novel pieces; borrow everything else.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head"><span class="t">Candidate stacks</span><span class="q">what each one gives you, and what it doesn't</span></div>
+      <div class="module-body">
+        <div class="scroller">
+          <table>
+            <thead><tr><th>Project</th><th>What it is</th><th>Fit for this study</th><th>Gap</th></tr></thead>
+            <tbody>
+              <tr class="pick">
+                <td><strong>Harbor</strong><br><span class="tag t-safe">env layer</span></td>
+                <td>Terminal-agent evaluation: any task expressible as <em>Dockerfile + instruction + test</em>. Integrated with SkyRL since Feb 2026 for test-grounded RL on Terminal-Bench-format tasks.</td>
+                <td>Our task <em>is</em> that triple. Container, migration instruction, pytest. The env → Dockerfile → executor → verifier loop is already stress-tested over hundreds of RL runs.</td>
+                <td>No notion of snapshots, undo budgets, or a recoverability oracle. That's ours to add.</td>
+              </tr>
+              <tr class="pick">
+                <td><strong>SkyRL</strong><br><span class="tag t-safe">trainer</span></td>
+                <td>Modular full-stack RL library (NovaSky/Berkeley). SkyRL-Agent targets long-horizon multi-turn agents; concurrent trajectory coroutines against remote vLLM plus remote environment containers.</td>
+                <td>Purpose-built for exactly this shape: many-turn episodes, real containers, slow environments. Episodes up to 16 turns in Docker via Harbor is the documented path.</td>
+                <td>Turn-level credit assignment isn't first-class — you'll be writing the advantage code either way.</td>
+              </tr>
+              <tr>
+                <td><strong>verifiers</strong><br><span class="tag t-accent">env API</span></td>
+                <td>Prime Intellect's RL-environment + eval library. <code>MultiTurnEnv</code> is the rollout base; <code>StatefulToolEnv</code> injects hidden per-episode state (sandbox handles) into tool calls via <code>update_tool_args</code>. Rubrics are plain weighted Python reward functions.</td>
+                <td><code>StatefulToolEnv</code> is precisely the primitive for a container handle. Publishing the env to the Environments Hub gets the artifact adopted — arguably worth more than the result.</td>
+                <td>A Rubric collapses to one scalar per rollout. Per-step potentials need work outside the rubric abstraction.</td>
+              </tr>
+              <tr>
+                <td><strong>prime-rl</strong><br><span class="tag t-accent">trainer</span></td>
+                <td>Fully async distributed RL, first-class verifiers support, FSDP + LoRA, split trainer / inference / orchestrator. Recently grew an explicit <em>Algorithms layer</em> for credit assignment.</td>
+                <td>That Algorithms layer — rollouts+rewards → advantages — is the natural insertion point for potential-based shaping. Cleanest place to put our one novel training change.</td>
+                <td>The layer currently answers only "what per-token signal does a finalised rollout produce"; per-turn potentials are an extension, not a config flag.</td>
+              </tr>
+              <tr>
+                <td><strong>verl-agent</strong><br><span class="tag t-neutral">alternative</span></td>
+                <td>veRL extension for LLM/VLM agents; official code for GiGPO (Group-in-Group Policy Optimization), which builds anchor-state groups for step-level credit.</td>
+                <td>The closest existing thing to step-level credit assignment in agentic RL. Read it before writing your own advantage estimator.</td>
+                <td>veRL's config surface is heavy, and the env abstraction is less container-native than Harbor's.</td>
+              </tr>
+              <tr>
+                <td><strong>Agent Lightning · rLLM</strong><br><span class="tag t-neutral">alternative</span></td>
+                <td>Train-any-agent frameworks that sit beside an existing agent harness rather than replacing it.</td>
+                <td>Useful if you want to keep an off-the-shelf agent loop untouched and only supply rewards.</td>
+                <td>Less control over exactly where advantages land, which is the thing we're studying.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="col">
+      <h3>The recommendation</h3>
+      <p><strong>Harbor for the environment, SkyRL for training, verifiers as the second target.</strong> Our tasks are literally Dockerfile + instruction + test, the SkyRL↔Harbor path is the maintained one for long-horizon container agents, and it means the only infrastructure we write is the part that is actually new: the snapshot/undo tool, the recoverability oracle, and the shaping rule. Package the environment against the verifiers API as well — it is a thin adapter, and Environments Hub distribution is how the artifact outlives the blog post.</p>
+      <div class="note">
+        <p><strong>Everyone's gap is the same gap.</strong> Per-turn credit assignment is not a solved feature in any of these — prime-rl's algorithms layer is per-token over a finalised rollout, verifiers rubrics are per-rollout scalars, SkyRL concatenates turns with masks. The literature is ahead of the frameworks here (GiGPO, MT-GRPO, TCPO all propose turn-level advantage constructions). Our potential-based version is a genuine, small, publishable extension — and the fact that it doesn't exist as a flag anywhere is itself worth a paragraph in the post.</p>
+      </div>
+      <div class="warn">
+        <p><strong>Drop QLoRA for the training arm.</strong> The 4-bit setup makes sense for single-GPU fine-tuning, but these frameworks shard bf16 weights over FSDP and don't expect a quantised base. Glimmer is dense 29.6B — bf16 weights shard comfortably across 8×H100 with LoRA adapters. Keep 4-bit for inference-side experiments only.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="infra">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">08</span> Azure</p>
+      <h2>What to provision, and in what order</h2>
+    </div>
+    <div class="grid g2">
+      <div class="card">
+        <h3 style="margin-top:0">Training</h3>
+        <p style="font-size:.93rem">One <code>ND H100 v5</code> node (8×H100 80GB). Split it: ~4 GPUs serving rollouts under vLLM, ~4 training. Glimmer is <em>dense</em>, so every rollout token costs full compute — there is no MoE discount. Rollout generation, not backprop, is the bottleneck, and long agentic traces make it worse.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Environments</h3>
+        <p style="font-size:.93rem">A separate CPU VM or AKS pool running the destructive containers, snapshotted via overlayfs. Never on the training host. Budget more environment parallelism than feels necessary — a Postgres migration plus test suite is seconds of wall-clock per step, and it will pin your rollout throughput long before the GPUs do.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Teacher</h3>
+        <p style="font-size:.93rem">Check the Foundry catalog for Spark first. Meta announced the 1.2 weights are coming but has published neither date nor licence, so plan for an API endpoint during the labelling phase and switch to the distilled critic for the RL loop. Cache aggressively — trajectory prefixes are shared, and scoring is prefix-heavy.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Staging</h3>
+        <p style="font-size:.93rem">Run the two endpoints — K=0 and K=∞ — at small scale <em>before</em> the sweep. If the gap doesn't appear where the model says it should be largest, it isn't there, and you have spent a few hundred dollars finding out instead of a few thousand.</p>
+      </div>
+    </div>
+    <div class="col">
+      <p class="footnote">Rough order of operations: week 1, environment + oracle + a handful of hand-written migration tasks, validated by running a stock agent through them and eyeballing where trajectories die. Week 2, the K=0 vs K=∞ pilot. Week 3, the sweep and the compute-matched arm. Week 4, distillation curve and write-up. The environment is the long pole and the reusable artifact — start there, and resist the urge to start with the trainer because the trainer is the fun part.</p>
+    </div>
+  </div>
+</section>
+
+<section id="null">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">09</span> The pre-registration</p>
+      <h2>If the curve is flat, publish anyway</h2>
+      <p class="lede">Decide this now, in writing, before any GPU is provisioned — because the framing has to survive both outcomes, and a framing chosen after seeing the result is worth nothing.</p>
+      <p>"At 30B, a frontier process reward model does not beat compute-matched outcome-only RL on long-horizon agentic tasks, and here is the controlled irreversibility sweep showing where we looked" is a genuinely useful post. The field's current position on when PRMs pay is folklore; a clean negative with a compute-matched baseline and a mechanism knob is more informative than most positives.</p>
+      <p>And the two artifacts stand either way: an environment family with a recoverability dial, and per-trajectory point-of-no-return instrumentation. Those get reused whichever way the curve goes. That is the test of whether a research post was worth writing — not whether the number went up, but whether the thing you built to measure it is still useful when it didn't.</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    Sources · <a href="https://www.pi.website/research/fast">FAST tokenizer</a> ·
+    <a href="https://arxiv.org/abs/2501.09747">FAST paper</a> ·
+    <a href="https://github.com/PrimeIntellect-ai/verifiers">verifiers</a> ·
+    <a href="https://github.com/PrimeIntellect-ai/prime-rl">prime-rl</a> ·
+    <a href="https://www.primeintellect.ai/blog/algorithms-layer">prime-rl algorithms layer</a> ·
+    <a href="https://github.com/NovaSky-AI/SkyRL">SkyRL</a> ·
+    <a href="https://arxiv.org/abs/2511.16108">SkyRL-Agent</a> ·
+    <a href="https://github.com/fleet-ai/harbor-train">harbor-train</a> ·
+    <a href="https://github.com/langfengQ/verl-agent">verl-agent / GiGPO</a> ·
+    <a href="https://arxiv.org/abs/2505.11821">MT-GRPO turn-level rewards</a> ·
+    <a href="https://arxiv.org/abs/2508.03680">Agent Lightning</a><br>
+    Potential-based shaping: Ng, Harada &amp; Russell, <em>Policy invariance under reward transformations</em>, ICML 1999.<br>
+    All curves on this page are predictions from a stated toy model, not measurements. Nothing here has been run.<br>
+    Part of <a href="index.html">Explainers</a> — one self-contained page per idea.
+  </div>
+</footer>
+
+<script>
+(function(){
+  var root = document.documentElement, btn = document.getElementById('themeBtn');
+  var stored = null;
+  try { stored = localStorage.getItem('pnr-theme'); } catch(e) {}
+  if (stored === 'dark' || stored === 'light') root.setAttribute('data-theme', stored);
+  btn.addEventListener('click', function(){
+    var cur = root.getAttribute('data-theme');
+    if (!cur) cur = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    var next = cur === 'dark' ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('pnr-theme', next); } catch(e) {}
+    if (window.__redrawChart) window.__redrawChart();
+  });
+})();
+
+/* ---------- trajectory strip ---------- */
+(function(){
+  var strip = document.getElementById('traj'), note = document.getElementById('trajNote');
+  var offBtn = document.getElementById('tOff'), onBtn = document.getElementById('tOn');
+
+  var OFF = [
+    {a:'inspect schema', ok:1}, {a:'write migration', ok:1}, {a:'DROP COLUMN address', ok:0},
+    {a:'create addresses', ok:0}, {a:'backfill', ok:0}, {a:'run tests', ok:0},
+    {a:'read failure', ok:0}, {a:'patch model', ok:0}, {a:'run tests', ok:0},
+    {a:'grep for source', ok:0}, {a:'re-derive rows', ok:0}, {a:'give up', ok:0}
+  ];
+  var ON = [
+    {a:'inspect schema', ok:1}, {a:'write migration', ok:1}, {a:'create addresses', ok:1},
+    {a:'backfill', ok:1}, {a:'verify parity', ok:1}, {a:'DROP COLUMN address', ok:1},
+    {a:'update model', ok:1}, {a:'run tests', ok:1}, {a:'fix query', ok:1},
+    {a:'run tests', ok:1}, {a:'integrity check', ok:1}, {a:'done', ok:1}
+  ];
+
+  function render(data, supervised){
+    strip.innerHTML = '';
+    var pnr = -1;
+    for (var i = 0; i < data.length; i++) { if (!data[i].ok) { pnr = i; break; } }
+    data.forEach(function(d, i){
+      var el = document.createElement('div');
+      el.className = 's ' + (d.ok ? 'safe' : 'doom') + (i === pnr ? ' pnr' : '');
+      el.innerHTML = '<b>' + (i + 1) + '</b>' + d.a;
+      strip.appendChild(el);
+    });
+    if (pnr < 0) {
+      note.textContent = 'Same task, same model, ordered differently: the destructive DROP happens only after the new table is populated and parity is verified. No step leaves the recoverable set, so the outcome reward is a fair verdict on all twelve actions. Point of no return: none.';
+    } else {
+      note.textContent = 'The column is dropped at step ' + (pnr + 1) + ', before the data is copied anywhere. Steps ' + (pnr + 2) + '–' + data.length + ' are generated against a state from which the task can no longer be completed — nine actions of flailing that outcome-only RL punishes identically to the one that actually caused it. Point of no return: step ' + (pnr + 1) + '.';
+    }
+  }
+
+  offBtn.addEventListener('click', function(){ offBtn.classList.add('on'); onBtn.classList.remove('on'); render(OFF, false); });
+  onBtn.addEventListener('click', function(){ onBtn.classList.add('on'); offBtn.classList.remove('on'); render(ON, true); });
+  render(OFF, false);
+})();
+
+/* ---------- irreversibility dial ---------- */
+(function(){
+  var cv = document.getElementById('chart'), g = cv.getContext('2d');
+  var sH = document.getElementById('sH'), sh = document.getElementById('sh'),
+      sr = document.getElementById('sr'), sb = document.getElementById('sb');
+  var KS = [0,1,2,3,4,5,6,8,10,12];  // finite budgets; plus an infinity column
+
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+  // P(Binomial(n,p) <= k)
+  function binomCdf(n, p, k){
+    if (k >= n) return 1;
+    if (p <= 0) return 1;
+    if (p >= 1) return k >= n ? 1 : 0;
+    var term = Math.pow(1 - p, n), sum = term;
+    for (var i = 1; i <= k; i++){
+      term *= (n - i + 1) / i * (p / (1 - p));
+      sum += term;
+    }
+    return Math.min(1, sum);
+  }
+
+  function model(){
+    var H = +sH.value, h = +sh.value / 100, r = +sr.value / 100, base = +sb.value / 100;
+    var hp = h * (1 - r);
+    var out = KS.map(function(k){ return base * binomCdf(H, h, k); });
+    var prm = KS.map(function(k){ return base * binomCdf(H, hp, k); });
+    return {H:H, h:h, r:r, base:base, out:out, prm:prm};
+  }
+
+  function draw(){
+    var m = model();
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var W = cv.clientWidth || 1000, Hpx = 420;
+    cv.width = W * dpr; cv.height = Hpx * dpr;
+    cv.style.height = Hpx + 'px';
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, Hpx);
+
+    var padL = 54, padR = 78, padT = 22, padB = 118;
+    var plotW = W - padL - padR, plotH = Hpx - padT - padB;
+    var n = KS.length;
+    var xs = KS.map(function(_, i){ return padL + (plotW - 60) * (i / (n - 1)); });
+    var xInf = padL + plotW;             // the K = infinity column
+    var y = function(v){ return padT + plotH * (1 - v); };
+
+    var line = css('--line'), faint = css('--faint'), dim = css('--dim');
+    var accent = css('--accent'), text = css('--text');
+
+    // gridlines
+    g.strokeStyle = line; g.lineWidth = 1;
+    g.font = '11px ' + css('--mono');
+    g.fillStyle = faint; g.textAlign = 'right';
+    for (var v = 0; v <= 1.0001; v += 0.25){
+      g.beginPath(); g.moveTo(padL, y(v)); g.lineTo(padL + plotW, y(v)); g.stroke();
+      g.fillText(Math.round(v * 100) + '%', padL - 9, y(v) + 4);
+    }
+
+    // advantage bars
+    var bw = 16;
+    for (var i = 0; i < n; i++){
+      var d = m.prm[i] - m.out[i];
+      if (d <= 0.0005) continue;
+      g.fillStyle = accent; g.globalAlpha = 0.16;
+      g.fillRect(xs[i] - bw / 2, y(m.prm[i]), bw, y(m.out[i]) - y(m.prm[i]));
+      g.globalAlpha = 1;
+    }
+
+    function plot(series, colour, dash, xEnd, vEnd){
+      g.strokeStyle = colour; g.lineWidth = 2.4; g.setLineDash(dash);
+      g.beginPath();
+      for (var i = 0; i < n; i++){ i ? g.lineTo(xs[i], y(series[i])) : g.moveTo(xs[0], y(series[0])); }
+      g.stroke();
+      // dotted run out to the K=infinity column
+      g.setLineDash([2, 5]);
+      g.beginPath(); g.moveTo(xs[n - 1], y(series[n - 1])); g.lineTo(xEnd, y(vEnd)); g.stroke();
+      g.setLineDash([]);
+      for (var j = 0; j < n; j++){
+        g.fillStyle = colour;
+        g.beginPath(); g.arc(xs[j], y(series[j]), 3.2, 0, 6.2832); g.fill();
+      }
+      g.beginPath(); g.arc(xEnd, y(vEnd), 4.2, 0, 6.2832); g.fill();
+    }
+
+    plot(m.out, faint, [6, 4], xInf, m.base);
+    plot(m.prm, accent, [], xInf, m.base);
+
+    // x axis
+    g.strokeStyle = line; g.beginPath(); g.moveTo(padL, y(0)); g.lineTo(padL + plotW, y(0)); g.stroke();
+    g.textAlign = 'center'; g.fillStyle = faint; g.font = '11px ' + css('--mono');
+    for (var i = 0; i < n; i++) g.fillText(String(KS[i]), xs[i], y(0) + 18);
+    g.fillStyle = dim; g.fillText('∞', xInf, y(0) + 18);
+    g.fillStyle = faint; g.font = '10px ' + css('--mono');
+    g.fillText('UNDO BUDGET K', padL + plotW / 2, y(0) + 38);
+
+    // expected-hazard marker
+    var eh = m.H * m.h;
+    if (eh <= KS[n - 1]){
+      var idx = 0;
+      while (idx < n - 1 && KS[idx + 1] <= eh) idx++;
+      var span = (KS[idx + 1] - KS[idx]) || 1;
+      var xEh = xs[idx] + (xs[Math.min(idx + 1, n - 1)] - xs[idx]) * ((eh - KS[idx]) / span);
+      g.strokeStyle = css('--risk'); g.setLineDash([3, 4]); g.lineWidth = 1.4;
+      g.beginPath(); g.moveTo(xEh, padT); g.lineTo(xEh, y(0)); g.stroke();
+      g.setLineDash([]);
+      g.fillStyle = css('--risk'); g.textAlign = 'left'; g.font = '10px ' + css('--mono');
+      g.fillText(' H·h = ' + eh.toFixed(1), Math.min(xEh + 4, padL + plotW - 60), padT + 12);
+    }
+
+    // legend
+    g.textAlign = 'left'; g.font = '11px ' + css('--mono');
+    var ly = Hpx - 40;
+    g.strokeStyle = accent; g.lineWidth = 2.4;
+    g.beginPath(); g.moveTo(padL, ly); g.lineTo(padL + 22, ly); g.stroke();
+    g.fillStyle = text; g.fillText('process-supervised', padL + 30, ly + 4);
+    g.strokeStyle = faint; g.setLineDash([6, 4]);
+    g.beginPath(); g.moveTo(padL + 178, ly); g.lineTo(padL + 200, ly); g.stroke();
+    g.setLineDash([]);
+    g.fillStyle = text; g.fillText('outcome-only', padL + 208, ly + 4);
+    g.fillStyle = accent; g.globalAlpha = 0.16;
+    g.fillRect(padL + 330, ly - 7, 22, 14); g.globalAlpha = 1;
+    g.fillStyle = text; g.fillText('advantage', padL + 360, ly + 4);
+
+    // readouts
+    var pct = function(x){ return (x * 100).toFixed(1) + ' pt'; };
+    document.getElementById('rA0').textContent = pct(m.prm[0] - m.out[0]);
+    document.getElementById('rA2').textContent = pct(m.prm[2] - m.out[2]);
+    var xIdx = -1;
+    for (var i = 0; i < n; i++){ if (m.prm[i] - m.out[i] < 0.01) { xIdx = i; break; } }
+    document.getElementById('rX').textContent = xIdx < 0 ? '> ' + KS[n - 1] : 'K = ' + KS[xIdx];
+    document.getElementById('rEH').textContent = (m.H * m.h).toFixed(1);
+
+    document.getElementById('vH').textContent = m.H;
+    document.getElementById('vh').textContent = Math.round(m.h * 100) + '%';
+    document.getElementById('vr').textContent = Math.round(m.r * 100) + '%';
+    document.getElementById('vb').textContent = Math.round(m.base * 100) + '%';
+  }
+
+  [sH, sh, sr, sb].forEach(function(el){ el.addEventListener('input', draw); });
+  window.addEventListener('resize', draw);
+  window.__redrawChart = draw;
+  draw();
+})();
+
+/* ---------- compute-matching calculator ---------- */
+(function(){
+  var ids = ['cSteps','cRoll','cAct','cCtx','cPrice','cRollCost','cFrac'];
+  var el = {}; ids.forEach(function(i){ el[i] = document.getElementById(i); });
+
+  function fmt(n){
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+    if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + 'k';
+    return String(Math.round(n));
+  }
+  function money(n){
+    if (n >= 1e6) return '$' + (n / 1e6).toFixed(2) + 'M';
+    if (n >= 1e3) return '$' + (n / 1e3).toFixed(1) + 'k';
+    return '$' + n.toFixed(0);
+  }
+
+  function calc(){
+    var steps = +el.cSteps.value || 0, roll = +el.cRoll.value || 0, act = +el.cAct.value || 0,
+        ctx = +el.cCtx.value || 0, price = +el.cPrice.value || 0,
+        rollCost = +el.cRollCost.value || 0, frac = (+el.cFrac.value || 1) / 100;
+
+    var rollouts = steps * roll;
+    var calls = rollouts * act;
+    var toks = calls * ctx;
+    var costFull = toks / 1e6 * price;
+    var costDist = costFull * frac;
+    var rlCost = rollouts * rollCost;
+    var matched = rlCost > 0 ? (rlCost + costFull) / rlCost : 0;
+    var extra = rollCost > 0 ? costFull / rollCost : 0;
+
+    document.getElementById('oCalls').textContent = fmt(calls);
+    document.getElementById('oTok').textContent = fmt(toks);
+    document.getElementById('oCostFull').textContent = money(costFull);
+    document.getElementById('oCostDist').textContent = money(costDist);
+    document.getElementById('oMatch').textContent = matched ? matched.toFixed(1) + '×' : '—';
+    document.getElementById('oExtra').textContent = fmt(extra);
+    document.getElementById('vFrac').textContent = Math.round(frac * 100) + '%';
+  }
+
+  ids.forEach(function(i){ el[i].addEventListener('input', calc); });
+  calc();
+})();
+</script>
