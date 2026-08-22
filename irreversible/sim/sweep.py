@@ -27,17 +27,17 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from irrev import HazardAgent, load_task, run_episode  # noqa: E402
+from irrev import PLANS, HazardAgent, load_task, run_episode  # noqa: E402
 from sim.hazard_model import binom_cdf  # noqa: E402
 
-TASK_DIR = Path(__file__).resolve().parents[1] / "tasks" / "split_address"
+TASKS_DIR = Path(__file__).resolve().parents[1] / "tasks"
 
 
-def run_arm(task, hazard: float, budget: float, episodes: int, seed0: int, workroot: Path):
+def run_arm(task, plans, hazard: float, budget: float, episodes: int, seed0: int, workroot: Path):
     wins = 0
     pnrs = []
     for i in range(episodes):
-        agent = HazardAgent(hazard=hazard, seed=seed0 + i)
+        agent = HazardAgent(hazard=hazard, seed=seed0 + i, plans=plans)
         traj = run_episode(
             task,
             agent,
@@ -55,6 +55,7 @@ def run_arm(task, hazard: float, budget: float, episodes: int, seed0: int, workr
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--task", type=str, default="split_address", choices=sorted(PLANS))
     ap.add_argument("--episodes", type=int, default=40)
     ap.add_argument("--hazard", type=float, default=0.18)
     ap.add_argument("--reduction", type=float, default=0.5)
@@ -64,23 +65,24 @@ def main() -> int:
     ap.add_argument("--out", type=str, default="sweep.csv")
     args = ap.parse_args()
 
-    task = load_task(TASK_DIR)
+    task = load_task(TASKS_DIR / args.task)
+    plans = PLANS[args.task]
     budgets = [float(b) for b in args.budgets.split(",") if b != ""]
     if args.include_inf:
         budgets.append(math.inf)
 
     supervised_hazard = args.hazard * (1 - args.reduction)
-    plan_len = 8  # actions in the safe plan; the effective horizon for the model
+    plan_len = plans.length  # the effective horizon for the analytic model
 
     rows = []
     work = Path(tempfile.mkdtemp(prefix="irrev-sweep-"))
     try:
         for budget in budgets:
             base_win, base_pnr_rate, base_pnr = run_arm(
-                task, args.hazard, budget, args.episodes, args.seed, work
+                task, plans, args.hazard, budget, args.episodes, args.seed, work
             )
             sup_win, sup_pnr_rate, sup_pnr = run_arm(
-                task, supervised_hazard, budget, args.episodes, args.seed, work
+                task, plans, supervised_hazard, budget, args.episodes, args.seed, work
             )
             k = "inf" if budget == math.inf else int(budget)
             predicted = (

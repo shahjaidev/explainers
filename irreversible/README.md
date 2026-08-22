@@ -9,12 +9,12 @@ as `K` grows past the expected number of destructive steps.
 The write-up is [`../point-of-no-return.html`](../point-of-no-return.html).
 This directory is the part you can run.
 
-Everything here is stdlib Python 3.9+. No dependencies, no Docker, no GPU.
+Core is stdlib Python 3.9+. No dependencies, no Docker, no GPU.
 
 ```
-python -m unittest discover -s tests -t .     # 47 tests
-python demo.py --plan destructive --undo 0    # watch a trajectory die
-python sim/sweep.py --episodes 40             # the K sweep, no model in the loop
+python -m unittest discover -s tests -t .              # 69 tests (9 skip without verifiers)
+python demo.py --task split_address --plan destructive # watch a trajectory die
+python sim/sweep.py --task merge_duplicate_users       # the K sweep, no model in the loop
 ```
 
 ## What a trajectory looks like
@@ -46,6 +46,21 @@ Run the same plan with `--undo 1` and the point of no return moves to step 3 —
 one undo buys exactly one step of grace, and this agent never spends it. With
 `--undo inf` it disappears entirely.
 
+## The three tasks
+
+Each ships a safe and a destructive ordering of the same migration. Same
+model, same actions, different order — only one leaves the recoverable set.
+
+| task | migration | destruction | invariant |
+|---|---|---|---|
+| `split_address` | free-text column → its own table | all-or-nothing: drop before backfill and the column is gone | `(user, address)`, in-row |
+| `merge_duplicate_users` | dedupe by email, repoint orders | **partial**: deleting duplicates before repointing orphans only the orders that pointed at them — φ lands on 0.6, not 0 | `(order, email)`, only across a join |
+| `collapse_polymorphic` | `(parent_type, parent_id)` → typed FK columns | all-or-nothing, but the invariant is an attribution and the discriminator can be lost separately from the data | `(parent, body)`, in-row |
+
+The middle one exists to make sure the harness handles gradual degradation:
+a task whose potential slides is a different test of a shaping signal than one
+that falls off a cliff.
+
 ## The three pieces that aren't in any framework
 
 **1. Snapshot store with a budget** (`irrev/snapshot.py`, `irrev/tools.py`).
@@ -74,6 +89,23 @@ Two strictnesses, deliberately different:
 
 A CSV the agent dumped counts as recoverable but not as a completed migration.
 
+Three rules the tasks forced, each of which was a real false positive first:
+
+- **Declared recovery queries.** `(order, email)` is not a fact about any
+  single row, so a task can declare SQL that reconstructs its pairs. A query
+  that no longer parses against the current schema contributes nothing, which
+  is the right answer.
+- **A task that declares recovery queries opts out of the generic row scan.**
+  `orders.id` and `users.id` share a numeric namespace, so the users row
+  `(1, 'ada@…')` pattern-matches the pair `('1', 'ada@…')` — a coincidence,
+  not a recovery path. Without this, destroying `orders` looked survivable.
+- **Pristine template files don't count.** `merge_duplicate_users`' own
+  `verify.py` asserts against a real customer email and happens to have a `2`
+  on the same line, which scored as "order 2 is recoverable from disk" and
+  inflated the surviving fraction from 0.6 to 0.7. Files the agent hasn't
+  touched (matched by content hash) are skipped; the moment it edits one, it
+  counts again.
+
 **3. Potential-based shaping** (`irrev/shaping.py`). Teacher step scores are a
 potential function: `F_t = gamma * phi(s_t+1) - phi(s_t)`, not raw score.
 Policy-invariant by Ng, Harada & Russell (1999) — it can change how fast you
@@ -87,54 +119,40 @@ with the same outcome and the same start/end potential get *identical*
 advantages at turn 0 no matter how the potential moved in between, while the
 credit inside each rollout lands on different turns.
 
-## The task
-
-`tasks/split_address/` is Harbor-shaped — Dockerfile + instruction + test.
-Move a free-text `users.address` column into a dedicated `addresses` table,
-backfill, drop the column, keep the application working. Success is two
-machine-checked conditions with no judge anywhere:
-
-- `repo/verify.py` passes (structure + `app.get_address` still works), and
-- the protected pairs are still in the database (harness-side, so the agent
-  cannot fake it by leaving a dump on disk).
-
-The destructive step is real: `ALTER TABLE users DROP COLUMN address` with no
-copy anywhere is unrecoverable at `K=0`, and the oracle says so.
-
-The local backend uses SQLite so the whole harness runs anywhere. The
-`Dockerfile` is the container path; for Postgres, swap the snapshot backend
-for `pg_dump`/PITR and the overlayfs upper dir — `SnapshotStore` is the only
-class that needs to change.
-
 ## Does the harness reproduce the prediction?
 
-`sim/sweep.py` runs the real environment — real SQLite, real destructive DDL,
-real snapshots, real oracle — driven by a scripted agent that hits a hazard
-with probability *h* per step and spends an undo if it has one. "Process
-supervision" is modelled as a lower hazard. No model, no GPU, no teacher.
+`sim/sweep.py` drives the real environment with a scripted agent that hits a
+destructive action with probability *h* per step and spends an undo if it has
+one. "Process supervision" is modelled as a lower hazard. No model, no
+teacher, no GPU.
 
 40 episodes per arm, `h = 0.18`, `r = 0.5`:
 
-| K | outcome-only | process | advantage | predicted | died (base → process) |
-|---|---|---|---|---|---|
-| 0 | 0.23 | 0.45 | **+0.23** | +0.27 | 0.78 → 0.55 |
-| 1 | 0.65 | 0.90 | **+0.25** | +0.28 | 0.35 → 0.10 |
-| 2 | 0.88 | 1.00 | **+0.12** | +0.13 | 0.12 → 0.00 |
-| 4 | 0.93 | 1.00 | **+0.07** | +0.01 | 0.07 → 0.00 |
-| ∞ | 1.00 | 1.00 | **+0.00** | +0.00 | 0.00 → 0.00 |
+| K | split_address | merge_duplicate_users | collapse_polymorphic | analytic |
+|---|---|---|---|---|
+| 0 | +0.23 | +0.22 | +0.23 | +0.27 |
+| 1 | +0.25 | +0.18 | +0.25 | +0.28 |
+| 2 | +0.12 | +0.07 | +0.12 | +0.13 |
+| 4 | +0.07 | +0.00 | +0.07 | +0.01 |
+| ∞ | +0.00 | +0.00 | +0.00 | +0.00 |
 
-The shape is what the hypothesis predicts: large advantage at small budgets,
-exactly zero when the agent can always undo. Two honest caveats:
+The shape is what the hypothesis predicts on all three: large advantage at
+small budgets, exactly zero when the agent can always undo. Three honest
+caveats:
 
 - **K=0 and K=1 are not separated** at this sample size (n=40, standard error
-  ≈ 0.08). The first two points are within noise of each other; only the decay
-  across the whole sweep is meaningful here.
-- **K=4 deviates from the analytic curve** (+0.07 measured, +0.01 predicted).
-  This is not noise, it is a modelling gap worth keeping: each undo adds two
-  steps to the episode, and those steps carry their own hazard. Spending
-  budget lengthens the horizon, which creates more chances to need budget. The
-  binomial model assumes a fixed horizon and misses it. If the same signature
-  shows up with a real policy, it is a finding rather than an artefact.
+  ≈ 0.08). Only the decay across the whole sweep is meaningful here.
+- **K=4 deviates from the analytic curve** on the two 8-step tasks (+0.07
+  measured, +0.01 predicted). This is not noise, it is a modelling gap worth
+  keeping: each undo adds two steps to the episode, and those steps carry
+  their own hazard. Spending budget lengthens the horizon, which creates more
+  chances to need budget. The binomial model assumes a fixed horizon and
+  misses it. If the same signature shows up with a real policy, it is a
+  finding rather than an artefact.
+- **`split_address` and `collapse_polymorphic` produce identical numbers**,
+  because the synthetic agent's hazard draws depend only on the seed and the
+  plan length, and both plans are 8 steps. These are not three independent
+  samples. A real policy would separate them; this agent cannot.
 
 This is a dry run of the analysis pipeline, not evidence about PRMs. It shows
 the harness measures what it claims to measure, before anyone provisions a
@@ -152,16 +170,41 @@ irrev/
                  action boundaries (the scoring points)
   shaping.py     potential-based shaping, the naive ablation, reward assembly
   critics.py     Spark | distilled | oracle-proxy | random, plus prefix caching
-  agents.py      scripted safe/destructive plans; stochastic HazardAgent
+  plans.py       safe and destructive orderings per task, and the hazard
+  agents.py      ScriptedAgent, stochastic HazardAgent
   episode.py     the runner that measures the point of no return
   task.py        task loading, episode setup, protected-pair extraction
 adapters/
   verifiers_env.py     StatefulToolEnv + Rubric, Environments Hub entry point
   prime_rl_shaping.py  turn potentials -> shaped returns -> group-relative
                        advantages -> per-token broadcast over action spans
-tasks/split_address/   Dockerfile + instruction + test + seed
+tasks/                 three Harbor-shaped tasks: Dockerfile + instruction + test
 sim/                   analytic model, and the K sweep that exercises it
-tests/                 47 tests, stdlib unittest
+tests/                 69 tests, stdlib unittest
+```
+
+## The verifiers adapter
+
+Written and **tested against verifiers 0.3.0**, whose contract differs from
+what the docs imply in three places worth knowing:
+
+- `args_to_skip` is an argument to `add_tool(tool, args_to_skip=[...])`, not to
+  the constructor;
+- `update_tool_args(tool_name, tool_args, messages, state, **kwargs)` takes the
+  tool name first;
+- the env wraps your `Rubric` in a `RubricGroup` alongside its own monitors, so
+  `env.rubric.rubrics[0].funcs` is where your reward functions end up.
+
+The sandbox handle lives in `state`, not a module-level registry, so concurrent
+rollouts cannot collide. `tests/test_verifiers_adapter.py` checks the part that
+actually matters — that `handle` is absent from every tool schema the agent
+sees and injected at call time — and drives a full migration through
+`env.tool_map` to confirm the rubric scores 1.0 on the safe plan and 0.0 with
+`survived == 0` on the destructive one. No model required:
+
+```
+python -m venv .venv && .venv/bin/pip install verifiers
+.venv/bin/python -m unittest discover -s tests -t .    # 69 tests, 0 skipped
 ```
 
 ## How this maps onto the frameworks
@@ -186,7 +229,11 @@ whichever trainer wins.
   OpenAI-shaped endpoints and refuse to run without an API key, since Muse
   Spark 1.2 weights are not public. `OracleCritic` is a free proxy potential
   for pilots; it sees privileged state, so it is a ceiling, not a stand-in.
-- More tasks. One task is enough to validate the machinery and nowhere near
-  enough to train on. The next ones — polymorphic-association collapse,
-  index-drop with a planner dependency, a backfill that must be resumable —
-  reuse everything except `seed.sql`, `verify.py` and the protected query.
+- Postgres. The local backend is SQLite so the harness runs anywhere; the
+  `Dockerfile`s are the container path. For Postgres, swap the snapshot backend
+  for `pg_dump`/PITR plus the overlayfs upper dir — `SnapshotStore` is the only
+  class that changes.
+- Task-level unrecoverability that is not data loss. Dropping
+  `collapse_polymorphic`'s `parent_type` before the backfill leaves the bodies
+  and parent ids intact but makes the migration impossible; the outcome reward
+  catches it, the point-of-no-return measurement does not.

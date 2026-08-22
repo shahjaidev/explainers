@@ -13,12 +13,13 @@ the recoverability oracle.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import sqlite3
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 from .oracle import DataPairOracle, Pair
 from .state import EnvState
@@ -31,7 +32,12 @@ class Task:
     instruction: str
     horizon: int
     protected_query: str
+    recovery_queries: List[str] = field(default_factory=list)
     protected_pairs: List[Pair] = field(default_factory=list)
+    template_hashes: Dict[str, str] = field(default_factory=dict)
+
+    def oracle(self) -> DataPairOracle:
+        return DataPairOracle(self.protected_pairs, self.recovery_queries, self.template_hashes)
 
     @property
     def seed_sql(self) -> Path:
@@ -51,6 +57,7 @@ def load_task(directory: Path) -> Task:
         instruction=spec["instruction"].strip(),
         horizon=int(spec.get("horizon", 16)),
         protected_query=spec["protected_query"],
+        recovery_queries=list(spec.get("recovery_queries", [])),
     )
     # Populate the protected pairs eagerly from the seed, so a critic or an
     # analysis script can be constructed before any episode exists. Without
@@ -61,6 +68,12 @@ def load_task(directory: Path) -> Task:
         task.protected_pairs = [(str(k), str(v)) for k, v in conn.execute(task.protected_query)]
     finally:
         conn.close()
+
+    task.template_hashes = {
+        str(path.relative_to(task.repo_template)): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in sorted(task.repo_template.rglob("*"))
+        if path.is_file() and "__pycache__" not in path.parts
+    }
     return task
 
 
@@ -83,4 +96,4 @@ def setup_episode(task: Task, root: Path) -> Tuple[EnvState, DataPairOracle]:
         conn.close()
 
     task.protected_pairs = pairs
-    return state, DataPairOracle(pairs)
+    return state, DataPairOracle(pairs, task.recovery_queries, task.template_hashes)

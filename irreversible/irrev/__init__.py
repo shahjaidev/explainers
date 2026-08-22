@@ -15,6 +15,7 @@ from .critics import (
 )
 from .episode import Step, Trajectory, run_episode
 from .oracle import DataPairOracle
+from .plans import PLANS, TaskPlans
 from .protocol import action_boundaries, loss_mask, parse_turn, render_action
 from .shaping import assemble_rewards, naive_shaping, potential_shaping
 from .snapshot import SnapshotStore
@@ -31,6 +32,7 @@ __all__ = [
     "DistilledCritic",
     "EnvState",
     "HazardAgent",
+    "PLANS",
     "OracleCritic",
     "RandomCritic",
     "ScriptedAgent",
@@ -38,6 +40,7 @@ __all__ = [
     "SparkCritic",
     "Step",
     "Task",
+    "TaskPlans",
     "ToolResult",
     "Toolbox",
     "Trajectory",

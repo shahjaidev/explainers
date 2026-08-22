@@ -18,27 +18,27 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from irrev import (  # noqa: E402
-    DESTRUCTIVE_PLAN,
-    SAFE_PLAN,
-    DataPairOracle,
+    PLANS,
     OracleCritic,
     ScriptedAgent,
     load_task,
     run_episode,
 )
 
-TASK_DIR = Path(__file__).resolve().parent / "tasks" / "split_address"
+TASKS_DIR = Path(__file__).resolve().parent / "tasks"
 
 
 def main() -> int:
     ap = argparse.ArgumentParser()
+    ap.add_argument("--task", choices=sorted(PLANS), default="split_address")
     ap.add_argument("--plan", choices=("safe", "destructive"), default="destructive")
     ap.add_argument("--undo", default="0", help="undo budget K, or 'inf'")
     args = ap.parse_args()
 
     budget = math.inf if args.undo == "inf" else float(args.undo)
-    task = load_task(TASK_DIR)
-    plan = SAFE_PLAN if args.plan == "safe" else DESTRUCTIVE_PLAN
+    task = load_task(TASKS_DIR / args.task)
+    plans = PLANS[args.task]
+    plan = plans.safe if args.plan == "safe" else plans.destructive
     work = Path(tempfile.mkdtemp(prefix="irrev-demo-"))
     try:
         traj = run_episode(
@@ -46,7 +46,7 @@ def main() -> int:
             ScriptedAgent(plan),
             root=work / "ep",
             undo_budget=budget,
-            critic=OracleCritic(DataPairOracle(task.protected_pairs)),
+            critic=OracleCritic(task.oracle()),
             max_steps=task.horizon,
         )
     finally:
