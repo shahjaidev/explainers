@@ -145,6 +145,7 @@
     <a href="#stack">7 · Stack</a>
     <a href="#infra">8 · Azure</a>
     <a href="#null">9 · If it's null</a>
+    <a href="#code">10 · The code</a>
     <button id="themeBtn" aria-label="Toggle colour theme">◐</button>
   </div>
 </nav>
@@ -487,6 +488,77 @@ r_t       = gamma * shaping[t] <span class="k">if</span> t &lt; T-1 <span class=
   </div>
 </section>
 
+<section id="code">
+  <div class="wrap">
+    <div class="col">
+      <p class="eyebrow"><span class="sec-num">10</span> The code</p>
+      <h2>The harness exists</h2>
+      <p class="lede">The three pieces no framework provides — snapshot store with a budget, recoverability oracle, potential-based shaping — are implemented in <code>irreversible/</code>. Stdlib Python, no dependencies, no Docker, no GPU. 47 tests.</p>
+      <pre>python -m unittest discover -s tests -t .     <span class="c"># 47 tests</span>
+python demo.py --plan destructive --undo 0    <span class="c"># watch a trajectory die</span>
+python sim/sweep.py --episodes 40             <span class="c"># the K sweep, no model in the loop</span></pre>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">demo.py — destructive ordering, K=0</span>
+        <span class="q">real SQLite · real DROP COLUMN · real oracle</span>
+      </div>
+      <div class="module-body">
+        <pre> #  action      ok   recoverable    phi  reward  detail
+ 1  sql         ok   <span class="s">yes</span>           1.00    0.00  SELECT id, name, address FROM users LIMIT 3
+ 2  sql         ok   NO            0.00   -1.00  ALTER TABLE users DROP COLUMN address;  &lt;-- point of no return
+ 3  sql         ok   NO            0.00    0.00  CREATE TABLE addresses (id INTEGER PRIMARY K
+ 4  sql         ERR  NO            0.00    0.00  INSERT INTO addresses (user_id, line) SELECT
+ 5  write_file  ok   NO            0.00    0.00  app.py
+ 6  run_tests   ERR  NO            0.00    0.00
+ 7  sql         ok   NO            0.00    0.00  SELECT * FROM addresses LIMIT 3
+ 8  run_tests   ERR  NO            0.00    0.00
+ 9  sql         ok   NO            0.00    0.00  PRAGMA table_info(users)
+10  submit      ok   NO            0.00    0.00
+
+split_address K=0 steps=10 tests=fail integrity=lost undos=0 point-of-no-return=step 2</pre>
+        <p class="caption">The trajectory strip in section 2, executed. Steps 3–10 are generated from a state the task can no longer be completed from — and outcome-only RL gives all eight the same negative advantage as step 2, the one that caused it. Re-run with <code>--undo 1</code> and the point of no return moves to step 3: one undo buys exactly one step of grace, and this agent never spends it.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <h3>The sweep reproduces the predicted shape</h3>
+      <p><code>sim/sweep.py</code> drives the real environment with a scripted agent that hits a destructive action with probability <em>h</em> per step and spends an undo if it has one. "Process supervision" is modelled as a lower hazard. No model, no teacher, no GPU — the point is to exercise the measurement before paying for one.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head"><span class="t">40 episodes per arm · h = 0.18 · r = 0.5</span><span class="q">measured, not predicted</span></div>
+      <div class="module-body">
+        <div class="scroller">
+          <table>
+            <thead><tr><th>K</th><th class="num">outcome-only</th><th class="num">process</th><th class="num">advantage</th><th class="num">analytic</th><th class="num">died → died</th></tr></thead>
+            <tbody>
+              <tr><td>0</td><td class="num">0.23</td><td class="num">0.45</td><td class="num"><strong>+0.23</strong></td><td class="num">+0.27</td><td class="num">0.78 → 0.55</td></tr>
+              <tr><td>1</td><td class="num">0.65</td><td class="num">0.90</td><td class="num"><strong>+0.25</strong></td><td class="num">+0.28</td><td class="num">0.35 → 0.10</td></tr>
+              <tr><td>2</td><td class="num">0.88</td><td class="num">1.00</td><td class="num"><strong>+0.12</strong></td><td class="num">+0.13</td><td class="num">0.12 → 0.00</td></tr>
+              <tr><td>4</td><td class="num">0.93</td><td class="num">1.00</td><td class="num"><strong>+0.07</strong></td><td class="num">+0.01</td><td class="num">0.07 → 0.00</td></tr>
+              <tr><td>∞</td><td class="num">1.00</td><td class="num">1.00</td><td class="num"><strong>+0.00</strong></td><td class="num">+0.00</td><td class="num">0.00 → 0.00</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">Large advantage at small budgets, exactly zero when the agent can always undo. This is evidence that the harness measures what it claims to — <em>not</em> evidence about process reward models, since the "supervision" here is a hand-set hazard rate rather than a critic.</p>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="warn">
+        <p><strong>Two things the table gets wrong, kept rather than tidied.</strong> K=0 and K=1 are not separated at n=40 (standard error ≈ 0.08) — only the decay across the sweep is meaningful. And K=4 misses the analytic curve by 6 points, which is not noise: every undo adds two steps to the episode, and those steps carry their own hazard. <em>Spending budget lengthens the horizon, which creates more chances to need budget.</em> The fixed-horizon binomial model can't see that. If the same signature appears with a real policy it's a finding, not an artefact.</p>
+      </div>
+      <h3>What's in the box</h3>
+      <p>The oracle keeps two strictnesses on purpose. Integrity — the outcome reward — reads the live database only. Recoverability reads the database, the working tree, and any snapshot still within budget. A CSV the agent dumped counts as recoverable but not as a completed migration.</p>
+      <p>Adapters do the turn → token expansion that no framework provides: per-turn potentials → shaped return-to-go → group-relative advantages → broadcast over <code>&lt;action&gt;</code> spans only, with observation tokens masked. Plain lists, so it drops into whichever trainer wins. The verifiers adapter uses <code>StatefulToolEnv</code> to inject the sandbox handle and hide it from the model's tool schema.</p>
+      <p>The training loop is deliberately absent — that's SkyRL's or prime-rl's job, and <code>adapters/</code> is the seam. <code>SparkCritic</code> refuses to run without an API key.</p>
+      <p class="footnote">Source: <code>irreversible/</code> in this repository, with a README covering the container and Postgres backends.</p>
+    </div>
+  </div>
+</section>
+
 <footer>
   <div class="wrap">
     Sources · <a href="https://www.pi.website/research/fast">FAST tokenizer</a> ·
@@ -501,7 +573,7 @@ r_t       = gamma * shaping[t] <span class="k">if</span> t &lt; T-1 <span class=
     <a href="https://arxiv.org/abs/2505.11821">MT-GRPO turn-level rewards</a> ·
     <a href="https://arxiv.org/abs/2508.03680">Agent Lightning</a><br>
     Potential-based shaping: Ng, Harada &amp; Russell, <em>Policy invariance under reward transformations</em>, ICML 1999.<br>
-    All curves on this page are predictions from a stated toy model, not measurements. Nothing here has been run.<br>
+    The curves in §3 are predictions from a stated toy model. The numbers in §10 are measured, by the harness in <code>irreversible/</code>, with no model in the loop. No RL training has been run.<br>
     Part of <a href="index.html">Explainers</a> — one self-contained page per idea.
   </div>
 </footer>
@@ -527,17 +599,19 @@ r_t       = gamma * shaping[t] <span class="k">if</span> t &lt; T-1 <span class=
   var strip = document.getElementById('traj'), note = document.getElementById('trajNote');
   var offBtn = document.getElementById('tOff'), onBtn = document.getElementById('tOn');
 
+  // These are the two plans in irreversible/irrev/agents.py, and the
+  // recoverable flags are what the oracle actually returns for them.
   var OFF = [
-    {a:'inspect schema', ok:1}, {a:'write migration', ok:1}, {a:'DROP COLUMN address', ok:0},
-    {a:'create addresses', ok:0}, {a:'backfill', ok:0}, {a:'run tests', ok:0},
-    {a:'read failure', ok:0}, {a:'patch model', ok:0}, {a:'run tests', ok:0},
-    {a:'grep for source', ok:0}, {a:'re-derive rows', ok:0}, {a:'give up', ok:0}
+    {a:'inspect schema', ok:1}, {a:'DROP COLUMN address', ok:0},
+    {a:'create addresses', ok:0}, {a:'backfill — fails', ok:0},
+    {a:'update app.py', ok:0}, {a:'run tests', ok:0},
+    {a:'read addresses', ok:0}, {a:'run tests', ok:0},
+    {a:'inspect users', ok:0}, {a:'submit', ok:0}
   ];
   var ON = [
-    {a:'inspect schema', ok:1}, {a:'write migration', ok:1}, {a:'create addresses', ok:1},
-    {a:'backfill', ok:1}, {a:'verify parity', ok:1}, {a:'DROP COLUMN address', ok:1},
-    {a:'update model', ok:1}, {a:'run tests', ok:1}, {a:'fix query', ok:1},
-    {a:'run tests', ok:1}, {a:'integrity check', ok:1}, {a:'done', ok:1}
+    {a:'inspect schema', ok:1}, {a:'create addresses', ok:1}, {a:'backfill', ok:1},
+    {a:'verify parity', ok:1}, {a:'DROP COLUMN address', ok:1},
+    {a:'update app.py', ok:1}, {a:'run tests', ok:1}, {a:'submit', ok:1}
   ];
 
   function render(data, supervised){
@@ -551,7 +625,7 @@ r_t       = gamma * shaping[t] <span class="k">if</span> t &lt; T-1 <span class=
       strip.appendChild(el);
     });
     if (pnr < 0) {
-      note.textContent = 'Same task, same model, ordered differently: the destructive DROP happens only after the new table is populated and parity is verified. No step leaves the recoverable set, so the outcome reward is a fair verdict on all twelve actions. Point of no return: none.';
+      note.textContent = 'Same task, same model, ordered differently: the destructive DROP happens only after the new table is populated and parity is verified. No step leaves the recoverable set, so the outcome reward is a fair verdict on every action. Point of no return: none.';
     } else {
       note.textContent = 'The column is dropped at step ' + (pnr + 1) + ', before the data is copied anywhere. Steps ' + (pnr + 2) + '–' + data.length + ' are generated against a state from which the task can no longer be completed — nine actions of flailing that outcome-only RL punishes identically to the one that actually caused it. Point of no return: step ' + (pnr + 1) + '.';
     }
