@@ -1,0 +1,70 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  core:
+    name: core (stdlib only)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run the suite with no dependencies at all
+        run: python -m unittest discover -s tests -t . -v
+
+  postgres:
+    name: postgres backend
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_USER: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run against a real cluster
+        env:
+          IRREV_PG_HOST: localhost
+          IRREV_PG_PORT: "5432"
+          IRREV_PG_USER: postgres
+          IRREV_PG_BINDIR: ""
+          PGPASSWORD: postgres
+        run: python -m unittest discover -s tests -t . -v
+
+  verifiers:
+    name: verifiers adapter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install verifiers
+      - run: python -m unittest tests.test_verifiers_adapter -v
+
+  skyrl:
+    name: skyrl advantage estimator
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: CPU torch only — the estimator needs tensors, not a GPU
+        run: pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: python -m unittest tests.test_skyrl_adapter -v

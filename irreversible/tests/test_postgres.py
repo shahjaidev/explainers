@@ -36,7 +36,11 @@ TASKS_DIR = ROOT / "tasks"
 PG_HOST = os.environ.get("IRREV_PG_HOST", "/tmp")
 PG_PORT = int(os.environ.get("IRREV_PG_PORT", "0") or 0)
 PG_USER = os.environ.get("IRREV_PG_USER", "postgres")
-PG_BINDIR = os.environ.get("IRREV_PG_BINDIR", "/usr/lib/postgresql/16/bin")
+_DEFAULT_BINDIR = "/usr/lib/postgresql/16/bin"
+PG_BINDIR = os.environ.get("IRREV_PG_BINDIR")
+if PG_BINDIR is None:
+    # Fall back to PATH when the Debian layout is absent (CI runners, macOS).
+    PG_BINDIR = _DEFAULT_BINDIR if Path(_DEFAULT_BINDIR).is_dir() else ""
 
 
 def _reachable() -> bool:

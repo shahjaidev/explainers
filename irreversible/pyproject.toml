@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "irreversible-envs"
+version = "0.1.0"
+description = "RL environments whose recoverability is a dial"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+# The harness core needs nothing. These are for the framework adapters and the
+# integration tests that exercise them.
+verifiers = ["verifiers>=0.3.0"]
+skyrl = ["torch"]
+dev = ["verifiers>=0.3.0", "torch"]
+
+[tool.setuptools]
+packages = ["irrev", "adapters", "sim"]
+
+[tool.setuptools.package-data]
+irrev = ["py.typed"]
