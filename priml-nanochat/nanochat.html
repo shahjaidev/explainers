@@ -596,15 +596,31 @@
   </section>
 
   <section class="callout">
-    <h3>One real bug surfaced on the way</h3>
+    <h3>One real bug surfaced on the way — since fixed</h3>
     <p>
       The eval loader pads a short final batch and marks the padding with <code>-1</code> targets, which
       <code>BitsPerByte</code> excludes from both of its sums. But
-      <code>NanoChatTrainStep._per_token_loss</code> passes those labels straight into
-      <code>cross_entropy</code> with no <code>ignore_index</code>, so the padded batch raises
-      <code>IndexError: Target -1 is out of bounds</code> before the metric that handles it ever runs. It
-      fires whenever the eval row count is not a multiple of <code>eval_batch_size</code>. Choosing a batch
-      width that divides the split exactly avoids it and still scores every row.
+      <code>NanoChatTrainStep._per_token_loss</code> passed those labels straight into
+      <code>cross_entropy</code> with no <code>ignore_index</code>, so a padded batch raised
+      <code>IndexError: Target -1 is out of bounds</code> before the metric that handles it ever ran. It
+      fires whenever the eval row count is not a multiple of <code>eval_batch_size</code> — a property of
+      the prepared split, not of the recipe.
+    </p>
+    <p>
+      The fix reads <code>valid_count</code>, the same signal the metric already trusts, so both consumers
+      read padding the same way. Two constraints shaped it: the returned tensor has to stay full width,
+      because the metric rejects a per-token loss whose shape disagrees with the targets — so returning the
+      truncated tensor only moves the failure; and the <em>reduction</em> has to exclude the padding too,
+      because <code>reduction="none"</code> returns zeros there and the old <code>.mean()</code> over the
+      whole batch would have reported a loss diluted by exactly the rows that are not data. That second,
+      quieter bug is one a bare <code>ignore_index=</code> would have left open.
+    </p>
+    <p>
+      Verified by scoring one checkpoint over the same 636 rows both ways —
+      <code>eval_batch_size=12</code> (no padding) and <code>16</code> (padded) — which previously gave
+      <code>1.8846</code> and a crash, and now gives <code>1.8846</code> twice, identical to the last digit.
+      The accompanying test was confirmed to bite: reverting the source alone fails it with the original
+      <code>IndexError</code>.
     </p>
   </section>
 
@@ -713,6 +729,41 @@
         </tbody>
       </table>
     </div>
+  </section>
+
+  <section class="prose">
+    <h3>All three rungs, same budget, run back to back</h3>
+    <p>
+      Sequentially on an otherwise idle machine — which, per the note below, is not a detail. Lower
+      bits-per-byte is better.
+    </p>
+  </section>
+
+  <section>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Experiment</th><th>Mechanism</th><th class="mono">steps</th><th class="mono">train loss</th><th class="mono">val bits/byte</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="mono">exp000</td><td>full attention</td><td class="mono">91</td><td class="mono">4.9308</td><td class="mono">1.8897</td></tr>
+          <tr><td class="mono">exp001</td><td>windowed attention</td><td class="mono">92</td><td class="mono">4.9040</td><td class="mono"><strong>1.8794</strong></td></tr>
+          <tr><td class="mono">exp002</td><td>+ value embeddings</td><td class="mono">91</td><td class="mono">4.9176</td><td class="mono">1.8846</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="callout">
+    <h3>These numbers do not decide anything</h3>
+    <p>
+      The spread is about 0.01 bits per byte across three runs at one seed each. Nothing here separates the
+      rungs from run-to-run variance, and no seed replicates were taken — they are reported because the runs
+      happened, not because they answer the ladder's question. The rehearsal also understates
+      <code>exp001</code> specifically: at ctx 512 in a six-layer model, attention is a small share of a
+      step, where the reference runs ctx 2048 and attention dominates far more — so the time windowed
+      attention saves, which is the entire mechanism, is mostly absent at this size.
+    </p>
   </section>
 
   <section class="callout">
