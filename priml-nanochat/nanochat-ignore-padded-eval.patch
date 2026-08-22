@@ -1,0 +1,135 @@
+diff --git a/priml/baselines/nanochat/train_step.py b/priml/baselines/nanochat/train_step.py
+index eadb27f..91f4ab2 100644
+--- a/priml/baselines/nanochat/train_step.py
++++ b/priml/baselines/nanochat/train_step.py
+@@ -324,7 +324,10 @@ class NanoChatTrainStep:
+         self.model.train()
+         with self._autocast():
+             per_token = self._per_token_loss(self.model, batch)
+-            loss = per_token.mean()
++            # A train batch is full width by construction (a short final batch
++            # is dropped), so this equals per_token.mean() there -- spelled the
++            # same way as every other reduction so no path can drift.
++            loss = self._valid_mean(per_token, batch)
+         # Each pass contributes its share, so the accumulated gradient is the
+         # mean over the whole token batch rather than over the last pass.
+         (loss / self.accumulate_passes).backward()
+@@ -361,14 +364,20 @@ class NanoChatTrainStep:
+         self.model.train()
+         with torch.no_grad(), self._autocast():
+             per_token = self._per_token_loss(self.model, batch)
+-        return {"loss": per_token.mean().reshape(1), "model": per_token}
++        return {
++            "loss": self._valid_mean(per_token, batch).reshape(1),
++            "model": per_token,
++        }
+ 
+     def eval_loss(self, **batch: Any) -> TrainStepOutput:
+         """Score one batch, returning the per-token loss the metric consumes."""
+         self.model.eval()
+         with torch.inference_mode(), self._autocast():
+             per_token = self._per_token_loss(self.model, batch)
+-        return {"loss": per_token.mean().reshape(1), "model": per_token}
++        return {
++            "loss": self._valid_mean(per_token, batch).reshape(1),
++            "model": per_token,
++        }
+ 
+     def call_eval(self, **batch: Any) -> Tensor:
+         """Return evaluation logits for one batch."""
+@@ -449,17 +458,50 @@ class NanoChatTrainStep:
+         metrics["momentum"] = momentum
+         return metrics
+ 
++    @staticmethod
++    def _valid_count(batch: dict[str, Any]) -> int:
++        """Return the rows of ``batch`` that are data rather than padding.
++
++        A short final EVAL batch is squared off to full width and the padding's
++        targets are marked ``-1``. That marker is not a class index, so it is
++        the row count -- not the marker -- that every consumer reads, which is
++        the convention ``BitsPerByte.update`` already follows. A train batch is
++        full width and carries no marker, so the default covers it without the
++        caller knowing which path it is on.
++        """
++        return int(batch.get("valid_count", batch["label"].shape[0]))
++
+     def _per_token_loss(self, model: nn.Module, batch: dict[str, Any]) -> Tensor:
+-        """Return ``[B, S]`` cross-entropy in nats, one entry per target."""
++        """Return ``[B, S]`` cross-entropy in nats, one entry per target.
++
++        Padding rows are scored as zero rather than passed to
++        ``cross_entropy``, whose ``-1`` target would raise. Full width is what
++        is returned because the metric protocol pairs this tensor with the
++        batch's targets element for element and rejects a shape that disagrees;
++        the zeros are placeholders, and every consumer drops them on the same
++        row count. Reduce with :meth:`_valid_mean`, never ``.mean()``, or those
++        zeros dilute the number.
++        """
+         media: Tensor = batch["media"]
+         labels: Tensor = batch["label"]
++        valid = self._valid_count(batch)
+         logits = model(media)
+         assert isinstance(logits, Tensor)
+-        return functional.cross_entropy(
+-            logits.reshape(-1, logits.shape[-1]).float(),
+-            labels.reshape(-1).long(),
++        scored = functional.cross_entropy(
++            logits[:valid].reshape(-1, logits.shape[-1]).float(),
++            labels[:valid].reshape(-1).long(),
+             reduction="none",
+-        ).reshape(labels.shape)
++        ).reshape(labels[:valid].shape)
++        if valid == labels.shape[0]:
++            return scored
++        per_token = scored.new_zeros(labels.shape)
++        per_token[:valid] = scored
++        return per_token
++
++    @staticmethod
++    def _valid_mean(per_token: Tensor, batch: dict[str, Any]) -> Tensor:
++        """Return the scalar mean over data rows, excluding a padded tail."""
++        return per_token[: NanoChatTrainStep._valid_count(batch)].mean()
+ 
+     @contextmanager
+     def _autocast(self) -> Generator[None]:
+diff --git a/priml/baselines/nanochat/train_step_test.py b/priml/baselines/nanochat/train_step_test.py
+index a33bccd..0e9f533 100644
+--- a/priml/baselines/nanochat/train_step_test.py
++++ b/priml/baselines/nanochat/train_step_test.py
+@@ -250,6 +250,35 @@ def test_eval_returns_per_token_loss_for_the_metric() -> None:
+     assert out["model"].shape == (2, SEQ)
+ 
+ 
++def test_a_padded_eval_batch_scores_as_its_unpadded_self() -> None:
++    """A squared-off final eval batch must not reach the loss as data.
++
++    The loader pads a short final batch to full width and marks the padding
++    with ``-1`` targets, which is not a class index -- passing it to
++    ``cross_entropy`` raises. Scoring the same row twice, once padded and once
++    not, pins both halves of the contract: the padded call runs, and the number
++    it reports is the unpadded one rather than a mean diluted by rows that are
++    not data.
++    """
++    full = _batch()
++    one_row = {"media": full["media"][:1], "label": full["label"][:1]}
++    padded = {
++        "media": full["media"],
++        "label": torch.cat([full["label"][:1], torch.full((1, SEQ), -1)]),
++        "valid_count": 1,
++    }
++
++    step = _step()
++    expected = step.eval_loss(**one_row)
++    actual = step.eval_loss(**padded)
++
++    assert torch.equal(actual["loss"], expected["loss"])
++    # Full width, because the metric pairs this tensor with the batch's own
++    # targets and rejects a shape that disagrees.
++    assert actual["model"].shape == (2, SEQ)
++    assert torch.equal(actual["model"][:1], expected["model"])
++
++
+ def test_state_round_trips_including_the_clock() -> None:
+     """A resumed run must not re-anneal from the top.
+ 

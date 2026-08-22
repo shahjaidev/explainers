@@ -1,0 +1,766 @@
+<title>nanochat exp000</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+
+<style>
+  :root {
+    --ground: #F2F5F4;
+    --surface: #FFFFFF;
+    --panel: #10201E;
+    --panel-ink: #CFE0DC;
+    --ink: #0F1615;
+    --ink-soft: #4B5957;
+    --muted: #6C7C79;
+    --rule: #D6DEDB;
+    --accent: #0B6A5E;
+    --accent-soft: #E1EFEC;
+    --delta: #98590F;
+    --delta-soft: #F6EBDC;
+    --warn: #A03A2B;
+
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --sans: "IBM Plex Sans", system-ui, -apple-system, Segoe UI, sans-serif;
+
+    --measure: 68ch;
+    --step--1: 0.8125rem;
+    --step-0: 1rem;
+    --step-1: 1.1875rem;
+    --step-2: 1.5rem;
+    --step-3: 2rem;
+    --step-4: 2.75rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #0C1211;
+      --surface: #141B1A;
+      --panel: #080D0C;
+      --panel-ink: #C6D8D4;
+      --ink: #E3EAE8;
+      --ink-soft: #A9B8B5;
+      --muted: #7E8D8A;
+      --rule: #253130;
+      --accent: #45CFB8;
+      --accent-soft: #12312C;
+      --delta: #D9A055;
+      --delta-soft: #2E2417;
+      --warn: #E08373;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #0C1211;
+    --surface: #141B1A;
+    --panel: #080D0C;
+    --panel-ink: #C6D8D4;
+    --ink: #E3EAE8;
+    --ink-soft: #A9B8B5;
+    --muted: #7E8D8A;
+    --rule: #253130;
+    --accent: #45CFB8;
+    --accent-soft: #12312C;
+    --delta: #D9A055;
+    --delta-soft: #2E2417;
+    --warn: #E08373;
+  }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: var(--step-0);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: clamp(2rem, 5vw, 4.5rem) clamp(1.1rem, 4vw, 2.5rem) 5rem;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(3rem, 6vw, 4.5rem);
+  }
+
+  .prose { max-width: var(--measure); display: flex; flex-direction: column; gap: 1rem; }
+
+  h1, h2, h3 { font-family: var(--mono); font-weight: 600; text-wrap: balance; line-height: 1.2; }
+
+  h1 { font-size: var(--step-4); letter-spacing: -0.02em; }
+  h2 { font-size: var(--step-2); letter-spacing: -0.01em; }
+  h3 { font-size: var(--step-1); }
+
+  p { margin: 0; }
+  a { color: var(--accent); text-underline-offset: 3px; }
+  a:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  /* ---------- masthead ---------- */
+  .masthead { display: flex; flex-direction: column; gap: 1.25rem; }
+  .masthead p.lede { font-size: var(--step-1); color: var(--ink-soft); max-width: var(--measure); }
+  .cmd {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    background: var(--panel);
+    color: var(--panel-ink);
+    padding: 0.85rem 1rem;
+    border-radius: 3px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .cmd .sigil { color: var(--accent); }
+
+  /* ---------- fact strip ---------- */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .fact { background: var(--surface); padding: 0.9rem 1rem; display: flex; flex-direction: column; gap: 0.15rem; }
+  .fact dt { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+  .fact dd { margin: 0; font-family: var(--mono); font-size: var(--step-1); font-variant-numeric: tabular-nums; }
+  .fact dd small { font-size: var(--step--1); color: var(--ink-soft); font-weight: 400; }
+
+  /* ---------- code panels ---------- */
+  .panel {
+    background: var(--panel);
+    color: var(--panel-ink);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .panel-head {
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 0.7rem 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.09);
+  }
+  pre {
+    margin: 0;
+    padding: 1rem;
+    overflow-x: auto;
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.65;
+    tab-size: 4;
+  }
+  .tree { color: #5E7370; }
+  .key { color: var(--panel-ink); }
+  .cls { color: #7FB7AC; }
+  .num { color: #D9B26A; }
+  .str { color: #9DC98C; }
+  .add { color: #8FD3A8; }
+  .del { color: #E08E7E; }
+  .cm  { color: #6B7F7C; font-style: italic; }
+
+  mark.pin {
+    background: transparent;
+    color: inherit;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1px;
+  }
+  mark.pin sup {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--accent);
+    padding-left: 2px;
+    vertical-align: super;
+  }
+
+  /* ---------- annotations ---------- */
+  .notes { display: flex; flex-direction: column; gap: 1.4rem; counter-reset: note; }
+  .note { display: grid; grid-template-columns: 1.6rem 1fr; gap: 0.9rem; align-items: start; max-width: 74ch; }
+  .note-n {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 50%;
+    width: 1.6rem; height: 1.6rem;
+    display: grid; place-items: center;
+    margin-top: 0.15rem;
+  }
+  .note h3 { font-size: var(--step-0); margin-bottom: 0.2rem; }
+  .note p { color: var(--ink-soft); font-size: 0.9375rem; }
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--accent-soft);
+    color: var(--ink);
+    padding: 0.1em 0.35em;
+    border-radius: 2px;
+  }
+
+  /* ---------- ladder ---------- */
+  .rungs { display: flex; flex-direction: column; gap: 1rem; }
+  .rung {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    display: grid;
+    gap: 0.55rem;
+  }
+  .rung-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.6rem; }
+  .rung-name { font-family: var(--mono); font-weight: 600; font-size: var(--step-1); }
+  .rung-parent { font-family: var(--mono); font-size: var(--step--1); color: var(--muted); }
+  .rung p { color: var(--ink-soft); font-size: 0.9375rem; max-width: 66ch; }
+  .rung .diff {
+    font-family: var(--mono);
+    font-size: var(--step--1);
+    background: var(--panel);
+    color: var(--panel-ink);
+    padding: 0.6rem 0.85rem;
+    border-radius: 3px;
+    overflow-x: auto;
+    white-space: pre;
+  }
+
+  /* ---------- table ---------- */
+  .table-scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 4px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+  th, td { text-align: left; padding: 0.7rem 1rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  thead th { font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  tbody tr:last-child td { border-bottom: none; }
+  td.mono, th.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+  td.same { color: var(--muted); }
+  .tag {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    padding: 0.15rem 0.45rem;
+    border-radius: 2px;
+    background: var(--delta-soft);
+    color: var(--delta);
+  }
+  .tag.keep { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- callout ---------- */
+  .callout {
+    border-left: 3px solid var(--warn);
+    background: var(--surface);
+    padding: 1rem 1.25rem;
+    border-radius: 0 4px 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.6rem;
+    max-width: 74ch;
+  }
+  .callout h3 { font-size: var(--step-0); color: var(--warn); }
+  .callout p { font-size: 0.9375rem; color: var(--ink-soft); }
+
+  /* ---------- results ---------- */
+  .curve { display: grid; gap: 1.5rem; }
+  .chart-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1.5rem; }
+  .chart { margin: 0; background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 1rem 1rem 0.5rem; }
+  .chart figcaption {
+    font-family: var(--mono);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+  }
+  .chart figcaption span { font-weight: 400; font-size: 0.6875rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .grid line { stroke: var(--rule); stroke-width: 1; }
+  .tick text { font-family: var(--mono); font-size: 9px; fill: var(--muted); text-anchor: end; font-variant-numeric: tabular-nums; }
+  .series-train, .series-val { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+  .series-train { stroke: var(--accent); }
+  .series-val { stroke: var(--delta); }
+  .dot-train circle { fill: var(--accent); stroke: var(--surface); stroke-width: 2; }
+  .dot-val circle { fill: var(--delta); stroke: var(--surface); stroke-width: 2; }
+  .dot-train circle.end, .dot-val circle.end { stroke-width: 2.5; }
+
+  hr.rule { border: none; border-top: 1px solid var(--rule); margin: 0; }
+
+  footer { color: var(--muted); font-size: var(--step--1); max-width: var(--measure); display: flex; flex-direction: column; gap: 0.5rem; }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .fact, .rung { transition: border-color 120ms ease; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <span class="eyebrow">priml · baselines · nanochat</span>
+    <h1>nanochat exp000</h1>
+    <p class="lede">
+      A small language model trained to a <strong>five-minute wall-clock budget</strong> rather than a step
+      count. Every rung of the ladder gets the same seconds on the same hardware and is scored on the same
+      validation stream, so a change that makes a step cheaper is rewarded with more steps and a change that
+      makes a step better is rewarded directly — both land in one number.
+    </p>
+    <div class="cmd"><span class="sigil">$</span> python -m priml priml.baselines.nanochat.experiments.exp000</div>
+  </header>
+
+  <section>
+    <dl class="facts">
+      <div class="fact"><dt>Architecture</dt><dd>8 × 512<small> layers × channels</small></dd></div>
+      <div class="fact"><dt>Attention</dt><dd>4 × 128<small> heads × width</small></dd></div>
+      <div class="fact"><dt>Context</dt><dd>2 048<small> tokens</small></dd></div>
+      <div class="fact"><dt>Vocabulary</dt><dd>8 192<small> BPE</small></dd></div>
+      <div class="fact"><dt>Step size</dt><dd>524 288<small> tokens</small></dd></div>
+      <div class="fact"><dt>Budget</dt><dd>300 s<small> train clock</small></dd></div>
+    </dl>
+  </section>
+
+  <section class="prose">
+    <span class="eyebrow">The whole run, printed</span>
+    <h2>One tree is the entire experiment</h2>
+    <p>
+      priml holds every value that affects a run in a single config tree, and nothing outside it — no
+      environment reads, no module-level constants, no staging at build time. That means the run can be
+      inspected before it exists. What follows is the real output of <code>exp000().pprint()</code>, which
+      prints only the fields that differ from the class defaults, condensed here where eight identical
+      transformer blocks repeat.
+    </p>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">exp000().pprint() — finalized</div>
+<pre><span class="cls">NanoChatLoop.Config</span>(
+    <span class="key">study_name</span>=<span class="str">'nanochat'</span>,
+    <span class="key">experiment_name</span>=<span class="str">'exp000'</span>,
+    <span class="key">working_dir</span>=<span class="str">'/opt/scratch/runs/nanochat/exp000'</span>,      <span class="cm"># resolved beneath base_dir</span>
+    <span class="key">step</span>=<span class="cls">NanoChatTrainStep.Config</span>(
+    │   <span class="key">model</span>=<span class="cls">NanoChatLM.Config</span>(
+    │   │   <span class="key">block</span>=<span class="cls">TransformerBlock.Config</span>(          <span class="cm"># the template …</span>
+    │   │   │   <span class="key">channels_in</span>=<span class="num">512</span>,
+    │   │   │   <span class="key">attn</span>=<span class="cls">ValueGatedAttention.Config</span>(
+    │   │   │   │   <span class="key">channels_in</span>=<span class="num">512</span>, <span class="key">heads</span>=<span class="num">4</span>,
+    │   │   │   │   <span class="key">norm_qk</span>=<span class="cls">RMSNorm.Config</span>(<span class="key">channels_in</span>=<span class="num">128</span>)),
+    │   │   │   <span class="key">ffn</span>=<span class="cls">ReluSquared.Config</span>(<span class="key">channels_in</span>=<span class="num">512</span>),
+    │   │   │   <span class="key">norm1</span>=<span class="cls">RMSNorm.Config</span>(<span class="key">channels_in</span>=<span class="num">512</span>),
+    │   │   │   <span class="key">norm2</span>=<span class="cls">RMSNorm.Config</span>(<span class="key">channels_in</span>=<span class="num">512</span>)),
+    │   │   <mark class="pin"><span class="key">blocks</span><sup>1</sup></mark>=[                             <span class="cm"># … broadcast to eight copies</span>
+    │   │   │   <span class="cls">TransformerBlock.Config</span>(… <span class="key">depth</span>=<span class="num">0</span>),  <span class="cm"># depth pushed down per copy</span>
+    │   │   │   <span class="cls">TransformerBlock.Config</span>(… <span class="key">depth</span>=<span class="num">1</span>),
+    │   │   │   <span class="cm">…</span>
+    │   │   │   <span class="cls">TransformerBlock.Config</span>(… <span class="key">depth</span>=<span class="num">7</span>)],
+    │   │   <mark class="pin"><span class="key">window_pattern</span><sup>2</sup></mark>=<span class="str">'L'</span>,                 <span class="cm"># every layer sees the full context</span>
+    │   │   <span class="key">embedding</span>=<span class="cls">Embedding.Config</span>(<span class="key">channels_out</span>=<span class="num">512</span>, <span class="key">num_embeddings</span>=<span class="num">8_192</span>),
+    │   │   <span class="key">lm_head</span>=<span class="cls">Linear.Config</span>(
+    │   │   │   <span class="key">channels_in</span>=<span class="num">512</span>, <span class="key">channels_out</span>=<span class="num">8_192</span>,
+    │   │   │   <mark class="pin"><span class="key">init_weight</span><sup>3</sup></mark>=partial(normal, <span class="key">std</span>=<span class="num">0.001</span>)),
+    │   │   <span class="key">rope</span>=<span class="cls">RoPE.Config</span>(<span class="key">channels_head</span>=<span class="num">128</span>)),
+    │   <mark class="pin"><span class="key">optimizer</span><sup>4</sup></mark>=<span class="cls">CompositeOptimizer.Config</span>(
+    │   │   <span class="key">optimizers</span>=[
+    │   │   │   PartialConfig(<span class="cls">torch.optim.AdamW</span>, <span class="key">lr</span>=<span class="num">0.004</span>,
+    │   │   │   │   <span class="key">betas</span>=(<span class="num">0.8</span>, <span class="num">0.95</span>), <span class="key">eps</span>=<span class="num">1e-10</span>, <span class="key">weight_decay</span>=<span class="num">0.0</span>),
+    │   │   │   <span class="cls">NorMuon.Config</span>()],
+    │   │   <span class="key">select</span>=[
+    │   │   │   complement(excluding(NorMuon.eligible_tensor, <span class="str">'embed'</span>, <span class="str">'lm_head'</span>)),
+    │   │   │   excluding(NorMuon.eligible_tensor, <span class="str">'embed'</span>, <span class="str">'lm_head'</span>)]),
+    │   <span class="key">schedule</span>=PartialConfig(<span class="cls">trapezoid</span>),
+    │   <mark class="pin"><span class="key">time_budget_sec</span><sup>5</sup></mark>=<span class="num">300.0</span>,
+    │   <span class="key">budget_warmup_steps</span>=<span class="num">10</span>,               <span class="cm"># excluded from the clock</span>
+    │   <span class="key">tokens_per_optimizer_step</span>=<span class="num">524_288</span>,
+    │   <span class="key">rows_per_pass</span>=<span class="num">32</span>,                     <span class="cm"># micro-batch; accumulate to the step</span>
+    │   <span class="key">momentum_start</span>=<span class="num">0.85</span>, <span class="key">momentum_end</span>=<span class="num">0.95</span>, <span class="key">momentum_warmup_steps</span>=<span class="num">300</span>,
+    │   <span class="key">decay_to_zero</span>=<span class="num">True</span>, <span class="key">gradient_clip_norm</span>=<span class="num">inf</span>, <span class="key">divergence_threshold</span>=<span class="num">100.0</span>,
+    │   <span class="key">device</span>=<span class="str">'auto'</span>, <span class="key">dtype_autocast</span>=<span class="cls">torch.bfloat16</span>, <span class="key">compile</span>=<span class="num">True</span>),
+    <span class="key">dataset</span>=<span class="cls">NanoChatData.Config</span>(
+    │   <span class="key">working_dir</span>=<span class="str">'/opt/scratch/datasets/nanochat'</span>,
+    │   <mark class="pin"><span class="key">vocab_size</span><sup>6</sup></mark>=<span class="num">8_192</span>, <mark class="pin"><span class="key">max_seq_len</span><sup>6</sup></mark>=<span class="num">2_048</span>),   <span class="cm"># pushed here from the model</span>
+    <span class="key">metrics</span>={<span class="str">'val'</span>: <span class="cls">BitsPerByte.Config</span>()},
+    <span class="key">checkpointing</span>=<span class="cls">Checkpointer.Config</span>(<span class="key">working_dir</span>=<span class="str">'…/exp000/checkpoints'</span>),
+    <span class="key">phase_timer</span>=<span class="cls">PhaseTimer.Config</span>(<span class="key">working_dir</span>=<span class="str">'…/exp000/profiling'</span>),
+    <mark class="pin"><span class="key">max_time</span><sup>5</sup></mark>=<span class="num">300.0</span>, <span class="key">max_time_kind</span>=<span class="str">'train'</span>,
+    <span class="key">num_steps_eval</span>=<span class="num">200</span>, <span class="key">num_steps_log</span>=<span class="num">50</span>, <span class="key">eval_every_epoch</span>=<span class="num">False</span>)</pre>
+  </section>
+
+  <section class="notes">
+    <div class="note">
+      <div class="note-n">1</div>
+      <div>
+        <h3>One block template, broadcast — and the copies carry their index</h3>
+        <p>
+          The experiment sets <code>num_layers = 8</code> and writes a single <code>block</code>.
+          <code>finalize()</code> copies it eight times and stamps <code>depth</code> onto each, because
+          initialization scales with depth. The list is what actually prints, so the tree shows the model that
+          will be built rather than the shorthand that described it.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <div class="note-n">2</div>
+      <div>
+        <h3>The two mechanisms under test are both switched off here</h3>
+        <p>
+          <code>window_pattern='L'</code> means every layer attends over the full context, and no layer reads a
+          value embedding. exp000 is the bar, not the proposal: a plain transformer that the ladder's additions
+          have to beat before their complexity is earned.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <div class="note-n">3</div>
+      <div>
+        <h3>Initialization is a value, not a flag</h3>
+        <p>
+          The output projection carries its own init — <code>partial(normal, std=0.001)</code> — as a callable
+          sitting in a slot. Swapping it is assigning a different function, so nothing upstream has to learn a
+          name for the alternative.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <div class="note-n">4</div>
+      <div>
+        <h3>Two optimizers, split by a predicate over parameter names</h3>
+        <p>
+          <strong>NorMuon</strong> takes every tensor of rank ≥ 2 except the embedding and the head;
+          <strong>AdamW</strong> takes the complement. The split is written as
+          <code>excluding(NorMuon.eligible_tensor, 'embed', 'lm_head')</code> and its
+          <code>complement(…)</code> — comparable objects rather than closures, so the config still equals its
+          parent and still prints. Orthogonalized updates suit the matrices; the lookup tables keep a
+          conventional optimizer.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <div class="note-n">5</div>
+      <div>
+        <h3>The stopping clock and the annealing clock are the same clock</h3>
+        <p>
+          <code>step.time_budget_sec</code> is what the trapezoid schedule anneals over;
+          <code>max_time</code> is what stops the loop. They are set equal deliberately — if they differed, the
+          run would decay its learning rate against one budget and stop on another, landing short of zero or
+          past the end. <code>max_time_kind='train'</code> excludes eval passes, and
+          <code>budget_warmup_steps=10</code> excludes the first ten steps, which carry the compile.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <div class="note-n">6</div>
+      <div>
+        <h3>Geometry is declared once and verified at load</h3>
+        <p>
+          The loop's <code>finalize()</code> pushes <code>vocab_size</code> and <code>max_seq_len</code> from
+          the model down onto the dataset, and the batch size down from the step. The loader then checks the
+          prepared arrays against them. Two independently typed copies would agree only by luck — and disagree
+          somewhere deep inside a forward pass.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="rule">
+
+  <section class="prose">
+    <span class="eyebrow">The ladder</span>
+    <h2>Each rung is one line</h2>
+    <p>
+      Every later experiment calls a named parent and changes one thing. These are real
+      <code>difflib</code> outputs between the finalized trees, with the run-identity and path lines removed —
+      what remains is the entire experimental delta.
+    </p>
+  </section>
+
+  <section class="rungs">
+    <article class="rung">
+      <div class="rung-top">
+        <span class="rung-name">exp001</span>
+        <span class="rung-parent">forks exp000</span>
+        <span class="tag">windowed attention</span>
+      </div>
+      <p>
+        Three layers in four attend over half the context instead of all of it. Most layers resolve local
+        structure, so the accuracy given up should be small — and under a fixed budget the time saved returns
+        as more steps. It wins if the extra steps buy more than the narrower attention costs.
+      </p>
+      <div class="diff"><span class="del">- window_pattern='L'</span>          <span class="cm"># back to the default 'SSSL'</span></div>
+    </article>
+
+    <article class="rung">
+      <div class="rung-top">
+        <span class="rung-name">exp002</span>
+        <span class="rung-parent">forks exp001</span>
+        <span class="tag">value embeddings</span>
+      </div>
+      <p>
+        Alternating layers read a dedicated embedding of the input tokens through a per-head gate, so a head
+        can decline it. A deep stack's residual stream is increasingly processed; a layer that wants the raw
+        token identity would otherwise have to reconstruct it.
+      </p>
+      <div class="diff"><span class="add">+ value_embedding_stride=2</span>
+<span class="add">+ value_embedding_layers=[1, 3, 5, 7]</span>   <span class="cm"># derived by finalize()</span></div>
+    </article>
+  </section>
+
+  <section class="prose">
+    <p>
+      The second line of exp002's diff is worth a pause: the experiment sets a <em>stride</em>, and
+      <code>finalize()</code> derives the layer indices. A fork that changes the depth still gets alternating
+      layers, rather than indices computed against a stack that no longer exists — and the derived value
+      prints, so what the run will actually do is visible without running it.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section class="prose">
+    <span class="eyebrow">This machine</span>
+    <h2>What actually ran, and how it differs</h2>
+    <p>
+      The reference recipe above assumes a GPU and the ClimbMix corpus. This session has neither: four CPU
+      cores, no accelerator, and a network policy that blocks <code>huggingface.co</code> and
+      <code>download.pytorch.org</code>. Two substitutions were needed, and both are visible rather than
+      silent.
+    </p>
+  </section>
+
+  <section class="callout">
+    <h3>A number measured here is a rehearsal, never a result</h3>
+    <p>
+      priml requires <code>Results:</code> to be measured on reference hardware, and the corpus below is not
+      the corpus the ladder is defined against. The run demonstrates the machinery end to end — it does not
+      score the experiment.
+    </p>
+  </section>
+
+  <section>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>What</th><th>Reference exp000</th><th>Here</th><th>Why</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="mono">corpus</td>
+            <td class="mono">ClimbMix, 8 shards</td>
+            <td class="mono">wikitext-2 + Shakespeare<br><small>2.8 M tokens</small></td>
+            <td>huggingface.co is blocked; <code>prepare(text_directory=…)</code> is the script's own path for local shards, so the tokenizer fit and packing stages are the real ones.</td>
+          </tr>
+          <tr>
+            <td class="mono">recipe</td>
+            <td class="mono">NorMuon + AdamW,<br>trapezoid, ReLU²</td>
+            <td class="mono"><span class="tag keep">unchanged</span></td>
+            <td class="same">Touching the recipe would mean the run no longer covers the experiment.</td>
+          </tr>
+          <tr>
+            <td class="mono">size</td>
+            <td class="mono">8 × 512, ctx 2 048</td>
+            <td class="mono">6 × 256, ctx 512</td>
+            <td>One full-spec optimizer step exceeded 15 minutes on these cores; the 10 warmup steps alone would run for hours before the budget clock started.</td>
+          </tr>
+          <tr>
+            <td class="mono">step size</td>
+            <td class="mono">524 288 tokens</td>
+            <td class="mono">16 384 tokens</td>
+            <td>At the reference size the whole budget would be spent inside one step and the schedule would never anneal.</td>
+          </tr>
+          <tr>
+            <td class="mono">precision</td>
+            <td class="mono">bfloat16 autocast<br>+ torch.compile</td>
+            <td class="mono">fp32, no compile</td>
+            <td>Both are GPU accommodations; on CPU, compiling costs more than the run it would accelerate.</td>
+          </tr>
+          <tr>
+            <td class="mono">budget</td>
+            <td class="mono">300 s</td>
+            <td class="mono"><span class="tag keep">unchanged</span></td>
+            <td class="same">The point of the baseline is the fixed clock, so it stays fixed.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="prose">
+    <p>
+      Because that is a fork and not a set of command-line overrides, it prints, diffs, and can be rerun —
+      which is the whole argument the library makes. It lives in its own study directory,
+      <code>nanochat_cpu</code>, so a rehearsal number can never be mistaken for a reference one.
+    </p>
+  </section>
+
+  <section class="callout">
+    <h3>One real bug surfaced on the way</h3>
+    <p>
+      The eval loader pads a short final batch and marks the padding with <code>-1</code> targets, which
+      <code>BitsPerByte</code> excludes from both of its sums. But
+      <code>NanoChatTrainStep._per_token_loss</code> passes those labels straight into
+      <code>cross_entropy</code> with no <code>ignore_index</code>, so the padded batch raises
+      <code>IndexError: Target -1 is out of bounds</code> before the metric that handles it ever runs. It
+      fires whenever the eval row count is not a multiple of <code>eval_batch_size</code>. Choosing a batch
+      width that divides the split exactly avoids it and still scores every row.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section class="prose">
+    <span class="eyebrow">The run</span>
+    <h2>91 steps, and the schedule landed on zero</h2>
+    <p>
+      The budget expired at <code>progress=0.9955</code> with the learning rate annealed to
+      <code>0.0000</code> — the invariant the config encodes, working: because the schedule's horizon and the
+      loop's stop condition read the same clock, the decay finishes exactly when the run does, neither short
+      of zero nor past the end.
+    </p>
+  </section>
+
+  <section>
+    <dl class="facts">
+      <div class="fact"><dt>Steps taken</dt><dd>91<small> optimizer</small></dd></div>
+      <div class="fact"><dt>Train clock</dt><dd>583.7 s<small> eval excluded</small></dd></div>
+      <div class="fact"><dt>Train loss</dt><dd>9.01 → 4.90<small> nats/token</small></dd></div>
+      <div class="fact"><dt>Validation</dt><dd>1.8897<small> bits/byte</small></dd></div>
+    </dl>
+  </section>
+
+  <section class="curve">
+    <div class="chart-grid">
+      <figure class="chart">
+        <figcaption>Training loss <span>nats per token, every tenth step</span></figcaption>
+        <svg viewBox="0 0 480 200" role="img" aria-label="Training loss falling from 9.01 at step 1 to 4.90 at step 91.">
+          <g class="grid">
+            <line x1="42" y1="20.7" x2="466" y2="20.7"></line>
+            <line x1="42" y1="54.3" x2="466" y2="54.3"></line>
+            <line x1="42" y1="87.9" x2="466" y2="87.9"></line>
+            <line x1="42" y1="121.6" x2="466" y2="121.6"></line>
+            <line x1="42" y1="155.2" x2="466" y2="155.2"></line>
+          </g>
+          <g class="tick">
+            <text x="34" y="24">9</text>
+            <text x="34" y="57.6">8</text>
+            <text x="34" y="91.2">7</text>
+            <text x="34" y="124.9">6</text>
+            <text x="34" y="158.5">5</text>
+          </g>
+          <polyline class="series-train" points="42,20.3 84.4,107.6 131.5,130.6 178.6,137.2 225.7,145.1 272.8,149.5 320,159.9 367.1,153 414.2,157 461.3,156.4 466,158.6"></polyline>
+          <g class="dot-train">
+            <circle cx="42" cy="20.3" r="4"><title>step 1 — loss 9.0119</title></circle>
+            <circle cx="84.4" cy="107.6" r="4"><title>step 10 — loss 6.4148</title></circle>
+            <circle cx="131.5" cy="130.6" r="4"><title>step 20 — loss 5.7317</title></circle>
+            <circle cx="178.6" cy="137.2" r="4"><title>step 30 — loss 5.5336</title></circle>
+            <circle cx="225.7" cy="145.1" r="4"><title>step 40 — loss 5.2993</title></circle>
+            <circle cx="272.8" cy="149.5" r="4"><title>step 50 — loss 5.1686</title></circle>
+            <circle cx="320" cy="159.9" r="4"><title>step 60 — loss 4.8606</title></circle>
+            <circle cx="367.1" cy="153" r="4"><title>step 70 — loss 5.0637</title></circle>
+            <circle cx="414.2" cy="157" r="4"><title>step 80 — loss 4.9451</title></circle>
+            <circle cx="461.3" cy="156.4" r="4"><title>step 90 — loss 4.9635</title></circle>
+            <circle class="end" cx="466" cy="158.6" r="4.5"><title>step 91 — loss 4.8978</title></circle>
+          </g>
+          <g class="tick">
+            <text x="42" y="184" text-anchor="start">step 1</text>
+            <text x="466" y="184" text-anchor="end">91</text>
+          </g>
+        </svg>
+      </figure>
+
+      <figure class="chart">
+        <figcaption>Validation <span>bits per byte, at each eval</span></figcaption>
+        <svg viewBox="0 0 480 200" role="img" aria-label="Validation bits per byte falling from 2.1597 at step 25 to 1.8897 at step 91.">
+          <g class="grid">
+            <line x1="42" y1="14" x2="466" y2="14"></line>
+            <line x1="42" y1="59.1" x2="466" y2="59.1"></line>
+            <line x1="42" y1="104.3" x2="466" y2="104.3"></line>
+            <line x1="42" y1="149.4" x2="466" y2="149.4"></line>
+          </g>
+          <g class="tick">
+            <text x="34" y="17.6">2.2</text>
+            <text x="34" y="62.7">2.1</text>
+            <text x="34" y="107.9">2.0</text>
+            <text x="34" y="153">1.9</text>
+          </g>
+          <polyline class="series-val" points="155.1,32.2 272.8,102.4 390.6,142.7 466,154.1"></polyline>
+          <g class="dot-val">
+            <circle cx="155.1" cy="32.2" r="4"><title>step 25 — 2.1597 bpb</title></circle>
+            <circle cx="272.8" cy="102.4" r="4"><title>step 50 — 2.0041 bpb</title></circle>
+            <circle cx="390.6" cy="142.7" r="4"><title>step 75 — 1.9149 bpb</title></circle>
+            <circle class="end" cx="466" cy="154.1" r="4.5"><title>step 91 — 1.8897 bpb</title></circle>
+          </g>
+          <g class="tick">
+            <text x="155.1" y="184" text-anchor="middle">25</text>
+            <text x="466" y="184" text-anchor="end">91</text>
+          </g>
+        </svg>
+      </figure>
+    </div>
+
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr><th>Eval</th><th class="mono">step</th><th class="mono">train loss</th><th class="mono">val bits/byte</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>first</td><td class="mono">25</td><td class="mono">5.6353</td><td class="mono">2.1597</td></tr>
+          <tr><td>second</td><td class="mono">50</td><td class="mono">5.2292</td><td class="mono">2.0041</td></tr>
+          <tr><td>third</td><td class="mono">75</td><td class="mono">4.9966</td><td class="mono">1.9149</td></tr>
+          <tr><td>final</td><td class="mono">91</td><td class="mono">4.9308</td><td class="mono">1.8897</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="callout">
+    <h3>The clock is the experiment, so the machine is part of the apparatus</h3>
+    <p>
+      An earlier attempt at this same config reached only 50 steps before its budget ran out; this one reached
+      91. Nothing in the tree changed — the first run shared four cores with other work, so each step cost
+      1.6 s instead of 0.8 s. That is precisely why priml requires a result to be measured on reference
+      hardware: under a fixed-time budget, contention does not add noise to the score, it changes how much
+      training the score is measuring.
+    </p>
+  </section>
+
+  <hr class="rule">
+
+  <section class="prose">
+    <span class="eyebrow">Reproduce</span>
+    <h2>Three commands</h2>
+  </section>
+
+  <section class="panel">
+    <div class="panel-head">from a clean checkout</div>
+<pre><span class="cm"># 1. Prepare the corpus once: download, fit an 8 192-token BPE vocabulary,</span>
+<span class="cm">#    pack documents end to end into fixed-length rows.</span>
+python -m priml.baselines.nanochat.scripts.prepare_data
+
+<span class="cm"># 2. Verify the install end to end — minimum size, ten-second budget.</span>
+python -m priml priml.baselines.nanochat.experiments.exp_smoke
+
+<span class="cm"># 3. Train.</span>
+python -m priml priml.baselines.nanochat.experiments.exp000</pre>
+  </section>
+
+  <section class="prose">
+    <p>
+      A fourth command is the one you reach for most: <code>exp000().pprint()</code>. It finalizes a copy of
+      the tree and prints only what differs from the defaults, so comparing two experiments is the same call
+      on each, run through <code>difflib</code> — which is exactly how the ladder diffs above were produced.
+    </p>
+  </section>
+
+  <footer>
+    <hr class="rule">
+    <p>
+      Built from <span style="font-family: var(--mono)">rekursiv-ai/priml</span> @ <span style="font-family: var(--mono)">0e4eea4</span>,
+      Apache-2.0. Config output is verbatim from <code>exp000().pprint()</code>, condensed where eight
+      identical blocks repeat.
+    </p>
+  </footer>
+
+</div>

@@ -1,0 +1,1 @@
+26-08-22 21:25:38.484086 | [34;20mINFO[0m | priml.train.train_loop | _maybe_eval:1077 | RESULT: steps=92 | time=588.8s | mean_batch_time=0.4017 | total_loss=4.9040 | val_bpb=1.8794
