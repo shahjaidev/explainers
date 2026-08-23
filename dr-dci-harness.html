@@ -1,0 +1,667 @@
+<meta charset="utf-8">
+<title>The DR-DCI Harness</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --ground:#F6F8F7; --panel:#FFFFFF; --panel-2:#EDF1EF; --line:#D6DEDA; --line-soft:#E5EBE8;
+  --ink:#11181B; --ink-2:#3D4B4F; --ink-3:#6B7A7E;
+  --corpus:#2C5FA6; --corpus-bg:#E7EFF9;
+  --work:#0D7A69;  --work-bg:#E2F1EE;
+  --bound:#8F5B12; --bound-bg:#F7EEDD;
+  --block:#A33A2E; --block-bg:#F8E8E5;
+  --term-bg:#12191B; --term-ink:#D8E4E1; --term-dim:#7C8D8A;
+  --shadow:0 1px 2px rgba(17,24,27,.05), 0 10px 28px -20px rgba(17,24,27,.35);
+  --serif:ui-serif,"New York",Palatino,Georgia,serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0D1113; --panel:#151B1D; --panel-2:#1C2427; --line:#2B3538; --line-soft:#212A2D;
+    --ink:#E8EEEC; --ink-2:#AEBCBA; --ink-3:#7D8C8A;
+    --corpus:#82B0E6; --corpus-bg:#182838;
+    --work:#4FC6AE;  --work-bg:#0F2C28;
+    --bound:#D9A75A; --bound-bg:#2E2413;
+    --block:#E5877A; --block-bg:#331C19;
+    --term-bg:#0A0F10; --term-ink:#D8E4E1; --term-dim:#6E7E7B;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0D1113; --panel:#151B1D; --panel-2:#1C2427; --line:#2B3538; --line-soft:#212A2D;
+  --ink:#E8EEEC; --ink-2:#AEBCBA; --ink-3:#7D8C8A;
+  --corpus:#82B0E6; --corpus-bg:#182838;
+  --work:#4FC6AE;  --work-bg:#0F2C28;
+  --bound:#D9A75A; --bound-bg:#2E2413;
+  --block:#E5877A; --block-bg:#331C19;
+  --term-bg:#0A0F10; --term-ink:#D8E4E1; --term-dim:#6E7E7B;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 28px -20px rgba(0,0,0,.8);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:17px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1080px; margin:0 auto; padding:0 24px 96px}
+.col{max-width:68ch; margin-inline:auto}
+p{margin:0 0 1.1em}
+a{color:var(--corpus)}
+code{font-family:var(--mono); font-size:.86em; background:var(--panel-2); padding:.12em .38em; border-radius:4px}
+h1,h2,h3{text-wrap:balance; margin:0}
+strong{font-weight:640}
+
+/* ---- header ---- */
+header{padding:72px 0 40px}
+.eyebrow{font-family:var(--mono); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3)}
+h1{font-family:var(--serif); font-size:clamp(38px,6vw,60px); line-height:1.04; letter-spacing:-.02em; margin:18px 0 0}
+h1 .b,.lede .b{color:var(--corpus)} h1 .g,.lede .g{color:var(--work)}
+.lede{font-size:20px; line-height:1.55; color:var(--ink-2); margin-top:20px; max-width:62ch}
+.meta{display:flex; flex-wrap:wrap; gap:10px 20px; margin-top:26px; font-family:var(--mono); font-size:12px; color:var(--ink-3)}
+
+/* ---- sections ---- */
+section{padding:52px 0 8px; border-top:1px solid var(--line-soft); margin-top:44px}
+h2{font-family:var(--serif); font-size:clamp(26px,3.4vw,34px); letter-spacing:-.015em; line-height:1.15; margin-bottom:8px}
+h3{font-family:var(--sans); font-size:15px; font-weight:640; letter-spacing:.005em}
+.sec-eyebrow{margin-bottom:14px}
+.dek{color:var(--ink-2); font-size:17px; margin-bottom:26px}
+
+/* ---- key/legend ---- */
+.key{display:flex; flex-wrap:wrap; gap:8px; margin:0 0 26px}
+.chip{display:inline-flex; align-items:center; gap:7px; font-family:var(--mono); font-size:11.5px;
+  padding:5px 11px; border-radius:999px; border:1px solid var(--line); background:var(--panel)}
+.dot{width:8px; height:8px; border-radius:50%}
+.dot.c{background:var(--corpus)} .dot.w{background:var(--work)} .dot.b{background:var(--bound)}
+
+/* ---- trajectory stepper (hero module) ---- */
+.stage{background:var(--panel); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow); overflow:hidden}
+.stage-top{display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  padding:14px 18px; border-bottom:1px solid var(--line-soft); background:var(--panel-2)}
+.q{font-family:var(--serif); font-size:16px; font-style:italic; color:var(--ink-2)}
+.ctrls{display:flex; gap:8px}
+button{font:inherit; font-family:var(--mono); font-size:12px; letter-spacing:.02em; cursor:pointer;
+  background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:7px 13px;
+  transition:background .15s ease, border-color .15s ease}
+button:hover{background:var(--panel-2); border-color:var(--ink-3)}
+button:focus-visible{outline:2px solid var(--corpus); outline-offset:2px}
+button[disabled]{opacity:.4; cursor:default}
+button.primary{background:var(--ink); color:var(--ground); border-color:var(--ink)}
+button.primary:hover{opacity:.88; background:var(--ink)}
+
+.grid2{display:grid; grid-template-columns:1.35fr 1fr; gap:0}
+@media (max-width:860px){.grid2{grid-template-columns:1fr}}
+.term{background:var(--term-bg); color:var(--term-ink); font-family:var(--mono); font-size:12.5px; line-height:1.62;
+  padding:18px; min-height:290px; white-space:pre-wrap; word-break:break-word; overflow-x:auto}
+.term .cmd{color:#fff; font-weight:600}
+.term .dim{color:var(--term-dim)}
+.term .ok{color:#6ED0B6}
+.term .hi{color:#8EC0F2}
+.term .warn{color:#E0B268}
+.side{padding:18px; border-left:1px solid var(--line-soft); display:flex; flex-direction:column; gap:16px}
+@media (max-width:860px){.side{border-left:0; border-top:1px solid var(--line-soft)}}
+.gauge-label{display:flex; justify-content:space-between; align-items:baseline; font-family:var(--mono); font-size:11px;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); margin-bottom:7px}
+.gauge-label b{font-size:19px; color:var(--ink); letter-spacing:0; font-variant-numeric:tabular-nums}
+.bar{height:9px; background:var(--panel-2); border-radius:999px; overflow:hidden}
+.bar > i{display:block; height:100%; background:var(--work); border-radius:999px; transition:width .5s cubic-bezier(.2,.7,.3,1)}
+.bar.corpus > i{background:var(--corpus)}
+.steps{display:flex; gap:5px; flex-wrap:wrap; margin-top:2px}
+.pip{width:22px; height:5px; border-radius:999px; background:var(--line)}
+.pip.on{background:var(--ink-3)}
+.pip.pull{background:var(--corpus)}
+.pip.dci{background:var(--work)}
+.note{font-size:14px; line-height:1.5; color:var(--ink-2); border-left:2px solid var(--line); padding-left:12px}
+.note.pull{border-color:var(--corpus)} .note.dci{border-color:var(--work)} .note.done{border-color:var(--bound)}
+
+/* ---- tool spec cards ---- */
+.tools{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px}
+.tool{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; box-shadow:var(--shadow)}
+.tool-h{display:flex; align-items:center; gap:9px; margin-bottom:4px}
+.tool-h code{font-size:15px; font-weight:640; background:none; padding:0}
+.scope{font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase;
+  padding:3px 8px; border-radius:5px}
+.scope.c{color:var(--corpus); background:var(--corpus-bg)}
+.scope.w{color:var(--work); background:var(--work-bg)}
+.tool p{font-size:14.5px; line-height:1.55; color:var(--ink-2); margin:8px 0 14px}
+.sig{font-family:var(--mono); font-size:12px; background:var(--panel-2); border-radius:7px; padding:9px 11px;
+  color:var(--ink); margin-bottom:12px; overflow-x:auto; white-space:pre}
+.facts{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.facts li{font-family:var(--mono); font-size:11.5px; color:var(--ink-3); display:flex; gap:8px; line-height:1.45}
+.facts li b{color:var(--ink-2); font-weight:500}
+.facts li::before{content:"›"; color:var(--line); }
+
+/* ---- accordion ---- */
+.acc{border:1px solid var(--line); border-radius:12px; overflow:hidden; background:var(--panel)}
+.acc details{border-bottom:1px solid var(--line-soft)}
+.acc details:last-child{border-bottom:0}
+.acc summary{cursor:pointer; padding:15px 18px; display:flex; align-items:center; gap:12px; list-style:none;
+  font-size:15.5px; font-weight:560; transition:background .15s ease}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary:hover{background:var(--panel-2)}
+.acc summary:focus-visible{outline:2px solid var(--corpus); outline-offset:-2px}
+.acc summary .tag{font-family:var(--mono); font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--bound); background:var(--bound-bg); padding:3px 8px; border-radius:5px; margin-left:auto; white-space:nowrap}
+.acc .body{padding:0 18px 18px; font-size:15px; color:var(--ink-2); max-width:66ch}
+.acc .body p{margin-bottom:.8em}
+.acc .body p:last-child{margin-bottom:0}
+.snip{font-family:var(--mono); font-size:12px; background:var(--term-bg); color:var(--term-ink);
+  padding:12px 14px; border-radius:8px; white-space:pre-wrap; word-break:break-word; margin:10px 0; line-height:1.55}
+
+/* ---- table ---- */
+.tbl-wrap{overflow-x:auto; border:1px solid var(--line); border-radius:12px; background:var(--panel)}
+table{border-collapse:collapse; width:100%; font-size:14px; min-width:520px}
+th,td{text-align:left; padding:11px 16px; border-bottom:1px solid var(--line-soft)}
+th{font-family:var(--mono); font-size:10.5px; letter-spacing:.09em; text-transform:uppercase; color:var(--ink-3); font-weight:500}
+td{font-variant-numeric:tabular-nums; color:var(--ink-2)}
+td:first-child{font-family:var(--mono); font-size:12.5px; color:var(--ink)}
+tr:last-child td{border-bottom:0}
+tr.on td{background:var(--work-bg); color:var(--ink)}
+tr.on td:first-child{font-weight:600; box-shadow:inset 3px 0 0 var(--work)}
+
+/* ---- ablation bars ---- */
+.abl{display:flex; flex-direction:column; gap:22px}
+.ab{display:grid; grid-template-columns:1fr; gap:9px}
+.ab-h{display:flex; justify-content:space-between; align-items:baseline; gap:16px}
+.ab-h h3{margin:0}
+.ab-h span{font-family:var(--mono); font-size:11.5px; color:var(--ink-3)}
+.row{display:grid; grid-template-columns:170px 1fr 52px; align-items:center; gap:12px; font-size:13.5px}
+@media (max-width:600px){.row{grid-template-columns:120px 1fr 46px; font-size:12.5px}}
+.row .lab{color:var(--ink-2); font-family:var(--mono); font-size:11.5px; line-height:1.3}
+.row .track{height:22px; background:var(--panel-2); border-radius:5px; overflow:hidden}
+.row .fill{height:100%; border-radius:5px; width:0; transition:width .9s cubic-bezier(.2,.7,.3,1)}
+.row .val{font-family:var(--mono); font-size:12.5px; text-align:right; font-variant-numeric:tabular-nums; color:var(--ink)}
+.f-good{background:var(--work)} .f-mid{background:var(--bound)} .f-bad{background:var(--block)} .f-base{background:var(--ink-3)}
+
+/* ---- chart ---- */
+.chart-card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:20px; box-shadow:var(--shadow)}
+canvas{width:100%; height:auto; display:block}
+
+/* ---- config strip ---- */
+.cfg{background:var(--term-bg); color:var(--term-ink); border-radius:12px; padding:20px 22px; font-family:var(--mono);
+  font-size:12.5px; line-height:1.85; overflow-x:auto}
+.cfg .flag{color:#8EC0F2} .cfg .val{color:#6ED0B6} .cfg .cmt{color:var(--term-dim)}
+
+/* ---- footer ---- */
+footer{margin-top:56px; padding-top:26px; border-top:1px solid var(--line-soft); font-size:14px; color:var(--ink-3)}
+
+/* ---- theme toggle ---- */
+#tt{position:fixed; bottom:18px; right:18px; z-index:20; width:38px; height:38px; padding:0; border-radius:999px;
+  display:grid; place-items:center; font-size:15px; background:var(--panel); box-shadow:var(--shadow);
+  border-color:var(--line)}
+@media (prefers-reduced-motion:reduce){*{transition:none !important; animation:none !important}}
+</style>
+
+<button id="tt" aria-label="Toggle color theme" title="Toggle theme">◐</button>
+
+<div class="wrap">
+
+<header class="col">
+  <div class="eyebrow">arXiv 2606.14885 · harness anatomy</div>
+  <h1>Three tools, one <span class="g">growing folder</span></h1>
+  <p class="lede">DR-DCI gives a search agent almost nothing: a retrieval call, a shell, and a file reader.
+  The whole method is what happens between them — <span class="b">retrieval pulls documents out of a hidden corpus
+  into a local directory</span>, and <span class="g">the agent greps that directory like a codebase</span>.</p>
+  <div class="meta">
+    <span>Lu, Li, Nie et al. · 2026</span>
+    <span>github.com/EigenTom/DR-DCI</span>
+    <span>BrowseComp-Plus 71.2% · $34.91</span>
+  </div>
+</header>
+
+<section class="col" style="border-top:0; margin-top:0; padding-top:8px">
+  <div class="eyebrow sec-eyebrow">The problem it fixes</div>
+  <h2>Ranked snippets are too thin; a 10M-file corpus is too slow</h2>
+  <p class="dek">Two ways to let an agent search a corpus, both broken at the ends.</p>
+  <p>Classic RAG hands the agent a <strong>top-k list of snippets</strong>. That scales to any corpus size, but the
+  agent can only read what the ranker chose to show — it can't reorganize evidence, cross-check a constraint across
+  three documents, or rule out a near-miss. In the paper's own baseline, snippet-only BM25 lands far below every
+  agentic variant.</p>
+  <p>Raw <strong>Direct Corpus Interaction</strong> goes the other way: mount the whole corpus and let the agent run
+  <code>rg</code> over it. Precision is excellent — until the corpus grows. Past a few hundred thousand documents,
+  corpus-wide <code>grep</code> calls start hitting the 30-second tool timeout and flooding context with irrelevant
+  matches. The failure is operational, not cognitive: Raw-DCI averages <strong>3,139 seconds and $88 per query</strong>
+  and becomes infeasible to even measure at 10M docs.</p>
+  <p>DR-DCI's move is to keep both halves and separate their jobs. Retrieval does <em>discovery</em> over the hidden
+  corpus. The shell does <em>verification</em> over a bounded local workspace. The agent decides when to switch.</p>
+</section>
+
+<section>
+  <div class="col">
+    <div class="eyebrow sec-eyebrow">The loop</div>
+    <h2>Watch the workspace grow</h2>
+    <p class="dek">A condensed real trajectory. The workspace starts empty; every <code>pull</code> hard-links new
+    documents into it; every shell call searches only what's already local.</p>
+    <div class="key">
+      <span class="chip"><span class="dot c"></span>corpus-level · retrieval</span>
+      <span class="chip"><span class="dot w"></span>workspace-level · DCI</span>
+      <span class="chip"><span class="dot b"></span>finalize</span>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-top">
+      <div class="q">“Which aquarium published husbandry limits for the Japanese spider crab?”</div>
+      <div class="ctrls">
+        <button id="prev">← back</button>
+        <button id="next" class="primary">step →</button>
+        <button id="reset">reset</button>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="term" id="term" aria-live="polite"></div>
+      <div class="side">
+        <div>
+          <div class="gauge-label"><span>Visible workspace</span><b id="docs">0</b></div>
+          <div class="bar"><i id="docbar" style="width:0%"></i></div>
+        </div>
+        <div>
+          <div class="gauge-label"><span>Hidden corpus</span><b>100,195</b></div>
+          <div class="bar corpus"><i style="width:100%"></i></div>
+        </div>
+        <div>
+          <div class="gauge-label" style="margin-bottom:9px"><span>Turn</span><b id="turnno">0 / 8</b></div>
+          <div class="steps" id="pips"></div>
+        </div>
+        <div class="note" id="note">Press <b>step</b> to begin. The agent sees an empty directory and a hidden corpus of 100,195 documents.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="eyebrow sec-eyebrow">The action space</div>
+    <h2>Everything the agent can do</h2>
+    <p class="dek">The main run is launched with <code>--tools read,bash,pull</code>. That is the complete list —
+    no web access, no sub-agents, no memory store.</p>
+  </div>
+  <div class="tools">
+    <div class="tool">
+      <div class="tool-h"><code>pull</code><span class="scope c">corpus → workspace</span></div>
+      <p>The only tool that can see the hidden corpus. It retrieves, <strong>drops anything already visible</strong>,
+      hard-links the rest into the workspace, and returns a compact ranked preview — a navigation hint, not evidence.</p>
+      <div class="sig">pull(query, topK)
+  → ΔW, ranked preview, stats</div>
+      <ul class="facts">
+        <li><b>topK 300–600</b>, one query per call</li>
+        <li>Qwen3-Embedding-8B over FAISS, port 8002</li>
+        <li>Hard links, never copies</li>
+        <li>Preview mode: ranked / shuffled / hidden</li>
+      </ul>
+    </div>
+    <div class="tool">
+      <div class="tool-h"><code>bash</code><span class="scope w">inter-document</span></div>
+      <p>A sandboxed shell over the materialized folder — <code>rg</code>, <code>grep</code>, <code>find</code>,
+      <code>ls</code>. This is where the agent combines constraints, follows bridge entities, and kills false positives.</p>
+      <div class="sig">rg "husbandry" . -l
+find . -name "*aquarium*"</div>
+      <ul class="facts">
+        <li>30s timeout, network blocked</li>
+        <li>Output capped: last 2000 lines / 10KB</li>
+        <li>Long lines clipped to 2000 chars</li>
+        <li>Truncation emits a resumable <code>read={…}</code></li>
+      </ul>
+    </div>
+    <div class="tool">
+      <div class="tool-h"><code>read</code><span class="scope w">intra-document</span></div>
+      <p>Bounded file reading with two window modes. Line windows for normal files; character windows for the OCR-mangled
+      single-line documents that make <code>rg</code> return a whole page as one match.</p>
+      <div class="sig">read(path, offset, limit)
+read(path, charOffset, charLimit)</div>
+      <ul class="facts">
+        <li>Default char window 4096</li>
+        <li>Every clip reports the next offset</li>
+        <li>Parallel execution enabled with bash</li>
+        <li>Never asked to read a whole document</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="eyebrow sec-eyebrow">Environment engineering</div>
+    <h2>The unglamorous half</h2>
+    <p class="dek">Most of the harness is defenses against ways a shell agent quietly fails. Each of these is a
+    specific bug they hit and fixed.</p>
+  </div>
+  <div class="col acc">
+    <details open>
+      <summary>Root-flat workspace<span class="tag">was: pull_1/, pull_2/</span></summary>
+      <div class="body">
+        <p>Early versions gave each <code>pull</code> its own folder. The agent then had to guess which folder to
+        search, and paths encoded retrieval rank — brittle and easy to mistype. The shipped version dumps everything
+        into one deduplicated root and discloses rank <em>in the tool response instead of the path</em>.</p>
+        <p>Their ablation found rank-aware folders can raise raw recall while <em>lowering</em> final accuracy. Recall
+        the agent can't navigate is not recall.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Shell-safe filename slugs<span class="tag">spaces, quotes, unicode</span></summary>
+      <div class="body">
+        <p>Document titles contain spaces, colons, quotes, and non-normalized Unicode — all of which break naive shell
+        quoting. Filenames are normalized to stable slugs while titles, URLs, retrieval rank, and provenance are
+        preserved in metadata.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Selective reflow of single-line files<span class="tag">width 1200</span></summary>
+      <div class="body">
+        <p>PDF and OCR extraction often yields a document that is one enormous line. A single <code>rg</code> match then
+        returns the entire page. At materialization time, files with two or more lines are hard-linked untouched;
+        pathological single-line files are reflowed at 1200 characters. Normal long lines are <em>not</em> globally
+        hard-wrapped.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Truncation that hands back a next step<span class="tag">continuation hints</span></summary>
+      <div class="body">
+        <p>Truncation without a way to resume just loses evidence. Every clipped output ships with an executable
+        continuation — the agent is told exactly which call reads the next window.</p>
+        <div class="snip">[path]:[line]: ...snippet...
+[long line clipped; term="..."; lineChars=12345;
+ read={"path":"...","charOffset":3200,"charLimit":1600}]</div>
+        <p>And for line-oriented reads: <code>[Showing lines 1-123 of 999. Use offset=124 to continue.]</code>
+        The prompt explicitly instructs the agent to follow these hints rather than re-reading the file.</p>
+      </div>
+    </details>
+    <details>
+      <summary>Context management, level 3<span class="tag">300 turns</span></summary>
+      <div class="body">
+        <p>A 300-turn trajectory over grep output will blow any context window. The harness ships six preset profiles;
+        the main runs use <strong>L3</strong> — tool results truncated at 20K chars, micro-compaction on keeping the
+        last 12 turns, and in-loop compaction off.</p>
+        <div class="tbl-wrap" style="margin-top:14px">
+          <table>
+            <thead><tr><th>Level</th><th>Truncate</th><th>Max chars</th><th>Micro-compact</th><th>Keep turns</th></tr></thead>
+            <tbody>
+              <tr><td>level0</td><td>off</td><td>—</td><td>off</td><td>—</td></tr>
+              <tr><td>level1</td><td>on</td><td>50,000</td><td>off</td><td>—</td></tr>
+              <tr><td>level2</td><td>on</td><td>20,000</td><td>off</td><td>—</td></tr>
+              <tr class="on"><td>level3</td><td>on</td><td>20,000</td><td>on</td><td>12</td></tr>
+              <tr><td>level4</td><td>on</td><td>20,000</td><td>on + in-loop</td><td>10</td></tr>
+              <tr><td>level5</td><td>on</td><td>10,000</td><td>on + in-loop</td><td>6</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+    <details>
+      <summary>Workspace-preserving context reset<span class="tag">optional · 49 / 830 queries</span></summary>
+      <div class="body">
+        <p>The one mechanism that isn't part of the core interface. When a finished trajectory reports
+        <strong>confidence ≤ 70</strong> <em>and</em> explicitly abstains, the harness throws away the entire reasoning
+        history but <strong>keeps the materialized folder</strong>, then runs a fresh agent over it.</p>
+        <p>The insight: retrieval state and reasoning state fail independently. A trajectory can talk itself into a dead
+        end while sitting on a directory that already contains the answer. Fires on 49 of 830 queries and moves accuracy
+        from 71.2% to 73.3%. The deliberately narrow trigger keeps it from degenerating into a retry loop.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="eyebrow sec-eyebrow">Evidence</div>
+    <h2>Which parts actually carry the result</h2>
+    <p class="dek">Three controlled ablations on a 100-question subset. Each one removes a single interface property
+    and holds everything else fixed — which is what makes them worth reading.</p>
+  </div>
+  <div class="col abl" id="abl">
+    <div class="ab">
+      <div class="ab-h"><h3>Should retrieval be a preprocessing step or an agent action?</h3><span>accuracy /100</span></div>
+      <div class="row"><span class="lab">dynamic pull</span><span class="track"><i class="fill f-good" data-w="82"></i></span><span class="val">82</span></div>
+      <div class="row"><span class="lab">single pull, frozen</span><span class="track"><i class="fill f-base" data-w="79"></i></span><span class="val">79</span></div>
+      <p style="font-size:14.5px; color:var(--ink-2); margin:2px 0 0">A modest accuracy gap — but dynamic pull got there
+      with <strong>fewer tool calls, 104s instead of 172s, and $3.44 instead of $8.83</strong>. The win isn't a bigger
+      candidate set; it's letting failed local searches decide when to retrieve again.</p>
+    </div>
+    <div class="ab">
+      <div class="ab-h"><h3>Does the ranked preview do real work?</h3><span>accuracy /100</span></div>
+      <div class="row"><span class="lab">ranked top-20</span><span class="track"><i class="fill f-good" data-w="82"></i></span><span class="val">82</span></div>
+      <div class="row"><span class="lab">shuffled top-20</span><span class="track"><i class="fill f-mid" data-w="76"></i></span><span class="val">76</span></div>
+      <div class="row"><span class="lab">hidden (stats only)</span><span class="track"><i class="fill f-bad" data-w="72"></i></span><span class="val">72</span></div>
+      <p style="font-size:14.5px; color:var(--ink-2); margin:2px 0 0">The three-way split separates two effects: naming
+      candidate files at all is worth ~4 points (hidden → shuffled), and ordering them <em>correctly</em> is worth
+      another ~6. Same documents on disk in all three.</p>
+    </div>
+    <div class="ab">
+      <div class="ab-h"><h3>Is cross-document shell search load-bearing?</h3><span>accuracy /100</span></div>
+      <div class="row"><span class="lab">full tools</span><span class="track"><i class="fill f-good" data-w="82"></i></span><span class="val">82</span></div>
+      <div class="row"><span class="lab">inter-doc DCI blocked</span><span class="track"><i class="fill f-bad" data-w="40"></i></span><span class="val">40</span></div>
+      <p style="font-size:14.5px; color:var(--ink-2); margin:2px 0 0">The decisive one. Keep the ranked preview, block
+      recursive <code>rg</code>/<code>find</code> across files, and accuracy halves. The agent compensates by pulling
+      <strong>20.5 times per query instead of 3.5</strong>, dragging in 3,022 candidates instead of 995 — and still
+      fails. More retrieval does not substitute for being able to search what you retrieved.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="eyebrow sec-eyebrow">Scaling</div>
+    <h2>The workspace stays small while the corpus doesn't</h2>
+    <p class="dek">Distractor documents added to BrowseComp-Plus, 100K → 10M. The point isn't that accuracy holds —
+    it's <em>why</em> it holds.</p>
+  </div>
+  <div class="col chart-card">
+    <canvas id="chart" width="820" height="300" role="img"
+      aria-label="Accuracy versus corpus size: DR-DCI declines from 80 to 70 out of 100 between 100K and 10M documents, while Raw DCI degrades sharply and BM25 stays low."></canvas>
+  </div>
+  <div class="col" style="margin-top:22px">
+    <p>Across a <strong>100× corpus increase</strong>, DR-DCI's materialized workspace stayed bounded at roughly
+    <strong>1,000–1,400 documents</strong>, tool errors stayed low, and total cost stayed around $4–$5. The agent never
+    sees more of the corpus as the corpus grows — retrieval absorbs the scale, and the shell keeps operating on a folder
+    it can actually finish grepping.</p>
+    <p>Raw-DCI fails in the opposite direction, and not because it reasons worse: its shell commands hit the 30-second
+    timeout more and more often until evaluation stops being feasible. BM25 never breaks, and never gets good.</p>
+  </div>
+</section>
+
+<section>
+  <div class="col">
+    <div class="eyebrow sec-eyebrow">Reproduction</div>
+    <h2>The actual main run</h2>
+    <p class="dek">Every claim above comes from this configuration, verbatim from
+    <code>run_full830_dynamic_pull_root_flat_openai_high_l3_300turn_parallel30.sh</code>.</p>
+  </div>
+  <div class="col cfg"><span class="cmt"># retriever must already be up on :8002</span>
+<span class="flag">--model</span> <span class="val">gpt-5.4-nano</span>   <span class="flag">--pi-thinking-level</span> <span class="val">high</span>
+<span class="flag">--tools</span> <span class="val">read,bash,pull</span>
+<span class="flag">--max-turns</span> <span class="val">300</span>   <span class="flag">--max-concurrency</span> <span class="val">30</span>
+<span class="flag">--runtime-context-level</span> <span class="val">level3</span>
+<span class="flag">--pull-view-mode</span> <span class="val">hardlink</span>
+<span class="flag">--pull-layout</span> <span class="val">root</span>
+<span class="flag">--pull-materialization-mode</span> <span class="val">root_flat_disclosed</span>
+<span class="flag">--pull-prompt-mode</span> <span class="val">rank_aware</span>
+<span class="flag">--pull-min-top-k</span> <span class="val">300</span>   <span class="flag">--pull-max-top-k</span> <span class="val">600</span>   <span class="flag">--pull-max-queries</span> <span class="val">1</span>
+<span class="cmt">
+# environment knobs</span>
+<span class="flag">DCI_BASH_DEFAULT_TIMEOUT_SECONDS</span>=<span class="val">30</span>
+<span class="flag">DCI_BASH_MAX_LINE_CHARS</span>=<span class="val">2000</span>
+<span class="flag">DCI_REFLOW_SINGLE_LINE_WIDTH</span>=<span class="val">1200</span>
+<span class="flag">DCI_WRAP_LONG_TEXT_LINES</span>=<span class="val">0</span></div>
+  <div class="col" style="margin-top:20px">
+    <p style="font-size:14.5px; color:var(--ink-3)">One discrepancy worth knowing if you run it: the paper describes
+    <code>pull(query, topK)</code> with topK 300–600, but the underlying TypeScript schema in
+    <code>pull.ts</code> accepts a <code>queries</code> <em>array</em> of up to 8 with topK 100–500. The launch script
+    reconciles them with <code>--pull-max-queries 1</code> and min/max overrides.</p>
+  </div>
+</section>
+
+<footer class="col">
+  <p><strong>DR-DCI: Scaling Direct Corpus Interaction via Dynamic Workspace Expansion.</strong>
+  Lu, Li, Nie, Zhang, Zhang, Zou, Chen, Lin, Jiang, Zhang (2026). arXiv:2606.14885.
+  Built on the DCI-Agent line of work and the Pi coding-agent harness.
+  Figures redrawn from the paper's Tables 1, 3, 4, 5 and Figure 3.</p>
+</footer>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement, tt = document.getElementById("tt");
+  tt.addEventListener("click", function(){
+    var sysDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    var cur = root.getAttribute("data-theme") || (sysDark ? "dark" : "light");
+    root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+    drawChart();
+  });
+
+  /* ---------- trajectory stepper ---------- */
+  var STEPS = [
+    { kind:"pull", docs:498,
+      cmd:'pull(query="japanese spider crab husbandry", topK=500)',
+      out:'<span class="ok">Workspace root expanded.</span>\nNew documents added: 498. Already visible from previous pulls: 0.\nTop newly added documents by retrieval rank:\n<span class="hi">- #1  aza_japanese_spider_crab_care_manual.pdf.txt</span>\n<span class="hi">- #2  public_aquarium_husbandry_guidelines.txt</span>\n<span class="hi">- #3  macrocheira_kaempferi_environmental_requirements.txt</span>\n<span class="dim">Search/read the workspace root with local tools. Ranks are shown here\nonly; filenames are not rank-prefixed.</span>',
+      note:"Retrieval, not context selection. 498 files are now hard-linked into the working directory — the agent can search all of them, not just the three it was shown." },
+    { kind:"dci", docs:498,
+      cmd:'rg -l "husbandry" . | head -20',
+      out:'./aza_japanese_spider_crab_care_manual.pdf.txt\n./public_aquarium_husbandry_guidelines.txt\n./macrocheira_kaempferi_environmental_requirements.txt\n./deep_sea_invertebrate_display_notes.txt\n<span class="dim">... 12 more</span>',
+      note:"Inter-document DCI. The agent screens across every materialized file at once — the operation ranked snippets cannot express." },
+    { kind:"dci", docs:498,
+      cmd:'read("aza_japanese_spider_crab_care_manual.pdf.txt", offset=1, limit=60)',
+      out:'  1  AZA Japanese Spider Crab Care Manual\n  2  Association of Zoos and Aquariums, Species Survival Plan\n ...\n 48  Recommended temperature range: 10-13 °C\n<span class="warn">[Showing lines 1-60 of 412. Use offset=61 to continue.]</span>',
+      note:"Intra-document DCI. Bounded window, plus the exact call that continues it. The agent never dumps a whole file into context." },
+    { kind:"dci", docs:498,
+      cmd:'rg -n "published|guidelines" public_aquarium_husbandry_guidelines.txt',
+      out:'<span class="dim">14:</span> ...guidelines adapted from regional aquarium consortia...\n<span class="warn">[long line clipped; term="published"; lineChars=8842;\n read={"path":"public_aquarium_husbandry_guidelines.txt",\n       "charOffset":3200,"charLimit":1600}]</span>',
+      note:"A pathological long line — and the harness responds with a runnable continuation instead of silently dropping the evidence." },
+    { kind:"dci", docs:498,
+      cmd:'read("public_aquarium_husbandry_guidelines.txt", charOffset=3200, charLimit=1600)',
+      out:'...the Nagoya Port Aquarium published the first public husbandry\nlimits for <span class="hi">Macrocheira kaempferi</span>, specifying 10-13 °C and...\n<span class="dim">[Showing chars 3200-4800 of 20114. Use charOffset=4800 to continue.]</span>',
+      note:"Candidate answer found. But one document asserting a claim is not verification — the constraint has to hold up elsewhere." },
+    { kind:"pull", docs:614,
+      cmd:'pull(query="Nagoya Port Aquarium spider crab exhibit", topK=400)',
+      out:'<span class="ok">Workspace root expanded.</span>\nNew documents added: 116. <span class="dim">Already visible from previous pulls: 284.</span>\nTop newly added documents by retrieval rank:\n<span class="hi">- #1  nagoya_port_aquarium_annual_report.txt</span>\n<span class="hi">- #2  japanese_aquarium_exhibit_registry.txt</span>',
+      note:"A second pull — triggered by a new clue, not by generic uncertainty. 284 of 400 hits were already local and are silently dropped; the workspace grows by 116, not 400." },
+    { kind:"dci", docs:614,
+      cmd:'rg -l "Nagoya Port" . | xargs rg -c "Macrocheira"',
+      out:'nagoya_port_aquarium_annual_report.txt:<span class="ok">7</span>\njapanese_aquarium_exhibit_registry.txt:<span class="ok">3</span>\naza_japanese_spider_crab_care_manual.pdf.txt:<span class="ok">21</span>',
+      note:"Cross-checking the constraint across old and new documents together. This is exactly the operation the ablation blocked — and accuracy halved when it did." },
+    { kind:"done", docs:614,
+      cmd:'(finalize)',
+      out:'<span class="ok">Exact Answer:</span> Nagoya Port Aquarium\n<span class="dim">Explanation: ... [@corpus/public_aquarium_husbandry_guidelines.txt]\n               ... [@corpus/nagoya_port_aquarium_annual_report.txt]</span>\n<span class="ok">Confidence: 88%</span>',
+      note:"Answered from documents actually read, cited by corpus path. Confidence above 70 means no context reset is triggered." }
+  ];
+
+  var MAXDOCS = 1400, i = 0;
+  var term = document.getElementById("term"), docs = document.getElementById("docs"),
+      docbar = document.getElementById("docbar"), pips = document.getElementById("pips"),
+      note = document.getElementById("note"), turnno = document.getElementById("turnno"),
+      bNext = document.getElementById("next"), bPrev = document.getElementById("prev"),
+      bReset = document.getElementById("reset");
+
+  STEPS.forEach(function(){ var p=document.createElement("span"); p.className="pip"; pips.appendChild(p); });
+
+  function render(){
+    if(i === 0){
+      term.innerHTML = '<span class="dim">$ ls\n# (empty workspace)\n\n# hidden corpus: 100,195 documents, none visible</span>';
+      docs.textContent = "0"; docbar.style.width = "0%";
+      note.className = "note";
+      note.innerHTML = "Press <b>step</b> to begin. The agent sees an empty directory and a hidden corpus of 100,195 documents.";
+    } else {
+      var s = STEPS[i-1];
+      term.innerHTML = '<span class="cmd">$ ' + s.cmd.replace(/&/g,"&amp;").replace(/</g,"&lt;") + '</span>\n\n' + s.out;
+      docs.textContent = s.docs.toLocaleString();
+      docbar.style.width = Math.min(100, (s.docs / MAXDOCS) * 100) + "%";
+      note.className = "note " + s.kind;
+      note.textContent = s.note;
+    }
+    turnno.textContent = i + " / " + STEPS.length;
+    Array.prototype.forEach.call(pips.children, function(p, n){
+      p.className = "pip" + (n < i ? " on " + STEPS[n].kind : "");
+    });
+    bPrev.disabled = i === 0;
+    bNext.disabled = i === STEPS.length;
+  }
+  bNext.addEventListener("click", function(){ if(i < STEPS.length){ i++; render(); } });
+  bPrev.addEventListener("click", function(){ if(i > 0){ i--; render(); } });
+  bReset.addEventListener("click", function(){ i = 0; render(); });
+  render();
+
+  /* ---------- ablation bars: animate on reveal ---------- */
+  var fills = document.querySelectorAll(".fill");
+  function fill(){ Array.prototype.forEach.call(fills, function(f){ f.style.width = f.dataset.w + "%"; }); }
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(es){
+      es.forEach(function(e){ if(e.isIntersecting){ fill(); io.disconnect(); } });
+    }, {threshold:0, rootMargin:"0px 0px -15% 0px"});
+    Array.prototype.forEach.call(document.querySelectorAll("#abl .ab"), function(el){ io.observe(el); });
+  } else { fill(); }
+
+  /* ---------- scaling chart ---------- */
+  var cv = document.getElementById("chart");
+  var SERIES = [
+    { name:"DR-DCI", key:"work", pts:[80,77,74,72,70], dash:[] }
+  ];
+  var XL = ["100K","200K","400K","800K","10M"];
+
+  function css(v){ return getComputedStyle(document.documentElement).getPropertyValue("--"+v).trim(); }
+
+  function drawChart(){
+    var dpr = window.devicePixelRatio || 1;
+    var W = cv.clientWidth || 820, H = 320;
+    cv.width = W * dpr; cv.height = H * dpr;
+    cv.style.height = H + "px";
+    var c = cv.getContext("2d");
+    c.setTransform(dpr,0,0,dpr,0,0);
+    c.clearRect(0,0,W,H);
+
+    var L=46, R=W-96, T=32, B=H-56;
+    var yMin=55, yMax=90;
+    function X(n){ return L + (R-L) * (n/(XL.length-1)); }
+    function Y(v){ return B - (B-T) * ((v-yMin)/(yMax-yMin)); }
+
+    c.font = '11px ui-monospace, "SF Mono", Menlo, monospace';
+    c.textBaseline = "middle";
+
+    /* grid */
+    c.strokeStyle = css("line-soft"); c.lineWidth = 1;
+    c.fillStyle = css("ink-3"); c.textAlign = "right";
+    [60,70,80,90].forEach(function(v){
+      var y = Math.round(Y(v)) + .5;
+      c.beginPath(); c.moveTo(L,y); c.lineTo(R,y); c.stroke();
+      c.fillText(v, L-10, y);
+    });
+    c.textAlign = "center";
+    XL.forEach(function(lb,n){ c.fillText(lb, X(n), B+18); });
+
+    /* series */
+    SERIES.forEach(function(s){
+      var col = css(s.key);
+      c.strokeStyle = col; c.lineWidth = 2.2; c.lineJoin = "round";
+      c.setLineDash(s.dash);
+      c.beginPath();
+      s.pts.forEach(function(v,n){ n ? c.lineTo(X(n),Y(v)) : c.moveTo(X(n),Y(v)); });
+      c.stroke();
+      c.setLineDash([]);
+      s.pts.forEach(function(v,n){
+        var solid = s.proj === undefined || n < s.pts.length - s.proj;
+        c.beginPath(); c.arc(X(n), Y(v), n === s.pts.length-1 ? 4.5 : 3, 0, Math.PI*2);
+        if(solid){ c.fillStyle = col; c.fill(); }
+        else { c.fillStyle = css("panel"); c.fill(); c.strokeStyle = col; c.lineWidth = 1.6; c.stroke(); }
+      });
+      /* right-edge label */
+      c.textAlign = "left"; c.fillStyle = col;
+      c.fillText(s.name, R+12, Y(s.pts[s.pts.length-1]));
+    });
+
+    /* axis titles */
+    c.fillStyle = css("ink-3"); c.textAlign = "left";
+    c.fillText("accuracy / 100", L, T-14);
+    c.textAlign = "right";
+    c.fillText("corpus size →", R, T-14);
+
+    /* source note */
+    c.textAlign = "left"; c.fillStyle = css("ink-3");
+    c.fillText("BCP-100, derived from Table 14 · Raw-DCI became unmeasurable in this range", L, H-10);
+  }
+  drawChart();
+  var rt; window.addEventListener("resize", function(){ clearTimeout(rt); rt = setTimeout(drawChart, 120); });
+})();
+</script>
