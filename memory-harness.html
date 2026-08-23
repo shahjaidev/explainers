@@ -1,0 +1,445 @@
+<meta charset="utf-8">
+<title>The Memory Tool Harness</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#F6F8F7; --surface:#FFFFFF; --surface-2:#EEF1F0; --line:#DCE2E0; --line-soft:#E8ECEA;
+  --ink:#141917; --ink-2:#4A5450; --ink-3:#7A857F;
+  --read:#0B6E63; --read-bg:#E4F0EE;
+  --write:#8F5410; --write-bg:#F5EBDE;
+  --shell:#54479B; --shell-bg:#EAE7F5;
+  --flat:#5A6560; --flat-bg:#E7EAE9;
+  --shadow:0 1px 2px rgba(20,25,23,.05),0 8px 24px -12px rgba(20,25,23,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F1413; --surface:#161C1A; --surface-2:#1D2523; --line:#2A3331; --line-soft:#222B29;
+    --ink:#E7ECEA; --ink-2:#A9B4B0; --ink-3:#77837E;
+    --read:#5CC7B8; --read-bg:#12302C;
+    --write:#D9A05C; --write-bg:#332617;
+    --shell:#A79BE8; --shell-bg:#231F3A;
+    --flat:#9AA5A0; --flat-bg:#222A28;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F1413; --surface:#161C1A; --surface-2:#1D2523; --line:#2A3331; --line-soft:#222B29;
+  --ink:#E7ECEA; --ink-2:#A9B4B0; --ink-3:#77837E;
+  --read:#5CC7B8; --read-bg:#12302C;
+  --write:#D9A05C; --write-bg:#332617;
+  --shell:#A79BE8; --shell-bg:#231F3A;
+  --flat:#9AA5A0; --flat-bg:#222A28;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0; background:var(--bg); color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px; line-height:1.62; letter-spacing:-.003em;
+}
+.serif{font-family:ui-serif,"New York",Palatino,Georgia,serif}
+code,.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+.col{max-width:65ch;margin:0 auto}
+
+/* header */
+header{border-bottom:1px solid var(--line);background:var(--surface)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
+.src{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.toggle{font:inherit;font-size:12px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;
+  background:var(--surface-2);color:var(--ink-2);cursor:pointer}
+.toggle:hover{color:var(--ink);border-color:var(--ink-3)}
+.toggle:focus-visible{outline:2px solid var(--read);outline-offset:2px}
+
+.hero{padding:60px 0 44px}
+h1{font-family:ui-serif,"New York",Palatino,Georgia,serif;font-weight:600;
+  font-size:clamp(34px,5.4vw,52px);line-height:1.06;letter-spacing:-.022em;margin:0 0 18px;text-wrap:balance}
+.lede{font-size:19.5px;color:var(--ink-2);margin:0;max-width:60ch}
+.lede b{color:var(--ink);font-weight:600}
+
+section{padding:34px 0}
+h2{font-family:ui-serif,"New York",Palatino,Georgia,serif;font-weight:600;
+  font-size:26px;letter-spacing:-.015em;margin:0 0 6px;text-wrap:balance}
+.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  margin:0 0 10px;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+p{margin:0 0 16px}
+.sub{color:var(--ink-2);margin-bottom:22px}
+hr{border:0;border-top:1px solid var(--line-soft);margin:0}
+
+/* diagram */
+.flow{display:grid;grid-template-columns:1fr auto 1fr auto 1fr;gap:0;align-items:stretch;
+  border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+.flow-cell{padding:20px 18px}
+.flow-cell h3{margin:0 0 8px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;
+  font-family:ui-monospace,"SF Mono",Menlo,monospace;font-weight:600}
+.flow-cell ul{margin:0;padding-left:16px;color:var(--ink-2);font-size:14.5px;line-height:1.55}
+.arrow{display:flex;align-items:center;justify-content:center;padding:0 6px;color:var(--ink-3);
+  background:var(--surface-2);border-left:1px solid var(--line);border-right:1px solid var(--line);font-size:15px}
+.harness-cell{background:var(--surface-2)}
+.store-note{font-size:13.5px;color:var(--ink-2);margin-top:12px;text-align:center}
+@media(max-width:820px){
+  .flow{grid-template-columns:1fr}
+  .arrow{padding:6px 0;border:0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);transform:rotate(90deg)}
+}
+
+/* filter chips */
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px}
+.chip{font:inherit;font-size:13px;font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  padding:6px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);cursor:pointer;display:inline-flex;align-items:center;gap:7px}
+.chip:hover{border-color:var(--ink-3);color:var(--ink)}
+.chip:focus-visible{outline:2px solid var(--read);outline-offset:2px}
+.chip .dot{width:8px;height:8px;border-radius:2px;background:currentColor;opacity:.85}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.chip[aria-pressed="true"] .dot{background:var(--bg)}
+.chip .n{opacity:.6;font-size:11.5px}
+
+/* tool cards */
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px}
+.tool{border:1px solid var(--line);border-radius:11px;background:var(--surface);overflow:hidden;
+  box-shadow:var(--shadow);border-left:3px solid var(--c)}
+.tool.hide{display:none}
+.tool summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.tool summary::-webkit-details-marker{display:none}
+.tool summary:focus-visible{outline:2px solid var(--c);outline-offset:-2px}
+.tname{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:600;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tname .caret{color:var(--ink-3);font-size:12px;transition:transform .18s ease}
+details[open] .caret{transform:rotate(90deg)}
+.tgloss{font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.badge{display:inline-block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;
+  letter-spacing:.07em;text-transform:uppercase;padding:2px 7px;border-radius:4px;
+  background:var(--cbg);color:var(--c);align-self:flex-start}
+.tbody{padding:0 16px 16px;border-top:1px solid var(--line-soft);margin-top:2px}
+.params{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.params li{font-size:13.5px;color:var(--ink-2);line-height:1.5}
+.params .p{font-family:ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink);font-size:12.5px}
+.params .req{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--c);
+  letter-spacing:.06em;text-transform:uppercase;margin-left:5px}
+.quote{margin:14px 0 0;padding:11px 13px;background:var(--surface-2);border-radius:8px;
+  font-size:13px;line-height:1.55;color:var(--ink-2)}
+.quote b{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;font-weight:600}
+
+/* harness variants */
+.variants{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px}
+.vbtn{font:inherit;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:13.5px;
+  padding:9px 15px;border-radius:9px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);cursor:pointer}
+.vbtn:hover{border-color:var(--ink-3);color:var(--ink)}
+.vbtn:focus-visible{outline:2px solid var(--read);outline-offset:2px}
+.vbtn[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.panel{border:1px solid var(--line);border-radius:14px;background:var(--surface);
+  box-shadow:var(--shadow);padding:22px;display:grid;grid-template-columns:1.15fr 1fr;gap:26px}
+@media(max-width:760px){.panel{grid-template-columns:1fr;gap:20px}}
+.panel h3{margin:0 0 4px;font-size:19px;font-family:ui-serif,"New York",Palatino,Georgia,serif;font-weight:600}
+.panel .vsum{margin:0 0 14px;color:var(--ink-2);font-size:15px}
+.rolerow{display:flex;gap:10px;align-items:baseline;padding:9px 0;border-top:1px solid var(--line-soft)}
+.rolelab{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;letter-spacing:.07em;
+  text-transform:uppercase;color:var(--ink-3);min-width:104px}
+.toolpills{display:flex;flex-wrap:wrap;gap:5px}
+.pill{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11.5px;padding:2px 7px;
+  border-radius:5px;background:var(--surface-2);color:var(--ink-2);border:1px solid var(--line-soft)}
+.pill.new{background:var(--cbg);color:var(--c);border-color:transparent;font-weight:600}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-soft);
+  border:1px solid var(--line-soft);border-radius:10px;overflow:hidden}
+.stat{background:var(--surface);padding:12px 13px}
+.stat .k{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
+.stat .v{font-size:21px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat .u{font-size:12px;color:var(--ink-3);font-weight:400;margin-left:3px}
+.finding{margin:14px 0 0;font-size:14px;color:var(--ink-2);line-height:1.55}
+
+/* takeaways */
+.takes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:6px}
+.take{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:17px 18px;box-shadow:var(--shadow)}
+.take h4{margin:0 0 7px;font-size:15px;letter-spacing:-.01em}
+.take p{margin:0;font-size:14px;color:var(--ink-2);line-height:1.55}
+.take .tag{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:8px}
+
+footer{border-top:1px solid var(--line);margin-top:20px;padding:26px 0 44px;color:var(--ink-3);font-size:13.5px}
+footer a{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header>
+  <div class="wrap bar">
+    <span class="src mono">arXiv 2607.26637 · §3, §4.5, App. C.4</span>
+    <button class="toggle" id="themeBtn" type="button">Dark</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero col">
+    <h1>The Memory Tool Harness</h1>
+    <p class="lede">In filesystem-based agent memory, no agent touches the store directly. Every read and write passes through a <b>tool harness</b> — and the paper's sharpest finding is that this wrapper is not neutral. <b>Swapping the tool set reshapes the memory store as strongly as swapping the model.</b></p>
+  </div>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The setting</p>
+    <h2>Three roles, one filesystem</h2>
+    <p class="sub">Memory is a directory tree of markdown files under <code>/memories</code>, each opening with YAML frontmatter — a <code>name</code> slug matching the filename stem, and a one-line <code>description</code> that surfaces in directory listings. Two agents work on that store, and they are handed deliberately different tools.</p>
+  </div>
+  <div class="flow">
+    <div class="flow-cell">
+      <h3 style="color:var(--write)">Management agent</h3>
+      <ul><li>Integrates incoming content</li><li>Merges, splits, moves, deletes</li><li>Keeps the store organized</li></ul>
+    </div>
+    <div class="arrow">→</div>
+    <div class="flow-cell harness-cell">
+      <h3>Tool harness</h3>
+      <ul><li>Function-calling interface</li><li>Delivered separately from the system prompt</li><li>The only path to the store</li></ul>
+    </div>
+    <div class="arrow">←</div>
+    <div class="flow-cell">
+      <h3 style="color:var(--read)">Search agent</h3>
+      <ul><li>Answers queries with citations</li><li>Read-only</li><li>Must navigate the organization</li></ul>
+    </div>
+  </div>
+  <p class="store-note mono">/memories — markdown tree, YAML frontmatter, agent-owned</p>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The tools</p>
+    <h2>Ten tools, exactly as sent</h2>
+    <p class="sub">The management agent gets the six operations of the industry memory tool plus line-level regex search. The search agent gets a read-only set that answers only what the store's own names, layout, and headings expose — which is precisely how the paper forces it to navigate the organization. Click any tool for its parameters and its delivered description.</p>
+  </div>
+  <div class="chips" id="chips"></div>
+  <div class="tools" id="tools"></div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The experiment</p>
+    <h2>The harness as a control knob</h2>
+    <p class="sub">Hold the store variant and the model backbone fixed, run the same conversations, and change only the tools. Any difference is attributable to the harness alone.</p>
+  </div>
+  <div class="variants" id="variants"></div>
+  <div class="panel" id="panel"></div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">What it means</p>
+    <h2>Adding a tool ≠ replacing the tool set</h2>
+    <div class="takes">
+      <div class="take">
+        <span class="tag">Behavior vs outcome</span>
+        <h4>Adding changes behavior only</h4>
+        <p>Grant both roles ranked whole-file search and the search agent adopts it eagerly — 219 calls across the skills chain — while quality lands in a statistical tie (net −2, p≈0.85).</p>
+      </div>
+      <div class="take">
+        <span class="tag">Behavior vs outcome</span>
+        <h4>Replacing changes the store</h4>
+        <p>A bash shell reshapes organization outright. On long dialogue it shards; on skills it consolidates hardest and wins outright (82.9%, the best mini-curated chain under any tool set).</p>
+      </div>
+      <div class="take">
+        <span class="tag">Coupling</span>
+        <h4>Search co-adapts, unprompted</h4>
+        <p>BM25 gets used 54 times over a 29-file store, but twice over a single mega-file — there the agent walks the table of contents and reads sections instead. Same toolbox, different strategy.</p>
+      </div>
+      <div class="take">
+        <span class="tag">Caution</span>
+        <h4>Finer structure isn't better</h4>
+        <p>Stores diverging by two orders of magnitude in file count answer about equally well. On LoCoMo the three harnesses tie at 86.1–86.7%. Shape is not quality.</p>
+      </div>
+    </div>
+  </div>
+</section>
+</div>
+
+<footer>
+  <div class="wrap col">
+    Source: <i>Filesystem-Based Memory for LLM Agents: Organization, Evolution, and Sustainability</i> — Zhou, Yu, Wei, Wu, Ouyang, Jiao, Pan, McAuley, Zhang, Yu, Han (UIUC · UCSD · UC Merced · Adobe Research · Texas A&amp;M). Tool text quoted from Table 12; harness results from §4.5, Tables 9–10 and Table 8.
+  </div>
+</footer>
+
+<script>
+(function(){
+  // theme
+  var btn=document.getElementById('themeBtn');
+  function cur(){var s=document.documentElement.getAttribute('data-theme');
+    if(s)return s; return matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+  function sync(){btn.textContent = cur()==='dark' ? 'Light' : 'Dark';}
+  btn.addEventListener('click',function(){
+    document.documentElement.setAttribute('data-theme', cur()==='dark'?'light':'dark'); sync();});
+  sync();
+
+  var SETS={
+    write:{label:'Management (write)',c:'var(--write)',bg:'var(--write-bg)'},
+    read:{label:'Search (read-only)',c:'var(--read)',bg:'var(--read-bg)'},
+    addon:{label:'Center+BM25 add-on',c:'var(--flat)',bg:'var(--flat-bg)'},
+    swap:{label:'Replacements',c:'var(--shell)',bg:'var(--shell-bg)'}
+  };
+
+  var TOOLS=[
+   {n:'view',s:'write',also:'read',g:'Read a file with line numbers, or list a directory.',
+    p:[['path','string',1,"Memory path to a directory or file (must be '/memories' or start with '/memories/')."],
+       ['start_line','integer',0,'Starting line, 1-indexed. Files only.'],
+       ['end_line','integer',0,'Ending line, inclusive; −1 for end of file. Files only.']],
+    d:'Directory listings show full paths with sizes and each file’s frontmatter description rendered as [description: ...], down to 3 path levels; directory sizes count deeper files not listed.'},
+   {n:'grep',s:'write',also:'read',g:'Per-line regex across the store’s markdown.',
+    p:[['pattern','string',1,'Regex matched against each line individually — cannot span lines.'],
+       ['path','string',0,'A directory (searched recursively) or a single .md file.'],
+       ['case_sensitive','boolean',0,'Whether matching is case-sensitive.'],
+       ['max_results','integer',0,'Cap on matching lines returned.']],
+    d:'Every line is searched, including YAML frontmatter lines. Returns matching lines with file paths and line numbers.'},
+   {n:'create',s:'write',g:'Write a new markdown memory file.',
+    p:[['path','string',1,'Must end in .md and start with /memories/.'],
+       ['file_text','string',1,'Content; must open with a YAML frontmatter block whose name equals the filename stem.']],
+    d:'Fails if the file exists. Missing parent directories are created automatically. Frontmatter carries a kebab-case name slug, a one-line description, and optional free-form metadata.'},
+   {n:'str_replace',s:'write',g:'Unique-string edit, with a frontmatter fallback.',
+    p:[['path','string',1,'File to edit.'],['old_str','string',1,'Must occur exactly once in the file body.'],
+       ['new_str','string',1,'Replacement string.']],
+    d:'Occurrences inside frontmatter are ignored for uniqueness — but if no body match exists the tool falls back to searching inside frontmatter, so fields like description: can be edited by anchoring on a unique substring.'},
+   {n:'insert',s:'write',g:'Insert text after a line number.',
+    p:[['path','string',1,'File to edit.'],
+       ['insert_line','integer',1,'Insert after line N; 0 inserts at the very beginning. Must sit at or after the closing --- fence.'],
+       ['insert_text','string',1,'Text to insert.']],
+    d:'Inserts that would land inside the file’s YAML frontmatter block are rejected.'},
+   {n:'delete',s:'write',g:'Remove a file, or a directory recursively.',
+    p:[['path','string',1,'Path to delete; must start with /memories/.']],
+    d:'Directories are deleted recursively with all their contents. The root /memories directory cannot be deleted.'},
+   {n:'rename',s:'write',g:'Move or rename within the store.',
+    p:[['old_path','string',1,'Current memory path.'],['new_path','string',1,'Destination memory path.']],
+    d:'Parent directories are created automatically; fails if the destination exists. A file must keep its .md extension and a directory cannot become a .md path. For .md files the response also reports the current frontmatter name: field.'},
+   {n:'toc',s:'read',g:'Heading structure of one file.',
+    p:[['path','string',1,'The .md file to outline.']],
+    d:'Shows the table of contents with heading level markers and each section’s line range — the map the search agent walks on a large consolidated file.'},
+   {n:'section_read',s:'read',g:'Read one section by heading path.',
+    p:[['path','string',1,'The .md file.'],
+       ['section_path','string',1,"Heading path using ' > ' as delimiter, from a top-level heading, with level markers: '# Notes > ## Setup > ### Dependencies'."]],
+    d:'The section runs until the next heading of the same or higher level, so nested subsections are included.'},
+   {n:'bm25_full_search',s:'addon',g:'Ranked keyword search over whole files.',
+    p:[['query','string',1,'Natural-language or keyword query.'],
+       ['path','string',0,'Directory to scope the recursive search to.'],
+       ['top_k','integer',0,'Maximum results.']],
+    d:'BM25 over the WHOLE file — filename, frontmatter and full body — so it finds a fact recorded in the content but not advertised in the title or description. Returns ranked files with a matching snippet.'},
+   {n:'bm25_chunk_retrieve',s:'swap',g:'The chunk-retrieval baseline’s only tool.',
+    p:[['query','string',1,'Keyword or natural-language query.']],
+    d:'Returns the top 3 conversation chunks in FULL text with inline source locators. "This is your ONLY way to access the memory: there is no browsing" — issue a focused query, read, refine.'},
+   {n:'bash',s:'swap',g:'The Shell harness — one tool replaces all ten.',
+    p:[['command','string',1,'A bash command run with the memory root as working directory.']],
+    d:'A full shell in an isolated sandbox: pipes plus grep, cat, ls, find, head, tail, wc, sort, uniq, cut, tr, sed, awk, python3. Only the memory filesystem is visible — no host, no network. Files may be created or modified, including scratch files for a python calculation. Output beyond 50,000 characters is truncated.'}
+  ];
+
+  // chips
+  var chipWrap=document.getElementById('chips'), active='all';
+  var counts={all:TOOLS.length};
+  Object.keys(SETS).forEach(function(k){
+    counts[k]=TOOLS.filter(function(t){return t.s===k||t.also===k;}).length;});
+  var chipDefs=[{k:'all',label:'All tools',c:'var(--ink-2)'}].concat(
+    Object.keys(SETS).map(function(k){return {k:k,label:SETS[k].label,c:SETS[k].c};}));
+  chipDefs.forEach(function(cd){
+    var b=document.createElement('button');
+    b.className='chip'; b.type='button'; b.setAttribute('aria-pressed', cd.k==='all');
+    b.style.color=cd.c;
+    b.innerHTML=(cd.k==='all'?'':'<span class="dot"></span>')+cd.label+' <span class="n">'+counts[cd.k]+'</span>';
+    b.addEventListener('click',function(){
+      active=cd.k;
+      Array.prototype.forEach.call(chipWrap.children,function(o,i){
+        o.setAttribute('aria-pressed', chipDefs[i].k===active);});
+      render();
+    });
+    chipWrap.appendChild(b);
+  });
+
+  var grid=document.getElementById('tools');
+  TOOLS.forEach(function(t){
+    var set=SETS[t.s];
+    var d=document.createElement('details');
+    d.className='tool'; d.dataset.set=t.s; d.dataset.also=t.also||'';
+    d.style.setProperty('--c',set.c); d.style.setProperty('--cbg',set.bg);
+    var badge=t.also? SETS[t.s].label+' + '+SETS[t.also].label.split(' ')[0] : set.label;
+    d.innerHTML=
+      '<summary><span class="tname">'+t.n+'<span class="caret">›</span></span>'+
+      '<span class="tgloss">'+t.g+'</span>'+
+      '<span class="badge">'+badge+'</span></summary>'+
+      '<div class="tbody"><ul class="params">'+
+      t.p.map(function(p){return '<li><span class="p">'+p[0]+'</span> <span class="p" style="color:var(--ink-3)">'+p[1]+'</span>'+
+        (p[2]?'<span class="req">required</span>':'')+'<br>'+p[3]+'</li>';}).join('')+
+      '</ul><div class="quote"><b>As delivered to the model</b>'+t.d+'</div></div>';
+    grid.appendChild(d);
+  });
+  function render(){
+    Array.prototype.forEach.call(grid.children,function(el){
+      var ok = active==='all' || el.dataset.set===active || el.dataset.also===active;
+      el.classList.toggle('hide',!ok);
+    });
+  }
+  render();
+
+  // harness variants
+  var V=[
+   {k:'Center', title:'Center — the default harness',
+    sum:'Seven write tools for the manager, four read-only tools for the searcher. Faithful to deployed practice.',
+    mgmt:['view','grep','create','str_replace','insert','delete','rename'], mgmtNew:[],
+    srch:['view','grep','toc','section_read'], srchNew:[],
+    stats:[['LoCoMo correctness','86.1','%'],['PersonaMem 128k','66.7','%'],['Store files (PM 128k)','2',''],['Search cost','2.4','¢/query']],
+    find:'The baseline. On PersonaMem 128k the file-native tools fold an entire persona into one or two richly sectioned files.'},
+   {k:'Center+BM25', title:'Center + BM25 — one tool added',
+    sum:'Both roles keep everything above and gain ranked whole-file keyword search.',
+    mgmt:['view','grep','create','str_replace','insert','delete','rename'], mgmtNew:['bm25_full_search'],
+    srch:['view','grep','toc','section_read'], srchNew:['bm25_full_search'],
+    stats:[['LoCoMo correctness','86.7','%'],['PersonaMem 128k','64.3','%'],['Store files (LoCoMo)','2–29',''],['Search cost','2.1','¢/query']],
+    find:'The search agent adopts the new tool where it pays and ignores it where it doesn’t — 54 calls over a 29-file store, twice over a single mega-file. Quality is a tie. Two builds of this same configuration produced 2 files in one run and 29 in another, so file count carries real run-to-run variance.'},
+   {k:'Shell', title:'Shell — the tool set replaced',
+    sum:'Both roles lose all file tools and get one sandboxed bash command instead, over the same store.',
+    mgmt:['bash'], mgmtNew:['bash'], srch:['bash'], srchNew:['bash'],
+    stats:[['LoCoMo correctness','86.1','%'],['PersonaMem 128k','61.9','%'],['Store files (PM 128k)','147',''],['Skills chain','82.9','%']],
+    find:'Two orders of magnitude more files on dense material, with nothing changed but the tools — a shell agent fluent in directories partitions what file-native editing consolidates. Yet on the skills setting the direction flips: bash produced the most consolidated store of any mini-curated chain (36 files vs 45) and the best result under any harness.'},
+   {k:'Chunk retrieval', title:'Chunk retrieval — the no-browsing baseline',
+    sum:'The ablation: the search agent gets a single retrieval tool and no filesystem at all.',
+    mgmt:['— no curation —'], mgmtNew:[], srch:['bm25_chunk_retrieve'], srchNew:['bm25_chunk_retrieve'],
+    stats:[['Chunks per call','3',''],['Browsing','none',''],['Tools','1',''],['Organization','n/a','']],
+    find:'The control against which organization must pay for itself. What organization reliably buys, the paper concludes, is search economy — organized stores roughly halve retrieval cost where material is large — not accuracy.'}
+  ];
+  var vWrap=document.getElementById('variants'), panel=document.getElementById('panel'), vi=0;
+  V.forEach(function(v,i){
+    var b=document.createElement('button');
+    b.className='vbtn'; b.type='button'; b.textContent=v.k;
+    b.setAttribute('aria-selected', i===0);
+    b.addEventListener('click',function(){vi=i;
+      Array.prototype.forEach.call(vWrap.children,function(o,j){o.setAttribute('aria-selected', j===i);});
+      paint();});
+    vWrap.appendChild(b);
+  });
+  function pills(list,newer){return list.map(function(t){
+    return '<span class="pill'+(newer.indexOf(t)>-1?' new':'')+'">'+t+'</span>';}).join('');}
+  function paint(){
+    var v=V[vi];
+    var accent = v.k==='Shell'||v.k==='Chunk retrieval' ? ['var(--shell)','var(--shell-bg)'] : ['var(--flat)','var(--flat-bg)'];
+    panel.style.setProperty('--c',accent[0]); panel.style.setProperty('--cbg',accent[1]);
+    panel.innerHTML=
+      '<div><h3>'+v.title+'</h3><p class="vsum">'+v.sum+'</p>'+
+      '<div class="rolerow"><span class="rolelab">Management</span><span class="toolpills">'+pills(v.mgmt,v.mgmtNew)+'</span></div>'+
+      '<div class="rolerow"><span class="rolelab">Search</span><span class="toolpills">'+pills(v.srch,v.srchNew)+'</span></div>'+
+      '<p class="finding">'+v.find+'</p></div>'+
+      '<div><div class="stats">'+v.stats.map(function(s){
+        return '<div class="stat"><div class="k">'+s[0]+'</div><div class="v">'+s[1]+'<span class="u">'+s[2]+'</span></div></div>';
+      }).join('')+'</div></div>';
+  }
+  paint();
+})();
+</script>
