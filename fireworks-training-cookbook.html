@@ -1,0 +1,928 @@
+<meta charset="utf-8">
+<title>The Fireworks Training Cookbook</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --bg:#F4F6F5;
+  --surface:#FFFFFF;
+  --surface-2:#EAEEEC;
+  --ink:#101917;
+  --ink-2:#37453F;
+  --muted:#6B7B76;
+  --line:#D7DEDB;
+  --line-strong:#BCC7C3;
+  --accent:#C6501A;
+  --accent-soft:#FBEDE6;
+  --teal:#0E6F6B;
+  --teal-soft:#E2EFEE;
+  --shadow:0 1px 2px rgba(16,25,23,.05), 0 8px 28px -18px rgba(16,25,23,.35);
+  --display:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:ui-serif,"New York",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1211;
+    --surface:#131B19;
+    --surface-2:#1A2523;
+    --ink:#E9EFED;
+    --ink-2:#BAC7C2;
+    --muted:#849691;
+    --line:#26332F;
+    --line-strong:#374742;
+    --accent:#F0793A;
+    --accent-soft:#2A1A12;
+    --teal:#48BCAC;
+    --teal-soft:#10221F;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -18px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1211;
+  --surface:#131B19;
+  --surface-2:#1A2523;
+  --ink:#E9EFED;
+  --ink-2:#BAC7C2;
+  --muted:#849691;
+  --line:#26332F;
+  --line-strong:#374742;
+  --accent:#F0793A;
+  --accent-soft:#2A1A12;
+  --teal:#48BCAC;
+  --teal-soft:#10221F;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 28px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--body);
+  font-size:17px;
+  line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(2.6rem,6.2vw,4.4rem);font-weight:800;letter-spacing:-.038em;line-height:1.02}
+h2{font-size:clamp(1.6rem,3vw,2.1rem);font-weight:750;letter-spacing:-.028em;line-height:1.12}
+h3{font-size:1.075rem;font-weight:680;letter-spacing:-.014em;line-height:1.3}
+h4{font-size:.95rem;font-weight:660;letter-spacing:-.008em}
+p{margin:0}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);padding:.12em .34em;border-radius:3px;border:1px solid var(--line)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+
+.eyebrow{
+  font-family:var(--mono);font-size:.685rem;font-weight:600;
+  letter-spacing:.13em;text-transform:uppercase;color:var(--muted);
+}
+.prose{max-width:68ch}
+.prose p + p{margin-top:.85em}
+
+/* ---------- shell ---------- */
+.shell{max-width:1220px;margin:0 auto;padding:0 24px}
+.layout{display:block}
+@media(min-width:1120px){
+  .layout{display:grid;grid-template-columns:172px minmax(0,1fr);gap:56px;align-items:start}
+}
+.rail{display:none}
+@media(min-width:1120px){
+  .rail{
+    display:flex;flex-direction:column;gap:2px;
+    position:sticky;top:28px;padding-top:8px;
+  }
+}
+.rail a{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--muted);text-decoration:none;padding:5px 0 5px 12px;
+  border-left:2px solid var(--line);transition:color .16s,border-color .16s;
+}
+.rail a:hover{color:var(--ink)}
+.rail a.on{color:var(--ink);border-left-color:var(--accent)}
+
+section{padding:64px 0;border-top:1px solid var(--line)}
+section:first-of-type{border-top:none}
+.sec-head{display:flex;flex-direction:column;gap:10px;margin-bottom:26px}
+
+/* ---------- topbar ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:18px 0 0;
+}
+.wordmark{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:.72rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.spark{width:9px;height:9px;background:var(--accent);border-radius:50%;flex:none;box-shadow:0 0 0 4px var(--accent-soft)}
+.tbtn{
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--line);
+  border-radius:999px;padding:6px 13px;cursor:pointer;
+}
+.tbtn:hover{border-color:var(--line-strong)}
+
+/* ---------- hero ---------- */
+.hero{padding:60px 0 12px;border-top:none}
+.hero .lede{
+  font-size:1.24rem;line-height:1.55;color:var(--ink-2);max-width:60ch;margin-top:22px;
+}
+.hero .lede b{color:var(--ink);font-weight:600}
+.hero-meta{
+  display:flex;flex-wrap:wrap;gap:8px;margin-top:26px;
+}
+.tag{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.03em;
+  border:1px solid var(--line);border-radius:999px;padding:4px 11px;color:var(--ink-2);
+  background:var(--surface);
+}
+.tag.hot{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+/* ---------- boundary ---------- */
+.boundary{
+  display:grid;grid-template-columns:1fr;gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:28px;
+}
+@media(min-width:720px){.boundary{grid-template-columns:1fr 1fr}}
+.boundary > div{background:var(--surface);padding:22px 24px}
+.boundary ul{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.boundary li{
+  font-family:var(--mono);font-size:.78rem;line-height:1.45;color:var(--ink-2);
+  padding-left:16px;position:relative;
+}
+.boundary li::before{content:"";position:absolute;left:0;top:.52em;width:6px;height:1px;background:var(--line-strong)}
+.boundary .you li::before{background:var(--accent);height:2px;top:.48em}
+
+/* ---------- loop module ---------- */
+.loop{
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);overflow:hidden;
+}
+.loop-track{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--line);
+  border-bottom:1px solid var(--line);
+}
+@media(max-width:760px){.loop-track{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:460px){.loop-track{grid-template-columns:1fr}}
+.node{
+  background:var(--surface);border:none;cursor:pointer;text-align:left;
+  padding:16px 15px 18px;display:flex;flex-direction:column;gap:7px;
+  font-family:var(--display);color:var(--ink);position:relative;transition:background .18s;
+}
+.node:hover{background:var(--surface-2)}
+.node .n{
+  font-family:var(--mono);font-size:.68rem;letter-spacing:.1em;color:var(--muted);
+}
+.node .t{font-size:.95rem;font-weight:660;letter-spacing:-.012em}
+.node::after{
+  content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:transparent;transition:background .2s;
+}
+.node[aria-selected="true"]{background:var(--surface-2)}
+.node[aria-selected="true"] .n{color:var(--accent)}
+.node[aria-selected="true"]::after{background:var(--accent)}
+.loop-body{padding:24px;display:grid;gap:18px;grid-template-columns:1fr}
+@media(min-width:800px){.loop-body{grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:32px;align-items:start}}
+.loop-body p{color:var(--ink-2);font-size:1rem}
+.loop-body .why{margin-top:12px;font-size:.92rem;color:var(--muted)}
+pre{
+  margin:0;background:var(--surface-2);border:1px solid var(--line);border-radius:8px;
+  padding:15px 16px;overflow-x:auto;font-family:var(--mono);font-size:.775rem;line-height:1.65;
+  color:var(--ink-2);
+}
+pre b{color:var(--accent);font-weight:600}
+pre i{color:var(--muted);font-style:normal}
+pre em{color:var(--teal);font-style:normal}
+.loop-foot{
+  border-top:1px solid var(--line);padding:12px 24px;background:var(--surface-2);
+  display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+}
+.loop-foot span{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+
+/* ---------- path toggle ---------- */
+.switch{display:inline-flex;background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:3px;gap:3px}
+.switch button{
+  font-family:var(--mono);font-size:.72rem;letter-spacing:.05em;text-transform:uppercase;
+  border:none;background:transparent;color:var(--muted);padding:7px 15px;border-radius:999px;cursor:pointer;
+}
+.switch button[aria-pressed="true"]{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+.pathgrid{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:22px}
+.prow{display:grid;grid-template-columns:1fr;background:var(--surface)}
+@media(min-width:720px){.prow{grid-template-columns:150px minmax(0,1fr)}}
+.prow > dt{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);
+  padding:16px 20px 4px;
+}
+@media(min-width:720px){.prow > dt{padding:16px 0 16px 20px;background:var(--surface-2)}}
+.prow > dd{margin:0;padding:0 20px 16px;font-size:.95rem;color:var(--ink-2)}
+@media(min-width:720px){.prow > dd{padding:16px 20px}}
+.prow > dd code{font-size:.8em}
+
+/* ---------- decision tool ---------- */
+.tool{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);overflow:hidden}
+.tool-step{padding:22px 24px;border-bottom:1px solid var(--line)}
+.tool-step > .eyebrow{display:block;margin-bottom:13px}
+.opts{display:flex;flex-wrap:wrap;gap:8px}
+.opt{
+  font-family:var(--display);font-size:.86rem;font-weight:550;
+  background:var(--surface-2);border:1px solid var(--line);color:var(--ink-2);
+  border-radius:7px;padding:9px 13px;cursor:pointer;transition:all .15s;text-align:left;
+}
+.opt:hover{border-color:var(--line-strong);color:var(--ink)}
+.opt[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+.tool-out{padding:24px;background:var(--surface-2);min-height:120px}
+.tool-out .placeholder{color:var(--muted);font-size:.95rem}
+.route-kind{
+  display:inline-block;font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 9px;border-radius:4px;margin-bottom:11px;
+}
+.route-kind.managed{background:var(--teal-soft);color:var(--teal);border:1px solid var(--teal)}
+.route-kind.custom{background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent)}
+.route h3{margin-bottom:7px}
+.route p{color:var(--ink-2);font-size:.95rem;margin-bottom:14px;max-width:62ch}
+
+/* ---------- filter cards ---------- */
+.filters{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:20px}
+.chip{
+  font-family:var(--mono);font-size:.7rem;letter-spacing:.04em;
+  background:var(--surface);border:1px solid var(--line);color:var(--muted);
+  border-radius:999px;padding:5px 12px;cursor:pointer;transition:all .15s;
+}
+.chip:hover{color:var(--ink);border-color:var(--line-strong)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.cards{display:grid;gap:12px;grid-template-columns:1fr}
+@media(min-width:620px){.cards{grid-template-columns:1fr 1fr}}
+@media(min-width:980px){.cards{grid-template-columns:1fr 1fr 1fr}}
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:17px 18px;
+  display:flex;flex-direction:column;gap:9px;
+}
+.card.hide{display:none}
+.card-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px}
+.card .name{font-family:var(--mono);font-size:.9rem;font-weight:600;color:var(--ink);letter-spacing:-.01em}
+.card .lvl{font-family:var(--mono);font-size:.63rem;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);white-space:nowrap}
+.card .desc{font-size:.88rem;line-height:1.5;color:var(--ink-2)}
+.card .file{font-family:var(--mono);font-size:.7rem;color:var(--muted);margin-top:auto;padding-top:4px}
+
+/* ---------- recipe table ---------- */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:600px;font-size:.9rem}
+th,td{text-align:left;padding:12px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+th{
+  font-family:var(--mono);font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--muted);font-weight:600;background:var(--surface-2);
+}
+td.f{font-family:var(--mono);font-size:.8rem;color:var(--ink);white-space:nowrap}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted);font-size:.8rem;text-align:right}
+td.d{color:var(--ink-2)}
+
+/* ---------- accordions ---------- */
+.acc{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--surface)}
+.acc details{border-bottom:1px solid var(--line)}
+.acc details:last-child{border-bottom:none}
+.acc summary{
+  cursor:pointer;padding:15px 18px;font-family:var(--display);font-weight:620;font-size:.95rem;
+  display:flex;align-items:center;gap:11px;list-style:none;
+}
+.acc summary::-webkit-details-marker{display:none}
+.acc summary::before{
+  content:"+";font-family:var(--mono);color:var(--accent);font-size:.95rem;flex:none;width:12px;
+}
+.acc details[open] summary::before{content:"–"}
+.acc summary:hover{background:var(--surface-2)}
+.acc .body{padding:0 18px 18px 41px;color:var(--ink-2);font-size:.93rem}
+.acc .body p + p{margin-top:.7em}
+.acc .body ul{margin:.6em 0 0;padding-left:18px}
+.acc .body li{margin-bottom:.35em}
+
+/* ---------- chips row ---------- */
+.modelchips{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.mchip{
+  font-family:var(--mono);font-size:.72rem;background:var(--surface);border:1px solid var(--line);
+  color:var(--ink-2);border-radius:5px;padding:4px 9px;
+}
+
+/* ---------- callout ---------- */
+.note{
+  border-left:2px solid var(--accent);background:var(--accent-soft);
+  padding:14px 18px;border-radius:0 8px 8px 0;font-size:.92rem;color:var(--ink-2);margin-top:22px;
+}
+.note b{color:var(--ink);font-weight:600}
+
+footer{padding:48px 0 64px;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem}
+footer a{color:var(--ink-2)}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.001ms !important;transition-duration:.001ms !important}
+}
+</style>
+
+<div class="shell">
+  <div class="topbar">
+    <div class="wordmark"><span class="spark"></span> fw-ai / cookbook</div>
+    <button class="tbtn" id="theme" type="button">Theme</button>
+  </div>
+</div>
+
+<div class="shell layout">
+  <nav class="rail" aria-label="Sections">
+    <a href="#what" class="on">What it is</a>
+    <a href="#loop">The loop</a>
+    <a href="#paths">Two paths</a>
+    <a href="#pick">Which path</a>
+    <a href="#losses">Loss menu</a>
+    <a href="#recipes">Recipes</a>
+    <a href="#renderers">Renderers</a>
+    <a href="#rest">The rest</a>
+    <a href="#start">Start</a>
+  </nav>
+
+  <main>
+
+  <!-- ============ HERO ============ -->
+  <section class="hero" id="what">
+    <p class="eyebrow">Fireworks AI · training cookbook</p>
+    <h1>You write the training loop. They run the trainer.</h1>
+    <p class="lede">
+      The cookbook is a set of <b>ready-to-fork Python training loops</b> — reinforcement
+      learning, preference optimization, supervised fine-tuning, distillation, embeddings —
+      that run against Fireworks' hosted trainers over a Tinker-compatible API. There is no
+      framework to learn and nothing to subclass. Every recipe is a single readable file
+      where the loss, the reward, and the rollout are <b>ordinary Python you own</b>.
+    </p>
+    <div class="hero-meta">
+      <span class="tag hot">Apache-2.0</span>
+      <span class="tag">Python ≥ 3.11</span>
+      <span class="tag">8 recipes</span>
+      <span class="tag">9 RL objectives</span>
+      <span class="tag">LoRA &amp; full fine-tune</span>
+      <span class="tag">Tinker-compatible</span>
+    </div>
+
+    <div class="boundary">
+      <div class="you">
+        <p class="eyebrow" style="color:var(--accent)">Your code</p>
+        <ul>
+          <li>the reward function</li>
+          <li>the rollout / environment</li>
+          <li>the loss, if you need a custom one</li>
+          <li>batching, filtering, per-step logic</li>
+          <li>when to checkpoint and promote</li>
+        </ul>
+      </div>
+      <div>
+        <p class="eyebrow">Fireworks' side</p>
+        <ul>
+          <li>the trainer job and its GPUs</li>
+          <li>the inference deployment</li>
+          <li>weight sync / hot-loading</li>
+          <li>checkpoint storage and promotion</li>
+          <li>train↔inference numerical alignment</li>
+        </ul>
+      </div>
+    </div>
+    <p class="note">
+      <b>The boundary is the product.</b> Most RL frameworks hand you a config file and take
+      the loop away. This hands you the loop and takes the infrastructure away — which is why
+      every recipe is a few hundred lines you can read end to end, and why swapping GRPO for
+      GSPO is a one-line import change rather than a framework fork.
+    </p>
+  </section>
+
+  <!-- ============ LOOP ============ -->
+  <section id="loop">
+    <div class="sec-head">
+      <p class="eyebrow">The core mechanism</p>
+      <h2>One RL step, five moves</h2>
+      <p class="prose" style="color:var(--ink-2)">
+        Every RL recipe in the repo is a variation on this cycle. It is genuinely sequential —
+        each move consumes the last one's output — so the numbering is real. Click a step.
+      </p>
+    </div>
+
+    <div class="loop">
+      <div class="loop-track" role="tablist" aria-label="Training loop steps">
+        <button class="node" role="tab" aria-selected="true" data-i="0"><span class="n">01</span><span class="t">Snapshot</span></button>
+        <button class="node" role="tab" aria-selected="false" data-i="1"><span class="n">02</span><span class="t">Roll out</span></button>
+        <button class="node" role="tab" aria-selected="false" data-i="2"><span class="n">03</span><span class="t">Score</span></button>
+        <button class="node" role="tab" aria-selected="false" data-i="3"><span class="n">04</span><span class="t">Advantage</span></button>
+        <button class="node" role="tab" aria-selected="false" data-i="4"><span class="n">05</span><span class="t">Update</span></button>
+      </div>
+      <div class="loop-body">
+        <div>
+          <h3 id="lp-title">Snapshot the current policy</h3>
+          <p id="lp-desc" style="margin-top:9px"></p>
+          <p class="why" id="lp-why"></p>
+        </div>
+        <pre id="lp-code"></pre>
+      </div>
+      <div class="loop-foot">
+        <span id="lp-foot"></span>
+        <span>↺ repeats until <code style="background:none;border:none;padding:0">steps</code> is exhausted</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PATHS ============ -->
+  <section id="paths">
+    <div class="sec-head">
+      <p class="eyebrow">The central choice</p>
+      <h2>Serverless or dedicated</h2>
+      <p class="prose" style="color:var(--ink-2)">
+        The loop above is identical either way. What changes is everything underneath it —
+        whether you provision a trainer and a deployment, or attach to a pool that is already warm.
+      </p>
+    </div>
+
+    <div class="switch" role="group" aria-label="Training path">
+      <button type="button" data-path="serverless" aria-pressed="true">Serverless</button>
+      <button type="button" data-path="dedicated" aria-pressed="false">Dedicated</button>
+    </div>
+
+    <dl class="pathgrid" id="pathgrid"></dl>
+  </section>
+
+  <!-- ============ DECISION TOOL ============ -->
+  <section id="pick">
+    <div class="sec-head">
+      <p class="eyebrow">Routing</p>
+      <h2>Which path is yours</h2>
+      <p class="prose" style="color:var(--ink-2)">
+        Not everything needs a custom loop. Fireworks runs fully managed jobs for the standard
+        methods — you only reach for the cookbook when you need logic the platform can't express.
+        Answer two questions.
+      </p>
+    </div>
+
+    <div class="tool">
+      <div class="tool-step">
+        <span class="eyebrow">What signal do you have?</span>
+        <div class="opts" id="q1">
+          <button class="opt" type="button" data-v="labeled">Labeled example outputs</button>
+          <button class="opt" type="button" data-v="pairs">Chosen / rejected pairs</button>
+          <button class="opt" type="button" data-v="reward">A programmatic reward</button>
+          <button class="opt" type="button" data-v="teacher">A stronger teacher model</button>
+          <button class="opt" type="button" data-v="qd">Query ↔ document pairs</button>
+          <button class="opt" type="button" data-v="agent">A multi-turn environment</button>
+        </div>
+      </div>
+      <div class="tool-step">
+        <span class="eyebrow">Do you need custom loss, reward, or rollout code?</span>
+        <div class="opts" id="q2">
+          <button class="opt" type="button" data-v="no">No — standard method is fine</button>
+          <button class="opt" type="button" data-v="yes">Yes — I need to write the logic</button>
+        </div>
+      </div>
+      <div class="tool-out" id="tool-out">
+        <p class="placeholder">Pick an answer to each question.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ LOSSES ============ -->
+  <section id="losses">
+    <div class="sec-head">
+      <p class="eyebrow">Policy objectives</p>
+      <h2>The RL loss menu</h2>
+      <p class="prose" style="color:var(--ink-2)">
+        Nine shipped objectives, one module each in <code>utils/rl/</code>, every one a
+        <code>make_*_loss_fn</code> builder you pass to <code>forward_backward_custom</code>.
+        There is deliberately <b>no registry and no runtime dispatch</b> — you switch objectives
+        by changing an import in your fork, which keeps the gradient path readable.
+      </p>
+    </div>
+
+    <div class="filters" role="group" aria-label="Filter objectives">
+      <button class="chip" type="button" data-f="all" aria-pressed="true">All nine</button>
+      <button class="chip" type="button" data-f="clipped" aria-pressed="false">Clipped</button>
+      <button class="chip" type="button" data-f="unclipped" aria-pressed="false">Clip-free</button>
+      <button class="chip" type="button" data-f="sequence" aria-pressed="false">Sequence-level</button>
+      <button class="chip" type="button" data-f="composable" aria-pressed="false">Composable</button>
+    </div>
+    <div class="cards" id="losscards"></div>
+
+    <p class="note">
+      <b>TIS is the one you compose, not choose.</b> Train-inference importance sampling corrects
+      for the numerical gap between the training kernel and the inference kernel that generated
+      the rollouts. It multiplies into any of the policy losses above, and it is the mechanism
+      behind the claim that training and serving stay aligned.
+    </p>
+  </section>
+
+  <!-- ============ RECIPES ============ -->
+  <section id="recipes">
+    <div class="sec-head">
+      <p class="eyebrow">training/recipes/</p>
+      <h2>Eight loops to fork</h2>
+      <p class="prose" style="color:var(--ink-2)">
+        These are the entry points. Each is self-contained, driven by a <code>Config</code>
+        dataclass at the top, and meant to be copied rather than imported.
+      </p>
+    </div>
+    <div class="tablewrap">
+      <table>
+        <thead>
+          <tr><th>File</th><th>Lines</th><th>What it does</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="f">rl_loop.py</td><td class="num">652</td><td class="d">Synchronous GRPO. Strict on-policy: hot-loads new weights before the first rollout and after every optimizer step.</td></tr>
+          <tr><td class="f">async_rl_loop.py</td><td class="num">788</td><td class="d">Overlaps rollout and training with a bounded staleness budget. You supply only <code>rollout_fn</code>. Marked experimental.</td></tr>
+          <tr><td class="f">sft_loop.py</td><td class="num">1208</td><td class="d">Supervised fine-tuning, text or vision. Length-bucketing, eval carve-out, pipelined steps.</td></tr>
+          <tr><td class="f">dpo_loop.py</td><td class="num">864</td><td class="d">DPO with a cached reference model — the reference trainer is deleted the moment its forwards finish.</td></tr>
+          <tr><td class="f">orpo_loop.py</td><td class="num">566</td><td class="d">ORPO. One trainer, no reference model at all: SFT loss on the chosen response plus an odds-ratio term.</td></tr>
+          <tr><td class="f">distillation_loop.py</td><td class="num">1110</td><td class="d">On-policy distillation. The student rolls out on its own deployment; one or more teachers score those exact tokens.</td></tr>
+          <tr><td class="f">igpo_loop.py</td><td class="num">781</td><td class="d">GRPO plus per-turn information-gain rewards, for multi-turn agents where the final reward is too sparse.</td></tr>
+          <tr><td class="f">embedding_loop.py</td><td class="num">483</td><td class="d">Retrieval fine-tuning with bidirectional in-batch InfoNCE over query–positive pairs.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="sec-head" style="margin-top:38px">
+      <p class="eyebrow">training/examples/</p>
+      <h3>…and the worked examples that use them</h3>
+    </div>
+    <div class="acc">
+      <details open>
+        <summary>Serverless RL — Countdown</summary>
+        <div class="body">
+          <p>The example from the K3 blog post, and the shortest path to a running RL job. GRPO on the
+          Countdown numbers game with nothing provisioned. Three files: the loop, a vendored reward, and
+          32 sample rows so it runs out of the box.</p>
+          <p>The reward is deliberately dense so the policy can climb from cold: <b>+0.1</b> for emitting a
+          parseable <code>&lt;answer&gt;</code>, <b>+0.2</b> for using exactly the source numbers,
+          <b>+0.7</b> for hitting the target.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Coding agent — SWE-Gym</summary>
+        <div class="body">
+          <p>Black-box agent RL: an <b>unmodified <code>claude-code</code> CLI</b> is pointed at a shim that
+          translates Anthropic's <code>/v1/messages</code> to Fireworks, runs against local SWE-bench Docker
+          images, and is graded by the SWE-Bench harness. Trains through <code>async_rl_loop</code>.</p>
+          <p>The point it proves: the rollout can be an opaque third-party binary, because the cookbook only
+          needs tokens and a scalar back.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Multi-hop QA — IGPO on HotpotQA</summary>
+        <div class="body">
+          <p>The model calls <code>search(query)</code> then <code>submit_answer(answer)</code>. Instead of one
+          sparse end reward, each turn is credited with how much it raised the log-probability of the true
+          answer: <code>r_t = r_env + ig_weight · [log P(a|p_t) − log P(a|p_t−1)]</code>. Scoring runs on the
+          inference deployment, in parallel with generation.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Frozen Lake, DeepMath, GSM8K</summary>
+        <div class="body">
+          <p><b>Frozen Lake</b> — multi-turn tool-calling GRPO where Eval Protocol owns the data plane and the
+          cookbook owns training. <b>DeepMath</b> — GRPO on probability problems with a math-verify reward.
+          <b>GSM8K multi-turn</b> — a port of AReaL's multi-turn math example, with loss masks kept aligned
+          across a retry turn so only assistant tokens train.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Distillation, SFT, DPO, ORPO, embeddings</summary>
+        <div class="body">
+          <p>Privileged-context distillation on GSM8K (the teacher sees context the student doesn't), routed
+          two-teacher distillation, text2sql SFT, a vision-language SFT variant, IFEval ORPO, and retrieval
+          pairs. Plus six runnable case-study notebooks: prompt routing, receipt vision SFT, style DPO,
+          reasoning RFT, support-search embeddings, and a multi-LoRA serving fleet across 51 locales.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ RENDERERS ============ -->
+  <section id="renderers">
+    <div class="sec-head">
+      <p class="eyebrow">The unglamorous load-bearing part</p>
+      <h2>Renderers, and why they decide whether training works</h2>
+    </div>
+    <div class="prose" style="color:var(--ink-2)">
+      <p>A renderer turns chat messages and tool definitions into the <b>exact token sequence a
+      given model expects, plus a per-token loss weight</b> — and parses generated tokens back into
+      a message. Get it subtly wrong and nothing crashes; your rewards are just quietly computed
+      on mis-decoded text, and the run silently learns the wrong thing.</p>
+      <p>This is where the repo does its least visible and most valuable work. Kimi K3, for instance,
+      ships <b>no Jinja chat template at all</b> — the format lives in Python helpers inside the
+      tokenizer, so the cookbook's renderer resolves and calls those directly. For SFT it trains the
+      assistant body through <code>&lt;|close|&gt;…&lt;|sep|&gt;</code> and pins the following
+      delimiter at weight zero.</p>
+      <p>A second class of renderers exists purely to fix upstream ones: the <code>_*_split</code>
+      modules subclass models whose chat templates strip historical reasoning, so that multi-turn
+      SFT on every assistant message actually works.</p>
+    </div>
+    <div class="modelchips">
+      <span class="mchip">kimi_k3</span><span class="mchip">kimi_k26</span><span class="mchip">kimi_k27_code</span>
+      <span class="mchip">glm5</span><span class="mchip">glm_moe_dsa</span><span class="mchip">deepseek_v4</span>
+      <span class="mchip">minimax_m2</span><span class="mchip">minimax_m3</span><span class="mchip">gemma4</span>
+      <span class="mchip">mistral</span><span class="mchip">qwen3 / 3_5 / 3_6</span><span class="mchip">qwen3_vl</span>
+      <span class="mchip">nemotron3</span><span class="mchip">gpt_oss</span>
+    </div>
+    <p class="note">
+      There is a <b>verifier</b> for this: a CLI and a React token viewer that diff the cookbook's
+      rendering against what the live Fireworks gateway actually emits, colouring every token by
+      provenance and asserting the rule that hard-appended tokens carry weight 0 and natively
+      generated ones carry weight 1.
+    </p>
+  </section>
+
+  <!-- ============ THE REST ============ -->
+  <section id="rest">
+    <div class="sec-head">
+      <p class="eyebrow">Also in the box</p>
+      <h2>Supporting machinery</h2>
+    </div>
+    <div class="acc">
+      <details>
+        <summary>Checkpoints, LoRA merging, promotion</summary>
+        <div class="body">
+          <p>Checkpointing collapses to two independent flags on one call: <code>resumable=True</code>
+          writes weights <em>and</em> optimizer state; <code>promotable=True</code> writes an HF
+          safetensors snapshot eligible for promotion to a served model. The control plane is the
+          source of truth — the only local file maps checkpoint names to how much data was consumed.</p>
+          <p>The two snapshot types are not interchangeable, and the trainer rejects the mix-up
+          explicitly rather than failing later. Standalone tools cover promoting from a dead trainer,
+          listing checkpoints, and merging a LoRA adapter back into its base to promote a full model.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Weight sync and hot-loading</summary>
+        <div class="body">
+          <p>After each optimizer step, new weights have to reach the inference deployment. Two ownership
+          models: <code>PER_TRAINER</code> (default — the deployment follows the trainer's bucket, and a
+          resume briefly restarts the serving pod) and <code>PER_DEPLOYMENT</code> (a stable
+          deployment-scoped bucket, no restart on resume, but pinned to one deployment).</p>
+          <p>Transitions are <code>ASYNC</code> (pause mid-flight, resume on new weights, reuse the KV
+          cache) or <code>SYNC</code> (drain in-flight requests so no generation ever spans two policy
+          versions, at the cost of a stall). Mixing the two ownership scopes on one pair was historically
+          the top source of hot-load failures; the server now rejects it at creation time.</p>
+        </div>
+      </details>
+      <details>
+        <summary>The agent skill</summary>
+        <div class="body">
+          <p>A single installable skill (<code>skills/fireworks-training/</code>, plus 27 progressive
+          reference docs) that lets a coding agent drive the whole workflow. Notable for its guardrails
+          rather than its capabilities: <code>firectl</code> <b>blocks mutating commands</b> when it detects
+          Claude Code, Cursor, or Codex, and the skill is forbidden from working around that — it surfaces
+          the command for a human to run.</p>
+          <p>It also mandates a 14-item confirmed plan before anything is uploaded, created, promoted, or
+          billed, and fixes a source-precedence order so an agent never answers pricing or shape questions
+          from memory.</p>
+        </div>
+      </details>
+      <details>
+        <summary>Evaluation, and the advisor</summary>
+        <div class="body">
+          <p><code>eval/</code> carries HealthBench Professional adapted to Harbor — pinned to an exact
+          dataset revision and SHA-256, failing loudly on any mismatch — and a multi-LoRA hot-reload eval.</p>
+          <p><code>advisor/</code> is unrelated to training and worth knowing about anyway: a critique-only
+          reviewer where an open-source worker model does the coding and a frontier model reads the working
+          <code>git diff</code> and returns scored issues. It cannot edit files.</p>
+        </div>
+      </details>
+      <details>
+        <summary>What you can safely ignore</summary>
+        <div class="body">
+          <p>The repo's own <code>CLAUDE.md</code> is blunt: only <code>training/</code> matters.
+          <code>archived/</code> holds the previous generation of the cookbook — RAG walkthroughs, integration
+          demos, legacy recipes — and is not maintained against the current SDK.</p>
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ START ============ -->
+  <section id="start">
+    <div class="sec-head">
+      <p class="eyebrow">Getting going</p>
+      <h2>Fifteen minutes to a reward curve</h2>
+    </div>
+    <pre style="font-size:.82rem"><i># the --pre matters: without it you resolve to the stable 0.x line,</i>
+<i># which has no managed training SDK clients</i>
+<b>git</b> clone https://github.com/fw-ai/cookbook.git
+<b>cd</b> cookbook/training
+<b>uv</b> venv --python 3.12 &amp;&amp; <b>uv</b> pip install --pre -e .
+
+<b>export</b> FIREWORKS_API_KEY=fw_...
+<b>python</b> -m examples.serverless_rl.countdown_rl</pre>
+    <p class="prose" style="color:var(--ink-2);margin-top:20px">
+      That writes <code>metrics.jsonl</code> and a reward curve to a fresh run directory. The defaults
+      are a real training run, not a smoke test — drop <code>steps</code>, <code>group_size</code>, or
+      <code>max_sample_tokens</code> first if you only want to prove the wiring works. And if you point
+      it at a different base model, change <code>tokenizer_model</code> to match: a mismatch doesn't
+      error, it corrupts your rewards.
+    </p>
+  </section>
+
+  <footer>
+    <p>Source: <a href="https://github.com/fw-ai/cookbook">github.com/fw-ai/cookbook</a> ·
+    Apache-2.0 · built on <code>fireworks-ai[training]</code> and <code>tinker-cookbook</code>.
+    Line counts and file paths reflect the repository at time of reading.</p>
+  </footer>
+
+  </main>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- theme ---------- */
+  var root = document.documentElement;
+  document.getElementById("theme").addEventListener("click", function(){
+    var cur = root.getAttribute("data-theme");
+    if(!cur){
+      cur = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  /* ---------- loop ---------- */
+  var STEPS = [
+    {
+      title:"Snapshot the current policy",
+      desc:"Write the current LoRA weights somewhere a sampler can serve them, and get back a path.",
+      why:"Rollouts must come from the policy you are about to update — otherwise the importance ratio in step 5 is measuring the wrong thing.",
+      foot:"01 · save_weights_for_sampler",
+      code:'snapshot = training_client.<b>save_weights_for_sampler</b>(name)\n               .result().path'
+    },
+    {
+      title:"Roll out a group per prompt",
+      desc:"Open a sampling client bound to that exact snapshot, then draw group_size completions for each prompt in the batch.",
+      why:"The group is the unit of comparison. Eight completions of the same prompt are what make a baseline-free advantage possible.",
+      foot:"02 · create_sampling_client → sample",
+      code:'sampler = service.<b>create_sampling_client</b>(model_path=snapshot,\n                                        tokenizer=tok)\nresult  = sampler.<b>sample</b>(prompt=p, num_samples=<em>group_size</em>,\n                         sampling_params=params)'
+    },
+    {
+      title:"Score every completion",
+      desc:"Your reward function, called on decoded text. Plain Python — no registry, no schema, no server round-trip.",
+      why:"This is where almost all of the outcome lives. Dense partial credit lets a cold policy climb; a single all-or-nothing bit usually cannot.",
+      foot:"03 · your reward function",
+      code:'text   = get_text_content(renderer.parse_response(tokens)[0])\nreward = <b>composite_reward</b>(text, row["ground_truth"])\n<i># +0.1 well-formed · +0.2 right numbers · +0.7 correct</i>'
+    },
+    {
+      title:"Turn rewards into advantages",
+      desc:"Standardize rewards inside each group, then discard any group whose completions all scored the same.",
+      why:"A group with no spread produces a zero advantage — it costs a full forward-backward and teaches nothing. Dropping it is standard GRPO filtering, not an optimization.",
+      foot:"04 · group-relative advantage",
+      code:'adv = (r - mean(r)) / (std(r) + eps)\n\n<i># zero spread → zero signal → drop the group</i>\nif len(set(rewards)) &lt;= 1: <b>continue</b>'
+    },
+    {
+      title:"One gradient step",
+      desc:"Ship the datums — tokens, sampling log-probs, advantages — take a backward pass, then an Adam step.",
+      why:"The old log-probs travel with the datum, which is what lets the update stay correct even though sampling happened on a different engine than training.",
+      foot:"05 · forward_backward → optim_step",
+      code:'training_client.<b>forward_backward</b>(datums,\n                <em>"importance_sampling"</em>).result()\ntraining_client.<b>optim_step</b>(adam).result()'
+    }
+  ];
+
+  var nodes = Array.prototype.slice.call(document.querySelectorAll(".node"));
+  var elT = document.getElementById("lp-title"),
+      elD = document.getElementById("lp-desc"),
+      elW = document.getElementById("lp-why"),
+      elC = document.getElementById("lp-code"),
+      elF = document.getElementById("lp-foot");
+
+  function showStep(i){
+    var s = STEPS[i];
+    nodes.forEach(function(n,j){ n.setAttribute("aria-selected", j===i ? "true":"false"); });
+    elT.textContent = s.title;
+    elD.textContent = s.desc;
+    elW.textContent = s.why;
+    elC.innerHTML   = s.code;
+    elF.textContent = s.foot;
+  }
+  var idx = 0, timer = null;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function advance(){ idx = (idx + 1) % STEPS.length; showStep(idx); }
+  function stop(){ if(timer){ clearInterval(timer); timer = null; } }
+  nodes.forEach(function(n){
+    n.addEventListener("click", function(){
+      stop(); idx = +n.dataset.i; showStep(idx);
+    });
+  });
+  showStep(0);
+  if(!reduced){ timer = setInterval(advance, 4200); }
+
+  /* ---------- paths ---------- */
+  var PATHS = {
+    serverless:[
+      ["Provisioning","Nothing. You attach to a shared, already-running pooled trainer through the gateway."],
+      ["What you get","One service object hands you both a training client and a sampling client. No deployment to stand up or tear down."],
+      ["Constraints","LoRA only — <code>lora_rank &gt; 0</code> is required. You must set <code>max_seq_len</code> yourself, because there is no training shape to infer it from."],
+      ["Failure mode","If the pool is full you get an out-of-capacity error. Retry, or fall back to a dedicated trainer."],
+      ["Billing","Per token. A small RL run lands around $65."],
+      ["Use it when","You are trying an idea, iterating on a reward, or want the shortest path from clone to reward curve."]
+    ],
+    dedicated:[
+      ["Provisioning","The SDK creates an RLOR trainer job and, for RL, an inference deployment. You own both lifecycles."],
+      ["What you get","Full-parameter training, DPO reference trainers, explicit checkpoint / resume / promotion control, multi-node data parallel."],
+      ["Constraints","Real knobs to get right: training shapes, replica counts, inactivity timeouts, hot-load bucket ownership. Subject to quota."],
+      ["Failure mode","Mostly lifecycle: a mismatched hot-load scope, a trainer that timed out, a deployment that reports READY without actually serving."],
+      ["Billing","By resource time, for as long as the trainer and deployment exist."],
+      ["Use it when","You need full fine-tuning, a model the pool doesn't host, or a long run whose infrastructure you want to pin down."]
+    ]
+  };
+  var grid = document.getElementById("pathgrid");
+  function renderPath(k){
+    grid.innerHTML = PATHS[k].map(function(r){
+      return '<div class="prow"><dt>'+r[0]+'</dt><dd>'+r[1]+'</dd></div>';
+    }).join("");
+  }
+  document.querySelectorAll("[data-path]").forEach(function(b){
+    b.addEventListener("click", function(){
+      document.querySelectorAll("[data-path]").forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+      b.setAttribute("aria-pressed","true");
+      renderPath(b.dataset.path);
+    });
+  });
+  renderPath("serverless");
+
+  /* ---------- decision tool ---------- */
+  var ROUTES = {
+    "labeled|no":{kind:"managed",name:"Managed SFT",body:"Fireworks runs the whole job. You upload a JSONL of messages and it handles trainer, checkpoints, and the output model. No cookbook code involved.",code:"firectl create sftj --base-model ... --dataset ..."},
+    "labeled|yes":{kind:"custom",name:"recipes/sft_loop.py",body:"Fork it when you need custom masking, length bucketing, a specific renderer, vision inputs, or per-step control the managed job doesn't expose.",code:"cp recipes/sft_loop.py my_sft.py"},
+    "pairs|no":{kind:"managed",name:"Managed DPO or ORPO",body:"One flag selects between them. ORPO needs no reference model, so it is the cheaper of the two.",code:"firectl create dpo-job --loss-method DPO|ORPO ..."},
+    "pairs|yes":{kind:"custom",name:"recipes/dpo_loop.py or orpo_loop.py",body:"DPO caches reference log-probs and deletes the reference trainer as soon as it can. ORPO skips the reference model entirely — SFT loss on the chosen response plus an odds-ratio term.",code:"cp recipes/dpo_loop.py my_dpo.py"},
+    "reward|no":{kind:"managed",name:"Managed RFT",body:"Register an evaluator and Fireworks runs reinforcement fine-tuning against it end to end. Good when your reward is expressible as a standalone evaluator.",code:"firectl create rftj --evaluator ..."},
+    "reward|yes":{kind:"custom",name:"recipes/rl_loop.py",address:true,body:"The main event. Synchronous GRPO, strict on-policy, your reward as a plain Python function. Start from examples/serverless_rl/countdown_rl.py if you want it running before you understand it.",code:"python -m examples.serverless_rl.countdown_rl"},
+    "teacher|no":{kind:"custom",name:"recipes/distillation_loop.py",body:"There is no managed distillation path — this one always uses the cookbook. Pick sampled reverse-KL (cheap, one teacher per row) or top-K forward-KL (richer signal, blends multiple teachers).",code:"cp recipes/distillation_loop.py my_distill.py"},
+    "teacher|yes":{kind:"custom",name:"recipes/distillation_loop.py",body:"Same file, and the customization surface is wide: privileged teacher context, routed multi-teacher blending, or a student that rolls out on its own hot-loaded deployment.",code:"cp recipes/distillation_loop.py my_distill.py"},
+    "qd|no":{kind:"custom",name:"recipes/embedding_loop.py",body:"Retrieval fine-tuning is cookbook-only. Bidirectional in-batch InfoNCE over query–positive pairs; three output modes trade client compute against round trips.",code:"cp recipes/embedding_loop.py my_embed.py"},
+    "qd|yes":{kind:"custom",name:"recipes/embedding_loop.py",body:"Use output_mode to move work across the wire: embedding (client computes the loss), cos_similarity_matrix, or contrastive_loss (everything server-side, fastest).",code:"cp recipes/embedding_loop.py my_embed.py"},
+    "agent|no":{kind:"custom",name:"recipes/async_rl_loop.py",body:"Multi-turn environments need a rollout function, so there is no managed route. You write rollout_fn; the recipe handles overlap, staleness, and weight sync.",code:"cp recipes/async_rl_loop.py my_agent_rl.py"},
+    "agent|yes":{kind:"custom",name:"async_rl_loop.py — or igpo_loop.py",body:"Start with async_rl_loop. Switch to igpo_loop if the final reward is too sparse to credit individual turns: it scores each turn by how much it raised the log-probability of the right answer.",code:"cp recipes/igpo_loop.py my_agent_rl.py"}
+  };
+  var pick = {q1:null, q2:null};
+  var out = document.getElementById("tool-out");
+  function renderRoute(){
+    if(!pick.q1 || !pick.q2){ return; }
+    var r = ROUTES[pick.q1 + "|" + pick.q2];
+    if(!r){ return; }
+    out.innerHTML =
+      '<div class="route">' +
+      '<span class="route-kind ' + r.kind + '">' + (r.kind === "managed" ? "Managed — no cookbook needed" : "Custom loop — fork a recipe") + '</span>' +
+      '<h3>' + r.name + '</h3>' +
+      '<p>' + r.body + '</p>' +
+      '<pre>' + r.code + '</pre>' +
+      '</div>';
+  }
+  ["q1","q2"].forEach(function(q){
+    document.getElementById(q).addEventListener("click", function(e){
+      var b = e.target.closest(".opt");
+      if(!b){ return; }
+      document.getElementById(q).querySelectorAll(".opt").forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+      b.setAttribute("aria-pressed","true");
+      pick[q] = b.dataset.v;
+      renderRoute();
+    });
+  });
+
+  /* ---------- losses ---------- */
+  var LOSSES = [
+    {n:"GRPO",lvl:"token",tags:["clipped","composable"],d:"The default. PPO-clipped surrogate against pre-computed old-policy log-probs, with optional reference-KL regularization via a differentiable k3 estimator.",f:"utils/rl/grpo.py"},
+    {n:"DAPO",lvl:"token",tags:["clipped","composable"],d:"Asymmetric clipping with a dual-clip term and a log-ratio cap — built for the tail behaviour that symmetric PPO clipping handles badly.",f:"utils/rl/dapo.py"},
+    {n:"GSPO",lvl:"sequence",tags:["clipped","sequence","composable"],d:"Moves the importance ratio to the sequence level: a geometric mean of per-token ratios, clipped once per sequence rather than per token.",f:"utils/rl/gspo.py"},
+    {n:"CISPO",lvl:"token",tags:["clipped","composable"],d:"Detaches the clipped ratio so gradient flows only through the log-probability. Keeps every token contributing instead of zeroing out clipped ones.",f:"utils/rl/cispo.py"},
+    {n:"DRO",lvl:"token",tags:["unclipped","composable"],d:"Replaces the hard clip with a smooth quadratic penalty on drift from the old policy — a soft trust region that applies at every position.",f:"utils/rl/dro.py"},
+    {n:"IS",lvl:"token",tags:["unclipped","composable"],d:"Plain unclipped importance sampling with a log-ratio cap. The honest baseline: no trust region, minimum machinery.",f:"utils/rl/is_loss.py"},
+    {n:"REINFORCE",lvl:"token",tags:["unclipped"],d:"The ratio taken directly against the inference log-probs. No PPO clipping and no train-inference decomposition.",f:"utils/rl/reinforce.py"},
+    {n:"IGPO",lvl:"per turn",tags:["clipped","composable"],d:"Turn-level information-gain advantages for multi-turn agents: each turn is credited by how much it moved log P(answer). Wang et al., ICLR 2026.",f:"utils/rl/igpo.py"},
+    {n:"TIS",lvl:"modifier",tags:["composable"],d:"Not a policy loss — a correction that multiplies into any of them, reconciling the numerical gap between the training kernel and the inference engine that sampled the rollouts.",f:"utils/rl/tis.py"}
+  ];
+  var wrap = document.getElementById("losscards");
+  wrap.innerHTML = LOSSES.map(function(l){
+    return '<article class="card" data-tags="' + l.tags.join(" ") + '">' +
+      '<div class="card-top"><span class="name">' + l.n + '</span><span class="lvl">' + l.lvl + '</span></div>' +
+      '<p class="desc">' + l.d + '</p>' +
+      '<p class="file">' + l.f + '</p></article>';
+  }).join("");
+  document.querySelectorAll(".chip").forEach(function(c){
+    c.addEventListener("click", function(){
+      document.querySelectorAll(".chip").forEach(function(x){ x.setAttribute("aria-pressed","false"); });
+      c.setAttribute("aria-pressed","true");
+      var f = c.dataset.f;
+      document.querySelectorAll(".card").forEach(function(card){
+        var show = f === "all" || card.dataset.tags.split(" ").indexOf(f) !== -1;
+        card.classList.toggle("hide", !show);
+      });
+    });
+  });
+
+  /* ---------- rail ---------- */
+  var links = Array.prototype.slice.call(document.querySelectorAll(".rail a"));
+  var secs  = links.map(function(a){ return document.querySelector(a.getAttribute("href")); });
+  if("IntersectionObserver" in window){
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){
+          var i = secs.indexOf(en.target);
+          links.forEach(function(a,j){ a.classList.toggle("on", j === i); });
+        }
+      });
+    }, {rootMargin:"-20% 0px -70% 0px"});
+    secs.forEach(function(s){ if(s){ io.observe(s); } });
+  }
+})();
+</script>
