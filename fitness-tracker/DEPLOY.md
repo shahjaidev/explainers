@@ -35,6 +35,9 @@ az staticwebapp appsettings set -n fitness-tracker \
     --setting-names STORAGE_CONNECTION_STRING="<connection string from step 2>"
 ```
 
+The `platform.apiRuntime` pin in `staticwebapp.config.json` (node:20) is what makes the
+v4 Functions programming model work on managed functions — do not drop it.
+
 Step 3 commits a deploy workflow and the `AZURE_STATIC_WEB_APPS_API_TOKEN`
 secret to the repo. `.github/workflows/fitness-tracker.yml` here does the same
 job — keep whichever one you end up with, not both.
@@ -72,3 +75,9 @@ localStorage.
   not durable across restarts. Not worth it here.
 - **Blob storage static website** — marginally cheaper than SWA Free (which is
   $0), but no free API, no auth, no HTTPS custom domain.
+
+## Tests
+
+`cd fitness-tracker/api && npm install && npm test` runs the handler against an
+in-memory stub of Table Storage: auth rejection, per-user isolation, newest-first
+ordering, bad payloads, and idempotent delete.
