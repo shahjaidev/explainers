@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workout Tracker</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --line:#2a2f3a;
+    --text:#e8ebf1; --muted:#98a0b0; --accent:#5ad19a; --accent-dim:#2d6f52;
+    --warn:#f0b357; --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f6fa; --panel:#fff; --panel-2:#f0f2f7; --line:#dde1ea;
+           --text:#141821; --muted:#657084; --accent:#12855b; --accent-dim:#a8e0c6; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:0 0 96px}
+  header{position:sticky;top:0;z-index:10;background:var(--bg);
+    border-bottom:1px solid var(--line);padding:14px 16px 10px}
+  h1{font-size:18px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:820px;margin:0 auto;padding:0 12px}
+  .tabs{display:flex;gap:6px;margin-top:10px}
+  .tabs button{flex:1;padding:8px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer}
+  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#06120c}
+  .cat{margin:18px 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .ex{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;margin-bottom:8px}
+  .ex.done{border-color:var(--accent-dim)}
+  .exhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .exname{font-weight:650;flex:1}
+  .last{font-size:12px;color:var(--muted);white-space:nowrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px}
+  .f label{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:3px}
+  input,select{width:100%;padding:9px 8px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:9px;color:var(--text);font-size:16px;font-variant-numeric:tabular-nums}
+  input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);
+    border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .bar .wrap{display:flex;gap:8px;align-items:center}
+  button.act{padding:12px 16px;border-radius:11px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--text);font-weight:650;font-size:14px;cursor:pointer}
+  button.pri{background:var(--accent);border-color:var(--accent);color:#06120c;flex:1}
+  .stat{color:var(--muted);font-size:12px;flex:1}
+  .sess{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;margin-bottom:8px}
+  .sess h3{margin:0 0 6px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:3px 0;border-bottom:1px solid var(--line)}
+  td:last-child{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted);text-align:center;padding:40px 0;font-size:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{font-size:12px;padding:6px 10px;border-radius:20px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--muted)}
+  .chip b{color:var(--text)}
+  .del{background:none;border:0;color:var(--muted);cursor:pointer;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Workout Tracker</h1>
+    <div class="sub" id="sub"></div>
+    <div class="tabs">
+      <button id="t-log" class="on" onclick="tab('log')">Today</button>
+      <button id="t-hist" onclick="tab('hist')">History</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="view-log"></div>
+  <div id="view-hist" style="display:none"></div>
+</main>
+
+<div class="bar" id="bar">
+  <div class="wrap">
+    <div class="stat" id="stat"></div>
+    <button class="act" onclick="clearToday()">Clear</button>
+    <button class="act pri" onclick="finish()">Finish workout</button>
+  </div>
+</div>
+
+<script>
+const ROUTINE = [
+  ["Back",     [["Lat Pulldown",["Seat"]], ["Vert Row",["Seat","Bar"]]]],
+  ["Shoulders",[["Shoulder Press",["Seat"]], ["Delt Raise",["Seat"]]]],
+  ["Chest",    [["Incline Press",["Seat","Bar"]], ["Pec Fly",["Seat","Arms"]]]],
+  ["Legs",     [["Leg Press",["Seat"]], ["Calf Raise",[]]]],
+  ["Arms",     [["Bicep Curl",["Seat"]], ["Tricep Press",["Seat"]]]],
+  ["Abs",      [["Ab Crunch",["Seat"]]]],
+  ["Finisher", [["Pull-ups",[]]]]
+];
+const K_DRAFT="wt.draft", K_HIST="wt.history";
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let draft = load(K_DRAFT,{});
+let history = load(K_HIST,[]);
+
+const filled = e => e && (e.weight||e.r1||e.r2);
+const lastFor = name => {
+  for(const s of history){ const e=s.entries[name]; if(filled(e)) return e; }
+  return null;
+};
+const fmt = e => [e.weight?e.weight+" lb":null, (e.r1||e.r2)?[e.r1,e.r2].filter(Boolean).join("/")+" reps":null]
+  .filter(Boolean).join(" · ");
+
+function upd(name,field,val){
+  draft[name]=draft[name]||{};
+  draft[name][field]=val;
+  save(K_DRAFT,draft);
+  document.getElementById("ex-"+cssId(name)).classList.toggle("done",filled(draft[name]));
+  stat();
+}
+const cssId = n => n.replace(/[^a-z0-9]/gi,"-");
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderLog(){
+  let h="";
+  for(const [cat,exs] of ROUTINE){
+    h+=`<div class="cat">${cat}</div>`;
+    for(const [name,settings] of exs){
+      const d=draft[name]||{}, last=lastFor(name);
+      h+=`<div class="ex${filled(d)?" done":""}" id="ex-${cssId(name)}">
+        <div class="exhead"><div class="exname">${esc(name)}</div>
+        ${last?`<div class="last">last: ${esc(fmt(last))}</div>`:""}</div>
+        <div class="grid">`;
+      for(const s of settings){
+        h+=field(name,"set_"+s,s,last&&last["set_"+s]);
+      }
+      h+=field(name,"weight","Weight",last&&last.weight)
+       + field(name,"r1","Reps 1",last&&last.r1)
+       + field(name,"r2","Reps 2",last&&last.r2)
+       + `</div></div>`;
+    }
+  }
+  document.getElementById("view-log").innerHTML=h;
+}
+function field(name,key,label,ph){
+  const v=(draft[name]||{})[key]??"";
+  return `<div class="f"><label>${esc(label)}</label>
+    <input inputmode="decimal" value="${esc(v)}" placeholder="${ph!=null&&ph!==""?esc(ph):"—"}"
+    oninput="upd(${JSON.stringify(name)},'${key}',this.value)"></div>`;
+}
+
+function stat(){
+  const n=Object.values(draft).filter(filled).length;
+  const total=ROUTINE.reduce((a,[,e])=>a+e.length,0);
+  const vol=Object.values(draft).reduce((a,e)=>{
+    const w=parseFloat(e.weight)||0; return a+w*((parseInt(e.r1)||0)+(parseInt(e.r2)||0));},0);
+  document.getElementById("stat").innerHTML=`${n}/${total} logged${vol?` · ${vol.toLocaleString()} lb volume`:""}`;
+  document.getElementById("sub").textContent=
+    history.length?`${history.length} workout${history.length>1?"s":""} logged · last ${history[0].date}`
+                  :"No workouts logged yet — fill in what you lift.";
+}
+
+function finish(){
+  const entries={}; for(const k in draft) if(filled(draft[k])) entries[k]=draft[k];
+  if(!Object.keys(entries).length){ alert("Nothing logged yet."); return; }
+  const now=new Date();
+  history.unshift({id:now.getTime(), date:now.toLocaleDateString(undefined,
+    {weekday:"short",month:"short",day:"numeric"}), time:now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),
+    entries});
+  save(K_HIST,history); draft={}; save(K_DRAFT,draft);
+  renderLog(); renderHist(); stat(); tab("hist");
+}
+function clearToday(){ if(!confirm("Clear today's entries?"))return;
+  draft={}; save(K_DRAFT,draft); renderLog(); stat(); }
+function del(id){ if(!confirm("Delete this workout?"))return;
+  history=history.filter(s=>s.id!==id); save(K_HIST,history); renderHist(); renderLog(); stat(); }
+
+function renderHist(){
+  const v=document.getElementById("view-hist");
+  if(!history.length){ v.innerHTML=`<div class="empty">No finished workouts yet.</div>`; return; }
+  v.innerHTML=history.map(s=>{
+    const vol=Object.values(s.entries).reduce((a,e)=>a+(parseFloat(e.weight)||0)*
+      ((parseInt(e.r1)||0)+(parseInt(e.r2)||0)),0);
+    const rows=Object.entries(s.entries).map(([n,e])=>{
+      const set=Object.keys(e).filter(k=>k.startsWith("set_")&&e[k])
+        .map(k=>`${k.slice(4)} ${e[k]}`).join(", ");
+      return `<tr><td>${esc(n)}${set?` <span class="last">(${esc(set)})</span>`:""}</td>
+        <td>${esc(fmt(e))||"—"}</td></tr>`;}).join("");
+    return `<div class="sess"><h3>${esc(s.date)} <span class="last">${esc(s.time||"")}</span>
+      <button class="del" style="float:right" onclick="del(${s.id})">delete</button></h3>
+      <div class="row"><span class="chip"><b>${Object.keys(s.entries).length}</b> exercises</span>
+      ${vol?`<span class="chip"><b>${vol.toLocaleString()}</b> lb volume</span>`:""}</div>
+      <table>${rows}</table></div>`;
+  }).join("");
+}
+
+function tab(t){
+  document.getElementById("view-log").style.display = t==="log"?"":"none";
+  document.getElementById("view-hist").style.display= t==="hist"?"":"none";
+  document.getElementById("bar").style.display      = t==="log"?"":"none";
+  document.getElementById("t-log").className  = t==="log"?"on":"";
+  document.getElementById("t-hist").className = t==="hist"?"on":"";
+}
+renderLog(); renderHist(); stat();
+</script>
+</body>
+</html>
