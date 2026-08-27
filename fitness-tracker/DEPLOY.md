@@ -46,6 +46,23 @@ The `workouts` table is created by the API on first write, so there is no
 schema step. Data model: one row per finished workout, `PartitionKey` = your
 user id, `RowKey` = inverted timestamp (newest first), `data` = the session JSON.
 
+## Checking the deploy
+
+```bash
+curl -s https://<your-app>.azurestaticapps.net/api/health
+```
+
+| Response | Meaning |
+| --- | --- |
+| `{"ok":true,"storage":"reachable"}` | API is live and the connection string works. |
+| `{"ok":false,"storage":"unconfigured"}` (503) | `STORAGE_CONNECTION_STRING` app setting is missing — redo step 4. |
+| `{"ok":false,"storage":"unreachable","code":403}` (503) | Connection string is present but wrong or the key rotated. |
+| HTML login page or 401 | The `/api/health` anonymous route rule did not deploy. |
+| 404 | The API did not deploy at all — check `api_location` and the `node:20` runtime pin. |
+
+This route is anonymous on purpose so you can curl it before signing in; it
+reports reachability only, never account details or workout data.
+
 ## Locking it to you
 
 `staticwebapp.config.json` requires an authenticated user for `/api/*`, and the

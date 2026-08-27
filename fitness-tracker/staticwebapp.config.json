@@ -1,7 +1,25 @@
 {
-  "platform": { "apiRuntime": "node:20" },
+  "platform": {
+    "apiRuntime": "node:20"
+  },
   "routes": [
-    { "route": "/api/*", "allowedRoles": ["authenticated"] }
+    {
+      "route": "/api/health",
+      "allowedRoles": [
+        "anonymous"
+      ]
+    },
+    {
+      "route": "/api/*",
+      "allowedRoles": [
+        "authenticated"
+      ]
+    }
   ],
-  "navigationFallback": { "rewrite": "/index.html", "exclude": ["/api/*"] }
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": [
+      "/api/*"
+    ]
+  }
 }

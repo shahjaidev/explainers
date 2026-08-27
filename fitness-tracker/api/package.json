@@ -7,6 +7,6 @@
     "@azure/data-tables": "^13.3.0"
   },
   "scripts": {
-    "test": "node test/handler.test.js"
+    "test": "node test/handler.test.js && node test/health.test.js"
   }
 }
