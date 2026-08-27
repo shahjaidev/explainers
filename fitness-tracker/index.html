@@ -66,6 +66,7 @@
   <div class="wrap">
     <h1>Workout Tracker</h1>
     <div class="sub" id="sub"></div>
+    <div class="sub" id="sync"></div>
     <div class="tabs">
       <button id="t-log" class="on" onclick="tab('log')">Today</button>
       <button id="t-hist" onclick="tab('hist')">History</button>
@@ -101,6 +102,60 @@ const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){re
 const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
 let draft = load(K_DRAFT,{});
 let history = load(K_HIST,[]);
+
+/* ---- cloud sync (Azure Static Web Apps + Table Storage) -------------------
+   The app works fully offline against localStorage. When it is served from a
+   deployment where the visitor is signed in, history is mirrored to /api so it
+   follows them across devices. Anything the API rejects stays local.        */
+let cloud = false;
+const syncEl = () => document.getElementById("sync");
+function syncMsg(text, link){
+  syncEl().innerHTML = link ? `${esc(text)} <a href="${link}" style="color:inherit">sign in</a>` : esc(text);
+}
+
+async function initSync(){
+  let me;
+  try{
+    const r = await fetch("/.auth/me");
+    if(!r.ok) throw 0;
+    me = await r.json();
+  }catch(e){ syncMsg("Local only — this device."); return; }
+
+  if(!me.clientPrincipal){
+    syncMsg("Local only —", "/.auth/login/github");
+    return;
+  }
+  try{
+    const r = await fetch("/api/workouts");
+    if(!r.ok) throw new Error(r.status);
+    const remote = await r.json();
+    cloud = true;
+    // Union by id, newest first: whatever was logged offline survives the merge.
+    const byId = new Map(remote.map(s => [s.id, s]));
+    const unsynced = history.filter(s => !byId.has(s.id));
+    for(const s of history) byId.set(s.id, byId.get(s.id) || s);
+    history = [...byId.values()].sort((a,b) => b.id - a.id);
+    save(K_HIST, history);
+    for(const s of unsynced) push(s);
+    renderHist(); renderLog(); stat();
+    syncMsg(`Synced as ${me.clientPrincipal.userDetails}`);
+  }catch(e){
+    syncMsg("Sync unavailable — saving locally.");
+  }
+}
+
+async function push(session){
+  if(!cloud) return;
+  try{
+    await fetch("/api/workouts", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify(session)});
+  }catch(e){ syncMsg("Offline — saved on this device."); }
+}
+async function remove(id){
+  if(!cloud) return;
+  try{ await fetch("/api/workouts/"+id, {method:"DELETE"}); }
+  catch(e){ syncMsg("Offline — delete not synced."); }
+}
 
 const filled = e => e && (e.weight||e.r1||e.r2);
 const lastFor = name => {
@@ -166,13 +221,13 @@ function finish(){
   history.unshift({id:now.getTime(), date:now.toLocaleDateString(undefined,
     {weekday:"short",month:"short",day:"numeric"}), time:now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),
     entries});
-  save(K_HIST,history); draft={}; save(K_DRAFT,draft);
+  save(K_HIST,history); draft={}; save(K_DRAFT,draft); push(history[0]);
   renderLog(); renderHist(); stat(); tab("hist");
 }
 function clearToday(){ if(!confirm("Clear today's entries?"))return;
   draft={}; save(K_DRAFT,draft); renderLog(); stat(); }
 function del(id){ if(!confirm("Delete this workout?"))return;
-  history=history.filter(s=>s.id!==id); save(K_HIST,history); renderHist(); renderLog(); stat(); }
+  history=history.filter(s=>s.id!==id); save(K_HIST,history); remove(id); renderHist(); renderLog(); stat(); }
 
 function renderHist(){
   const v=document.getElementById("view-hist");
@@ -200,7 +255,7 @@ function tab(t){
   document.getElementById("t-log").className  = t==="log"?"on":"";
   document.getElementById("t-hist").className = t==="hist"?"on":"";
 }
-renderLog(); renderHist(); stat();
+renderLog(); renderHist(); stat(); initSync();
 </script>
 </body>
 </html>
