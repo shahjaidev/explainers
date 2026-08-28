@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/workouts/:id", "destination": "/api/workouts?id=:id" }
+  ]
+}

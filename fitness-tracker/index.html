@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Workout Tracker</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#171a21; --panel-2:#1e222b; --line:#2a2f3a;
+    --text:#e8ebf1; --muted:#98a0b0; --accent:#5ad19a; --accent-dim:#2d6f52;
+    --warn:#f0b357; --radius:14px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{ --bg:#f4f6fa; --panel:#fff; --panel-2:#f0f2f7; --line:#dde1ea;
+           --text:#141821; --muted:#657084; --accent:#12855b; --accent-dim:#a8e0c6; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font:15px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    padding:0 0 96px}
+  header{position:sticky;top:0;z-index:10;background:var(--bg);
+    border-bottom:1px solid var(--line);padding:14px 16px 10px}
+  h1{font-size:18px;margin:0 0 2px}
+  .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:820px;margin:0 auto;padding:0 12px}
+  .tabs{display:flex;gap:6px;margin-top:10px}
+  .tabs button{flex:1;padding:8px;border:1px solid var(--line);background:var(--panel);
+    color:var(--muted);border-radius:10px;font-size:13px;font-weight:600;cursor:pointer}
+  .tabs button.on{background:var(--accent);border-color:var(--accent);color:#06120c}
+  .cat{margin:18px 0 6px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+  .ex{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;margin-bottom:8px}
+  .ex.done{border-color:var(--accent-dim)}
+  .exhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .exname{font-weight:650;flex:1}
+  .last{font-size:12px;color:var(--muted);white-space:nowrap}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(72px,1fr));gap:8px}
+  .f label{display:block;font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);margin-bottom:3px}
+  input,select{width:100%;padding:9px 8px;background:var(--panel-2);border:1px solid var(--line);
+    border-radius:9px;color:var(--text);font-size:16px;font-variant-numeric:tabular-nums}
+  input:focus{outline:2px solid var(--accent);outline-offset:-1px}
+  .bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);
+    border-top:1px solid var(--line);padding:10px 12px calc(10px + env(safe-area-inset-bottom))}
+  .bar .wrap{display:flex;gap:8px;align-items:center}
+  button.act{padding:12px 16px;border-radius:11px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--text);font-weight:650;font-size:14px;cursor:pointer}
+  button.pri{background:var(--accent);border-color:var(--accent);color:#06120c;flex:1}
+  .stat{color:var(--muted);font-size:12px;flex:1}
+  .sess{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:12px;margin-bottom:8px}
+  .sess h3{margin:0 0 6px;font-size:14px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  td{padding:3px 0;border-bottom:1px solid var(--line)}
+  td:last-child{text-align:right;color:var(--muted);font-variant-numeric:tabular-nums}
+  .empty{color:var(--muted);text-align:center;padding:40px 0;font-size:14px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{font-size:12px;padding:6px 10px;border-radius:20px;background:var(--panel-2);
+    border:1px solid var(--line);color:var(--muted)}
+  .chip b{color:var(--text)}
+  .del{background:none;border:0;color:var(--muted);cursor:pointer;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>Workout Tracker</h1>
+    <div class="sub" id="sub"></div>
+    <div class="sub" id="sync"></div>
+    <div class="tabs">
+      <button id="t-log" class="on" onclick="tab('log')">Today</button>
+      <button id="t-hist" onclick="tab('hist')">History</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <div id="view-log"></div>
+  <div id="view-hist" style="display:none"></div>
+</main>
+
+<div class="bar" id="bar">
+  <div class="wrap">
+    <div class="stat" id="stat"></div>
+    <button class="act" onclick="exportData()">Export</button>
+    <button class="act" onclick="clearToday()">Clear</button>
+    <button class="act pri" onclick="finish()">Finish workout</button>
+  </div>
+</div>
+
+<script>
+const ROUTINE = [
+  ["Back",     [["Lat Pulldown",["Seat"]], ["Vert Row",["Seat","Bar"]]]],
+  ["Shoulders",[["Shoulder Press",["Seat"]], ["Delt Raise",["Seat"]]]],
+  ["Chest",    [["Incline Press",["Seat","Bar"]], ["Pec Fly",["Seat","Arms"]]]],
+  ["Legs",     [["Leg Press",["Seat"]], ["Calf Raise",[]]]],
+  ["Arms",     [["Bicep Curl",["Seat"]], ["Tricep Press",["Seat"]]]],
+  ["Abs",      [["Ab Crunch",["Seat"]]]],
+  ["Finisher", [["Pull-ups",[]]]]
+];
+const K_DRAFT="wt.draft", K_HIST="wt.history";
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch(e){return d}};
+const save=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}};
+let draft = load(K_DRAFT,{});
+let history = load(K_HIST,[]);
+
+/* ---- cloud sync (Azure Static Web Apps + Table Storage) -------------------
+   The app works fully offline against localStorage. When it is served from a
+   deployment where the visitor is signed in, history is mirrored to /api so it
+   follows them across devices. Anything the API rejects stays local.        */
+let cloud = false;
+let passcode = null;          // only used by the passcode (Vercel) backend
+const K_PASS = "wt.passcode";
+const syncEl = () => document.getElementById("sync");
+function syncMsg(text, link){
+  syncEl().innerHTML = link
+    ? `${esc(text)} <a href="#" onclick="${link};return false" style="color:inherit">${esc(link==="signIn()"?"sign in":"enter passcode")}</a>`
+    : esc(text);
+}
+const signIn = () => location.href = "/.auth/login/github";
+
+// One fetch wrapper so the passcode header is never forgotten on a call site.
+function api(path, opts={}){
+  const headers = Object.assign({}, opts.headers);
+  if(passcode) headers["x-app-passcode"] = passcode;
+  return fetch(path, Object.assign({}, opts, {headers}));
+}
+
+async function initSync(){
+  let health;
+  try{
+    const r = await fetch("/api/health");
+    health = await r.json();
+  }catch(e){ syncMsg("Local only — this device."); return; }
+
+  if(!health || health.auth === "unconfigured"){
+    syncMsg("Backend not configured — saving locally."); return;
+  }
+  const ok = health.auth === "swa" ? await authSwa() : await authPasscode();
+  if(ok) await pullAndMerge();
+}
+
+async function authSwa(){
+  try{
+    const me = await (await fetch("/.auth/me")).json();
+    if(!me.clientPrincipal){ syncMsg("Local only —", "signIn()"); return false; }
+    window.__who = me.clientPrincipal.userDetails;
+    return true;
+  }catch(e){ syncMsg("Local only — this device."); return false; }
+}
+
+async function authPasscode(){
+  passcode = localStorage.getItem(K_PASS);
+  if(!passcode){ syncMsg("Local only —", "askPasscode()"); return false; }
+  const r = await api("/api/workouts");
+  if(r.status === 401){
+    passcode = null; localStorage.removeItem(K_PASS);
+    syncMsg("Passcode rejected —", "askPasscode()"); return false;
+  }
+  window.__who = "passcode";
+  return true;
+}
+
+async function askPasscode(){
+  const v = prompt("Passcode for this tracker:");
+  if(!v) return;
+  localStorage.setItem(K_PASS, v);
+  if(await authPasscode()) await pullAndMerge();
+}
+
+async function pullAndMerge(){
+  try{
+    const r = await api("/api/workouts");
+    if(!r.ok) throw new Error(r.status);
+    const remote = await r.json();
+    cloud = true;
+    // Union by id, newest first: whatever was logged offline survives the merge.
+    const byId = new Map(remote.map(s => [s.id, s]));
+    const unsynced = history.filter(s => !byId.has(s.id));
+    for(const s of history) byId.set(s.id, byId.get(s.id) || s);
+    history = [...byId.values()].sort((a,b) => b.id - a.id);
+    save(K_HIST, history);
+    for(const s of unsynced) await push(s);
+    renderHist(); renderLog(); stat();
+    syncMsg(`Synced${window.__who && window.__who !== "passcode" ? " as " + window.__who : ""}`);
+  }catch(e){ syncMsg("Sync unavailable — saving locally."); }
+}
+
+async function push(session){
+  if(!cloud) return;
+  try{
+    await api("/api/workouts", {method:"POST",
+      headers:{"Content-Type":"application/json"}, body:JSON.stringify(session)});
+  }catch(e){ syncMsg("Offline — saved on this device."); }
+}
+async function remove(id){
+  if(!cloud) return;
+  try{ await api("/api/workouts/"+id, {method:"DELETE"}); }
+  catch(e){ syncMsg("Offline — delete not synced."); }
+}
+
+const filled = e => e && (e.weight||e.r1||e.r2);
+const lastFor = name => {
+  for(const s of history){ const e=s.entries[name]; if(filled(e)) return e; }
+  return null;
+};
+const fmt = e => [e.weight?e.weight+" lb":null, (e.r1||e.r2)?[e.r1,e.r2].filter(Boolean).join("/")+" reps":null]
+  .filter(Boolean).join(" · ");
+
+function upd(name,field,val){
+  draft[name]=draft[name]||{};
+  draft[name][field]=val;
+  save(K_DRAFT,draft);
+  document.getElementById("ex-"+cssId(name)).classList.toggle("done",filled(draft[name]));
+  stat();
+}
+const cssId = n => n.replace(/[^a-z0-9]/gi,"-");
+const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function renderLog(){
+  let h="";
+  for(const [cat,exs] of ROUTINE){
+    h+=`<div class="cat">${cat}</div>`;
+    for(const [name,settings] of exs){
+      const d=draft[name]||{}, last=lastFor(name);
+      h+=`<div class="ex${filled(d)?" done":""}" id="ex-${cssId(name)}">
+        <div class="exhead"><div class="exname">${esc(name)}</div>
+        ${last?`<div class="last">last: ${esc(fmt(last))}</div>`:""}</div>
+        <div class="grid">`;
+      for(const s of settings){
+        h+=field(name,"set_"+s,s,last&&last["set_"+s]);
+      }
+      h+=field(name,"weight","Weight",last&&last.weight)
+       + field(name,"r1","Reps 1",last&&last.r1)
+       + field(name,"r2","Reps 2",last&&last.r2)
+       + `</div></div>`;
+    }
+  }
+  document.getElementById("view-log").innerHTML=h;
+}
+function field(name,key,label,ph){
+  const v=(draft[name]||{})[key]??"";
+  return `<div class="f"><label>${esc(label)}</label>
+    <input inputmode="decimal" value="${esc(v)}" placeholder="${ph!=null&&ph!==""?esc(ph):"—"}"
+    oninput="upd(${JSON.stringify(name)},'${key}',this.value)"></div>`;
+}
+
+function stat(){
+  const n=Object.values(draft).filter(filled).length;
+  const total=ROUTINE.reduce((a,[,e])=>a+e.length,0);
+  const vol=Object.values(draft).reduce((a,e)=>{
+    const w=parseFloat(e.weight)||0; return a+w*((parseInt(e.r1)||0)+(parseInt(e.r2)||0));},0);
+  document.getElementById("stat").innerHTML=`${n}/${total} logged${vol?` · ${vol.toLocaleString()} lb volume`:""}`;
+  document.getElementById("sub").textContent=
+    history.length?`${history.length} workout${history.length>1?"s":""} logged · last ${history[0].date}`
+                  :"No workouts logged yet — fill in what you lift.";
+}
+
+function finish(){
+  const entries={}; for(const k in draft) if(filled(draft[k])) entries[k]=draft[k];
+  if(!Object.keys(entries).length){ alert("Nothing logged yet."); return; }
+  const now=new Date();
+  history.unshift({id:now.getTime(), date:now.toLocaleDateString(undefined,
+    {weekday:"short",month:"short",day:"numeric"}), time:now.toLocaleTimeString([],{hour:"numeric",minute:"2-digit"}),
+    entries});
+  save(K_HIST,history); draft={}; save(K_DRAFT,draft); push(history[0]);
+  renderLog(); renderHist(); stat(); tab("hist");
+}
+function clearToday(){ if(!confirm("Clear today's entries?"))return;
+  draft={}; save(K_DRAFT,draft); renderLog(); stat(); }
+function del(id){ if(!confirm("Delete this workout?"))return;
+  history=history.filter(s=>s.id!==id); save(K_HIST,history); remove(id); renderHist(); renderLog(); stat(); }
+
+function renderHist(){
+  const v=document.getElementById("view-hist");
+  const io = `<div class="row" style="margin-top:14px">
+    <button class="act" onclick="exportData()">Export JSON</button>
+    <label class="act" style="cursor:pointer">Import JSON
+      <input type="file" accept="application/json,.json" style="display:none"
+        onchange="if(this.files[0])importData(this.files[0]);this.value=''"></label></div>`;
+  if(!history.length){ v.innerHTML=`<div class="empty">No finished workouts yet.</div>`+io; return; }
+  v.innerHTML=history.map(s=>{
+    const vol=Object.values(s.entries).reduce((a,e)=>a+(parseFloat(e.weight)||0)*
+      ((parseInt(e.r1)||0)+(parseInt(e.r2)||0)),0);
+    const rows=Object.entries(s.entries).map(([n,e])=>{
+      const set=Object.keys(e).filter(k=>k.startsWith("set_")&&e[k])
+        .map(k=>`${k.slice(4)} ${e[k]}`).join(", ");
+      return `<tr><td>${esc(n)}${set?` <span class="last">(${esc(set)})</span>`:""}</td>
+        <td>${esc(fmt(e))||"—"}</td></tr>`;}).join("");
+    return `<div class="sess"><h3>${esc(s.date)} <span class="last">${esc(s.time||"")}</span>
+      <button class="del" style="float:right" onclick="del(${s.id})">delete</button></h3>
+      <div class="row"><span class="chip"><b>${Object.keys(s.entries).length}</b> exercises</span>
+      ${vol?`<span class="chip"><b>${vol.toLocaleString()}</b> lb volume</span>`:""}</div>
+      <table>${rows}</table></div>`;
+  }).join("");
+}
+
+/* Export/import keeps the history portable: it is the escape hatch from any
+   backend, and the only backup if you are running purely on localStorage. */
+function exportData(){
+  const blob = new Blob([JSON.stringify({app:"workout-tracker",version:1,
+    exported:new Date().toISOString(), history},null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = `workouts-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = async () => {
+    let incoming;
+    try{
+      const parsed = JSON.parse(reader.result);
+      incoming = Array.isArray(parsed) ? parsed : parsed.history;
+      if(!Array.isArray(incoming)) throw 0;
+    }catch(e){ alert("That file is not a workout export."); return; }
+
+    // Merge rather than replace: importing a backup never drops what is here.
+    const byId = new Map(history.map(s => [s.id, s]));
+    const added = incoming.filter(s => s && s.id && s.entries && !byId.has(s.id));
+    for(const s of added) byId.set(s.id, s);
+    history = [...byId.values()].sort((a,b) => b.id - a.id);
+    save(K_HIST, history);
+    for(const s of added) await push(s);
+    renderHist(); stat(); renderLog();
+    alert(`Imported ${added.length} workout${added.length===1?"":"s"} (${incoming.length - added.length} already present).`);
+  };
+  reader.readAsText(file);
+}
+
+function tab(t){
+  document.getElementById("view-log").style.display = t==="log"?"":"none";
+  document.getElementById("view-hist").style.display= t==="hist"?"":"none";
+  document.getElementById("bar").style.display      = t==="log"?"":"none";
+  document.getElementById("t-log").className  = t==="log"?"on":"";
+  document.getElementById("t-hist").className = t==="hist"?"on":"";
+}
+renderLog(); renderHist(); stat(); initSync();
+</script>
+</body>
+</html>

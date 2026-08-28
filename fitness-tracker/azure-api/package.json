@@ -1,0 +1,12 @@
+{
+  "name": "fitness-tracker-api",
+  "version": "1.0.0",
+  "main": "src/functions/*.js",
+  "dependencies": {
+    "@azure/functions": "^4.5.0",
+    "@azure/data-tables": "^13.3.0"
+  },
+  "scripts": {
+    "test": "node test/handler.test.js && node test/health.test.js"
+  }
+}
