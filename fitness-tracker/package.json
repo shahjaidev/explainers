@@ -1,0 +1,11 @@
+{
+  "name": "fitness-tracker",
+  "private": true,
+  "version": "1.0.0",
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.4"
+  },
+  "scripts": {
+    "test": "node azure-api/test/handler.test.js && node azure-api/test/health.test.js && node test/vercel.test.js"
+  }
+}

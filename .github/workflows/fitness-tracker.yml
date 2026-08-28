@@ -21,7 +21,7 @@ jobs:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           action: upload
           app_location: 'fitness-tracker'
-          api_location: 'fitness-tracker/api'
+          api_location: 'fitness-tracker/azure-api'
           output_location: ''
 
   close_pull_request:

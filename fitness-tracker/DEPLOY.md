@@ -1,4 +1,22 @@
-# Deploying the workout tracker on Azure
+# Deploying the workout tracker
+
+Two deployments live side by side in this folder — pick one, or try both. The
+page itself (`index.html`) is shared; only the backend differs.
+
+| | Azure Static Web Apps | Vercel |
+| --- | --- | --- |
+| Cost | $0 hosting + pennies of storage | $0 on Hobby (personal use only) |
+| Database | Table Storage, **in your own subscription** | Neon Postgres, on **Neon's** free tier |
+| Sign-in | GitHub OAuth, built in and free | Shared passcode you set |
+| Setup | 4 `az` commands | Connect repo, add integration, set one env var |
+| Backend files | `azure-api/` | `api/` |
+
+Neither stores anything the other can see; export/import (in the History tab)
+moves your history between them.
+
+---
+
+# Option A — Azure
 
 Cheapest shape that still gives you a real database and a URL you can open from
 the gym: **Azure Static Web Apps (Free plan) + Azure Table Storage**.
@@ -28,7 +46,7 @@ az storage account show-connection-string -n <storage-account-name> -g fitness-r
 # 3. Create the Static Web App wired to this repo
 az staticwebapp create -n fitness-tracker -g fitness-rg -l eastus2 --sku Free \
     --source https://github.com/shahjaidev/explainers --branch main \
-    --app-location /fitness-tracker --api-location /fitness-tracker/api --login-with-github
+    --app-location /fitness-tracker --api-location /fitness-tracker/azure-api --login-with-github
 
 # 4. Give the API the connection string
 az staticwebapp appsettings set -n fitness-tracker \
@@ -75,14 +93,48 @@ yourself under **Role management** and change the API rule to
 
 ```bash
 npm i -g @azure/static-web-apps-cli azure-functions-core-tools@4
-cd fitness-tracker/api && npm install && cd ..
-# api/local.settings.json: {"Values":{"STORAGE_CONNECTION_STRING":"UseDevelopmentStorage=true"}}
-swa start . --api-location api
+cd fitness-tracker/azure-api && npm install && cd ..
+# azure-api/local.settings.json: {"Values":{"STORAGE_CONNECTION_STRING":"UseDevelopmentStorage=true"}}
+swa start . --api-location azure-api
 ```
 
 `swa start` fakes the login at `/.auth/login/github`. Without any of this, the
 page still works standalone — open `index.html` and everything saves to
 localStorage.
+
+---
+
+# Option B — Vercel
+
+Less setup, because the Marketplace integration provisions the database and
+injects its connection string for you. The trade is that the data sits on
+Neon's free tier rather than in infrastructure you own, and that there is no
+free built-in OAuth, so access is a shared passcode instead of a GitHub login.
+
+1. Import the repo at vercel.com, set **Root Directory** to `fitness-tracker`.
+2. **Storage → Marketplace → Neon** and create a database. Vercel sets
+   `DATABASE_URL` automatically; there is nothing to copy.
+3. Add one environment variable: `APP_PASSCODE`, a long random string.
+   Without it the API refuses every request — there is no default and no
+   unauthenticated fallback.
+4. Deploy. Open the app, click "enter passcode" in the header, paste it once;
+   it is remembered in that browser.
+
+The `workouts` table is created on first write. Same check as Azure:
+
+```bash
+curl -s https://<your-app>.vercel.app/api/health
+# {"ok":true,"storage":"reachable","auth":"passcode"}
+# {"ok":false,"auth":"unconfigured"}  -> APP_PASSCODE not set
+# {"ok":false,"storage":"unconfigured"} -> Neon integration not connected
+```
+
+**Be clear-eyed about the passcode.** It is one shared secret with no rotation,
+no lockout, and no per-device revocation: anyone who has it can read and write
+your history, and changing it signs out every device. That is a reasonable
+trade for a personal gym log and a bad one for anything else. Azure's GitHub
+login is genuinely stronger, and free — if that matters more than setup time,
+use Option A. Swapping the passcode for real OAuth here is a later change.
 
 ## Cheaper/other options considered
 
@@ -95,6 +147,10 @@ localStorage.
 
 ## Tests
 
-`cd fitness-tracker/api && npm install && npm test` runs the handler against an
-in-memory stub of Table Storage: auth rejection, per-user isolation, newest-first
-ordering, bad payloads, and idempotent delete.
+`cd fitness-tracker && npm install && npm test` runs both backends against
+in-memory stand-ins for their databases — no Azure or Neon account needed.
+Covered on each: auth rejection, isolation, newest-first ordering, bad
+payloads, upsert without duplication, and idempotent delete.
+
+Note that `fitness-tracker/package.json` exists for the Vercel functions; the
+Azure build will `npm install` it too. It is harmless, just a few seconds.

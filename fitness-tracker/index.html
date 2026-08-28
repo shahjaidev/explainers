@@ -82,6 +82,7 @@
 <div class="bar" id="bar">
   <div class="wrap">
     <div class="stat" id="stat"></div>
+    <button class="act" onclick="exportData()">Export</button>
     <button class="act" onclick="clearToday()">Clear</button>
     <button class="act pri" onclick="finish()">Finish workout</button>
   </div>
@@ -108,25 +109,68 @@ let history = load(K_HIST,[]);
    deployment where the visitor is signed in, history is mirrored to /api so it
    follows them across devices. Anything the API rejects stays local.        */
 let cloud = false;
+let passcode = null;          // only used by the passcode (Vercel) backend
+const K_PASS = "wt.passcode";
 const syncEl = () => document.getElementById("sync");
 function syncMsg(text, link){
-  syncEl().innerHTML = link ? `${esc(text)} <a href="${link}" style="color:inherit">sign in</a>` : esc(text);
+  syncEl().innerHTML = link
+    ? `${esc(text)} <a href="#" onclick="${link};return false" style="color:inherit">${esc(link==="signIn()"?"sign in":"enter passcode")}</a>`
+    : esc(text);
+}
+const signIn = () => location.href = "/.auth/login/github";
+
+// One fetch wrapper so the passcode header is never forgotten on a call site.
+function api(path, opts={}){
+  const headers = Object.assign({}, opts.headers);
+  if(passcode) headers["x-app-passcode"] = passcode;
+  return fetch(path, Object.assign({}, opts, {headers}));
 }
 
 async function initSync(){
-  let me;
+  let health;
   try{
-    const r = await fetch("/.auth/me");
-    if(!r.ok) throw 0;
-    me = await r.json();
+    const r = await fetch("/api/health");
+    health = await r.json();
   }catch(e){ syncMsg("Local only — this device."); return; }
 
-  if(!me.clientPrincipal){
-    syncMsg("Local only —", "/.auth/login/github");
-    return;
+  if(!health || health.auth === "unconfigured"){
+    syncMsg("Backend not configured — saving locally."); return;
   }
+  const ok = health.auth === "swa" ? await authSwa() : await authPasscode();
+  if(ok) await pullAndMerge();
+}
+
+async function authSwa(){
   try{
-    const r = await fetch("/api/workouts");
+    const me = await (await fetch("/.auth/me")).json();
+    if(!me.clientPrincipal){ syncMsg("Local only —", "signIn()"); return false; }
+    window.__who = me.clientPrincipal.userDetails;
+    return true;
+  }catch(e){ syncMsg("Local only — this device."); return false; }
+}
+
+async function authPasscode(){
+  passcode = localStorage.getItem(K_PASS);
+  if(!passcode){ syncMsg("Local only —", "askPasscode()"); return false; }
+  const r = await api("/api/workouts");
+  if(r.status === 401){
+    passcode = null; localStorage.removeItem(K_PASS);
+    syncMsg("Passcode rejected —", "askPasscode()"); return false;
+  }
+  window.__who = "passcode";
+  return true;
+}
+
+async function askPasscode(){
+  const v = prompt("Passcode for this tracker:");
+  if(!v) return;
+  localStorage.setItem(K_PASS, v);
+  if(await authPasscode()) await pullAndMerge();
+}
+
+async function pullAndMerge(){
+  try{
+    const r = await api("/api/workouts");
     if(!r.ok) throw new Error(r.status);
     const remote = await r.json();
     cloud = true;
@@ -136,24 +180,22 @@ async function initSync(){
     for(const s of history) byId.set(s.id, byId.get(s.id) || s);
     history = [...byId.values()].sort((a,b) => b.id - a.id);
     save(K_HIST, history);
-    for(const s of unsynced) push(s);
+    for(const s of unsynced) await push(s);
     renderHist(); renderLog(); stat();
-    syncMsg(`Synced as ${me.clientPrincipal.userDetails}`);
-  }catch(e){
-    syncMsg("Sync unavailable — saving locally.");
-  }
+    syncMsg(`Synced${window.__who && window.__who !== "passcode" ? " as " + window.__who : ""}`);
+  }catch(e){ syncMsg("Sync unavailable — saving locally."); }
 }
 
 async function push(session){
   if(!cloud) return;
   try{
-    await fetch("/api/workouts", {method:"POST",
+    await api("/api/workouts", {method:"POST",
       headers:{"Content-Type":"application/json"}, body:JSON.stringify(session)});
   }catch(e){ syncMsg("Offline — saved on this device."); }
 }
 async function remove(id){
   if(!cloud) return;
-  try{ await fetch("/api/workouts/"+id, {method:"DELETE"}); }
+  try{ await api("/api/workouts/"+id, {method:"DELETE"}); }
   catch(e){ syncMsg("Offline — delete not synced."); }
 }
 
@@ -231,7 +273,12 @@ function del(id){ if(!confirm("Delete this workout?"))return;
 
 function renderHist(){
   const v=document.getElementById("view-hist");
-  if(!history.length){ v.innerHTML=`<div class="empty">No finished workouts yet.</div>`; return; }
+  const io = `<div class="row" style="margin-top:14px">
+    <button class="act" onclick="exportData()">Export JSON</button>
+    <label class="act" style="cursor:pointer">Import JSON
+      <input type="file" accept="application/json,.json" style="display:none"
+        onchange="if(this.files[0])importData(this.files[0]);this.value=''"></label></div>`;
+  if(!history.length){ v.innerHTML=`<div class="empty">No finished workouts yet.</div>`+io; return; }
   v.innerHTML=history.map(s=>{
     const vol=Object.values(s.entries).reduce((a,e)=>a+(parseFloat(e.weight)||0)*
       ((parseInt(e.r1)||0)+(parseInt(e.r2)||0)),0);
@@ -246,6 +293,40 @@ function renderHist(){
       ${vol?`<span class="chip"><b>${vol.toLocaleString()}</b> lb volume</span>`:""}</div>
       <table>${rows}</table></div>`;
   }).join("");
+}
+
+/* Export/import keeps the history portable: it is the escape hatch from any
+   backend, and the only backup if you are running purely on localStorage. */
+function exportData(){
+  const blob = new Blob([JSON.stringify({app:"workout-tracker",version:1,
+    exported:new Date().toISOString(), history},null,2)],{type:"application/json"});
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = `workouts-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function importData(file){
+  const reader = new FileReader();
+  reader.onload = async () => {
+    let incoming;
+    try{
+      const parsed = JSON.parse(reader.result);
+      incoming = Array.isArray(parsed) ? parsed : parsed.history;
+      if(!Array.isArray(incoming)) throw 0;
+    }catch(e){ alert("That file is not a workout export."); return; }
+
+    // Merge rather than replace: importing a backup never drops what is here.
+    const byId = new Map(history.map(s => [s.id, s]));
+    const added = incoming.filter(s => s && s.id && s.entries && !byId.has(s.id));
+    for(const s of added) byId.set(s.id, s);
+    history = [...byId.values()].sort((a,b) => b.id - a.id);
+    save(K_HIST, history);
+    for(const s of added) await push(s);
+    renderHist(); stat(); renderLog();
+    alert(`Imported ${added.length} workout${added.length===1?"":"s"} (${incoming.length - added.length} already present).`);
+  };
+  reader.readAsText(file);
 }
 
 function tab(t){
