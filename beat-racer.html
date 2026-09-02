@@ -1,0 +1,621 @@
+<meta charset="utf-8">
+<title>Beat Racer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;--accent:#FF5FA8;--accent-soft:rgba(255,95,168,0.16);--cyan:#4DF3FF;--teacher:#E9A93E;
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.6;-webkit-font-smoothing:antialiased;color-scheme:dark}
+  #stage{position:relative;height:100vh;min-height:540px;overflow:hidden;background:#1a0a2e;user-select:none;-webkit-user-select:none;touch-action:none}
+  #gl,#hud{position:absolute;inset:0;width:100%;height:100%;display:block}
+  #hud{pointer-events:none}
+  #stats{position:absolute;left:18px;top:16px;display:flex;gap:18px;font-family:var(--mono);font-size:.78rem;letter-spacing:.04em;color:var(--dim);pointer-events:none;text-shadow:0 1px 8px rgba(0,0,0,.6)}
+  #stats b{display:block;font-size:1.35rem;color:#fff;font-weight:600;letter-spacing:0;line-height:1.1}
+  #stats .combo b{color:var(--cyan)}
+  #topright{position:absolute;right:16px;top:16px;display:flex;gap:8px;align-items:center}
+  .btn{appearance:none;border:1px solid var(--line);background:rgba(20,26,38,.75);backdrop-filter:blur(8px);color:var(--text);font-family:var(--mono);font-size:.78rem;letter-spacing:.04em;padding:9px 14px;border-radius:9px;cursor:pointer;transition:border-color .15s,background .15s}
+  .btn:hover{border-color:var(--accent);background:rgba(255,95,168,.12)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#1a0616;font-weight:600}
+  .btn.primary:hover{background:#ff7dba}
+  #overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 60%,rgba(20,8,40,.35),rgba(8,4,16,.82));padding:20px}
+  #overlay.hidden{display:none}
+  .panel{max-width:520px;width:100%;background:rgba(14,10,28,.82);border:1px solid var(--line);border-radius:18px;padding:30px 32px;box-shadow:0 30px 80px rgba(0,0,0,.6);backdrop-filter:blur(14px)}
+  .panel .eyebrow{font-family:var(--mono);font-size:.7rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);margin-bottom:1em}
+  .panel h1{font-family:var(--serif);font-size:2.3rem;line-height:1.05;margin:0 0 .35em;letter-spacing:-.015em}
+  .panel p{color:var(--dim);margin:.4em 0 1.2em;font-size:.98rem}
+  .panel .row{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .panel .hint{font-family:var(--mono);font-size:.72rem;color:var(--faint);margin-top:18px;line-height:1.7}
+  .panel kbd{font-family:var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:1px 6px;font-size:.72rem;color:var(--text)}
+  #result{display:none}
+  #stage.drag::after{content:"drop the track";position:absolute;inset:14px;border:2px dashed var(--accent);border-radius:16px;display:flex;align-items:center;justify-content:center;font-family:var(--mono);color:var(--accent);letter-spacing:.2em;text-transform:uppercase;background:rgba(255,95,168,.08);pointer-events:none}
+  #touchhint{position:absolute;bottom:76px;left:0;right:0;text-align:center;font-family:var(--mono);font-size:.7rem;color:rgba(255,255,255,.45);letter-spacing:.14em;text-transform:uppercase;pointer-events:none}
+  @media (hover:hover){#touchhint{display:none}}
+
+  /* ---------- explainer ---------- */
+  .wrap{max-width:760px;margin:0 auto;padding:0 24px}
+  article{padding:clamp(56px,9vw,96px) 0 clamp(64px,12vw,120px)}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:1.4em;display:flex;align-items:center;gap:.7em}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--accent);opacity:.6}
+  article h2{font-family:var(--serif);font-size:clamp(1.9rem,4.5vw,2.6rem);line-height:1.1;letter-spacing:-.015em;margin:0 0 .5em;text-wrap:balance}
+  article h3{font-family:var(--serif);font-size:1.45rem;margin:2.2em 0 .5em;letter-spacing:-.01em}
+  article p{margin:0 0 1.1em;color:var(--text)}
+  article p.lead{font-size:1.12rem;color:var(--dim);max-width:60ch}
+  article code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);padding:.1em .4em;border-radius:5px}
+  article pre{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.6;margin:1em 0 1.4em}
+  article pre code{background:none;padding:0;font-size:1em}
+  .pipe{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:1.2em 0 1.6em}
+  .pipe div{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 14px 12px;position:relative}
+  .pipe div::before{content:attr(data-n);font-family:var(--mono);font-size:.66rem;color:var(--accent);letter-spacing:.14em}
+  .pipe b{display:block;font-family:var(--serif);font-size:1.05rem;margin:.2em 0 .25em}
+  .pipe span{font-size:.84rem;color:var(--dim);line-height:1.45;display:block}
+  table{border-collapse:collapse;width:100%;font-size:.92rem;margin:.6em 0 1.6em}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+  th{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);font-weight:500}
+  td:first-child{font-family:var(--mono);font-size:.82rem;color:var(--cyan);white-space:nowrap}
+  .note{border-left:3px solid var(--teacher);padding:10px 18px;background:var(--surface);border-radius:0 12px 12px 0;margin:1.4em 0;color:var(--dim);font-size:.95rem}
+  .note b{color:var(--text)}
+  ul{padding-left:1.2em;margin:0 0 1.2em}
+  li{margin:.35em 0}
+  footer{border-top:1px solid var(--line-soft);padding:32px 0 64px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.7}
+  footer a,article a{color:var(--dim)}
+  a.back{position:absolute;left:18px;bottom:18px;font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;color:rgba(255,255,255,.5);text-decoration:none}
+  a.back:hover{color:#fff}
+</style>
+
+<div id="stage">
+  <canvas id="gl"></canvas>
+  <canvas id="hud"></canvas>
+
+  <div id="stats">
+    <div class="bpm">tempo<b id="s-bpm">—</b></div>
+    <div class="speed">km/h<b id="s-speed">0</b></div>
+    <div class="score">score<b id="s-score">0</b></div>
+    <div class="combo">combo<b id="s-combo">×1</b></div>
+  </div>
+  <div id="topright">
+    <span id="track" style="font-family:var(--mono);font-size:.7rem;color:rgba(255,255,255,.55);max-width:38vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+    <button class="btn" id="stop" style="display:none">■ stop</button>
+  </div>
+  <div id="touchhint">tap left / right of the screen to change lane</div>
+
+  <div id="overlay">
+    <div class="panel">
+      <div class="eyebrow">A music game in one file</div>
+      <h1>Race to your own music.</h1>
+      <div id="intro">
+        <p>Drop in any song. The road reads the bass, the city lights hit on every beat, and your speed follows how loud the track gets. Catch the beat orbs, dodge the traffic.</p>
+        <div class="row">
+          <button class="btn primary" id="pick">▶ choose a song</button>
+          <button class="btn" id="demo">play built-in synthwave</button>
+          <button class="btn" id="mic">use microphone</button>
+        </div>
+        <input type="file" id="file" accept="audio/*" style="display:none">
+        <div class="hint"><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> to change lane · drag &amp; drop a file anywhere · nothing is uploaded, the song stays in your browser</div>
+      </div>
+      <div id="result">
+        <p id="r-text"></p>
+        <div class="row">
+          <button class="btn primary" id="again">▶ play again</button>
+          <button class="btn" id="pick2">choose another song</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <a class="back" href="index.html">← explainers</a>
+</div>
+
+<article>
+  <div class="wrap">
+    <div class="eyebrow">How it's built</div>
+    <h2>Every music game is the same four boxes.</h2>
+    <p class="lead">Beat For Speed, Audiosurf, Riff Racer, Melody's Escape, this page — they all reduce to one pipeline. The song goes in one end, a spectrum comes out, a beat detector fires, and everything you see is some number in the world being driven by those signals. Once you see the boxes, the rest is art direction.</p>
+
+    <div class="pipe">
+      <div data-n="01"><b>Audio in</b><span>A decoded file, a microphone, or a synth you generate yourself. Anything that can feed an audio graph.</span></div>
+      <div data-n="02"><b>Analyse</b><span>An FFT every frame. Split the spectrum into bass, mids, highs; keep a short history of bass energy.</span></div>
+      <div data-n="03"><b>Detect beats</b><span>A beat is a bass spike well above the recent average, with a refractory period so one kick fires once.</span></div>
+      <div data-n="04"><b>Drive the world</b><span>Map loudness to speed, beats to light pulses and spawns, bass to camera kick. Tune until it feels like the song.</span></div>
+    </div>
+
+    <h3>1. The audio graph</h3>
+    <p>In the browser this is the Web Audio API and it is three lines. Whatever the source is, it flows through an <code>AnalyserNode</code> before reaching the speakers. The analyser doesn't change the sound; it just lets you read the spectrum at any moment.</p>
+<pre><code>const ctx = new AudioContext();
+const analyser = ctx.createAnalyser();
+analyser.fftSize = 2048;               // 1024 frequency bins, ~21 Hz each at 44.1 kHz
+analyser.smoothingTimeConstant = 0.4; // some smoothing, but keep transients
+
+source.connect(analyser);              // a decoded file, a mic stream, or an oscillator
+analyser.connect(ctx.destination);     // (skip this for the mic or you get feedback)</code></pre>
+    <p>Streaming services are the one thing you <em>can't</em> plug in. Spotify and Apple Music are DRM-protected and never expose raw samples. That is why every game in this genre reads local files, and why the microphone option exists: it is the universal adapter for whatever is already playing in the room.</p>
+
+    <h3>2. Reading the spectrum</h3>
+    <p>Each frame, ask the analyser for the frequency data and average a few bands. Squaring the values turns the decibel-ish byte scale into something closer to energy, which makes kicks stand out more.</p>
+<pre><code>analyser.getByteFrequencyData(freq);         // Uint8Array, one value per bin
+const hz = ctx.sampleRate / analyser.fftSize;
+const band = (lo, hi) => {                  // mean energy between two frequencies
+  let s = 0, n = 0;
+  for (let i = Math.floor(lo/hz); i < Math.ceil(hi/hz); i++) { s += (freq[i]/255) ** 2; n++; }
+  return s / n;
+};
+const bass = band(30, 250), mids = band(250, 2000), highs = band(2000, 8000);</code></pre>
+
+    <h3>3. Beat detection in fifteen lines</h3>
+    <p>The obvious approach, "bass energy above its recent average", fails on real music: a sustained bass note fills the same band as the kick, so the average rises to meet it and nothing fires. The fix is <em>spectral flux</em>: only count how much each low bin <em>increased</em> since the last frame. A held note contributes nothing; a drum hit contributes a lot. Then compare that to its own recent average, with a refractory window so one kick fires once. This is exactly what the page above runs.</p>
+<pre><code>const prev = new Uint8Array(freq.length), history = [];   // ~45 frames ≈ 0.75 s
+let lastBeat = 0;
+
+function detectBeat(now) {
+  let flux = 0;
+  for (let i = 1; i < 400 / hz; i++) {          // bins up to ~400 Hz
+    const d = (freq[i] - prev[i]) / 255;         // change since last frame…
+    if (d > 0) flux += d * d;                    // …counting only increases
+  }
+  prev.set(freq);
+  history.push(flux); if (history.length > 45) history.shift();
+  const avg = history.reduce((a, b) => a + b, 0) / history.length;
+  const isBeat = flux > avg * 1.6 && flux > 0.004 && now - lastBeat > 0.22;
+  if (isBeat) lastBeat = now;
+  return isBeat;
+}</code></pre>
+    <p>Real-time detection is reactive by nature: the beat fires when the kick lands, which is slightly late for spawning things the player must reach <em>on</em> the beat. Shipping games solve this by analysing the whole file up front (it takes a few seconds), which gives you every onset, a reliable BPM, and the song's structure before the race starts. Libraries that do this well: <code>aubio</code>, <code>librosa</code>, <code>madmom</code>, and Essentia. In the browser you can decode the file offline with an <code>OfflineAudioContext</code> and run the same loop over the full buffer.</p>
+
+    <h3>4. Turning signals into a world</h3>
+    <p>This is the part that makes it a <em>game</em> rather than a visualiser. Every mapping is one line, and the whole feel lives in these choices.</p>
+    <table>
+      <thead><tr><th>Signal</th><th>Drives</th><th>How</th></tr></thead>
+      <tbody>
+        <tr><td>loudness (smoothed)</td><td>speed of the road</td><td>target speed = idle + max × loudness, eased toward over ~0.7 s so it swells with the song instead of jittering</td></tr>
+        <tr><td>beat</td><td>building windows, streetlights, sky glow</td><td>a pulse value jumps to 1 and decays exponentially; emissive intensity and fog colour read it every frame</td></tr>
+        <tr><td>beat</td><td>camera field of view</td><td>a few degrees of FOV kick on the same pulse gives the "punch" without moving anything</td></tr>
+        <tr><td>beat</td><td>spawns</td><td>an orb appears in a random lane far enough ahead to arrive about a bar later; every sixth beat spawns a car instead</td></tr>
+        <tr><td>bass</td><td>headlight beam, road shimmer</td><td>direct, unsmoothed: bass is already a slow-moving signal</td></tr>
+        <tr><td>highs</td><td>spectrum bars, star twinkle</td><td>cosmetic; highs are busy and look good as fine detail</td></tr>
+      </tbody>
+    </table>
+    <p>The scene itself is deliberately cheap: one road plane with a scrolling lane texture, a hundred box buildings with a generated window texture as an emissive map, streetlight poles, a fence, and a sky gradient in a tiny shader. Everything scrolls toward a fixed camera and gets recycled when it passes behind. No models were loaded; the whole city is procedural.</p>
+
+    <div class="note"><b>Why the world moves and not the bike.</b> Keeping the camera at the origin and moving the scenery avoids floating-point drift on long songs, makes recycling trivial (anything with <code>z &gt; 30</code> jumps back a kilometre), and means "speed" is just how far the scenery slides per frame.</div>
+
+    <h3>From prototype to product</h3>
+    <p>The page above is the entire idea, and it is roughly 600 lines. Going from this to something like Beat For Speed is mostly about polish and platform, not about a different design:</p>
+    <ul>
+      <li><b>Pick an engine.</b> Unity ships spectrum data on every <code>AudioSource</code> (<code>GetSpectrumData</code>) and has the largest pool of tutorials for exactly this genre. Godot 4 has <code>AudioEffectSpectrumAnalyzer</code> and exports to mobile easily. Unreal has Audio Synesthesia for offline analysis. All three let you keep the same four boxes.</li>
+      <li><b>Analyse offline, react live.</b> Pre-scan the song for BPM and onsets so the level is built ahead of time, then use the live spectrum for lights and speed. That gives you tight rhythm gameplay <em>and</em> the reactive feel.</li>
+      <li><b>Generate the track from the song.</b> Audiosurf's trick: map song energy to the road's slope, so quiet intros climb and drops plunge. Section detection (verse, chorus) gives you a place to change the city's colour palette.</li>
+      <li><b>Spend on light.</b> The dusk look in the clip is bloom, volumetric headlights, wet-road reflections, and a strong palette, not geometry. Post-processing is where the mood comes from.</li>
+      <li><b>Music sourcing is the product decision.</b> Local files and a microphone are the only unrestricted paths. Anything with a catalogue means licensing.</li>
+      <li><b>Make it easy to share.</b> The clip you saw is the marketing. Build the "record a 15-second clip" button early.</li>
+    </ul>
+    <p>Read the source of this page: the audio section, the beat detector, and the scene are three separate blocks you can lift into any project.</p>
+  </div>
+</article>
+
+<footer>
+  <div class="wrap">Built with three.js and the Web Audio API. The built-in track is synthesised on the fly, so there is nothing to license and nothing to download.<br><a href="index.html">← back to the library</a></div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+'use strict';
+const $ = s => document.querySelector(s);
+const stage = $('#stage'), glCanvas = $('#gl'), hud = $('#hud'), hctx = hud.getContext('2d');
+const LANES = [-4, 0, 4], LOOP = 1000, ROAD_W = 12;
+const rand = (a, b) => a + Math.random() * (b - a);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+
+/* =====================================================================
+   1. AUDIO — sources, analyser, beat detection
+   ===================================================================== */
+let actx, analyser, freq, masterGain, monitorGain, arpDelay, arpFeedback;
+let current = null;            // {kind, stop()}
+let bass = 0, mids = 0, highs = 0, loud = 0, loudS = 0, bassS = 0, peak = 0.02, drive = 0, flux = 0;
+let prevFreq = null;
+const history = [];
+let lastBeat = -1, beatPulse = 0, beatCount = 0, bpm = 0;
+const intervals = [];
+
+function ensureCtx(){
+  if (!actx){
+    actx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = actx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.4;
+    analyser.minDecibels = -90; analyser.maxDecibels = -10;   // the default -30 ceiling saturates on any loud master
+    freq = new Uint8Array(analyser.frequencyBinCount);
+    masterGain = actx.createGain();
+    monitorGain = actx.createGain();
+    const comp = actx.createDynamicsCompressor(); comp.threshold.value = -12; comp.ratio.value = 4; comp.knee.value = 10;
+    masterGain.connect(comp); comp.connect(analyser);
+    analyser.connect(monitorGain);
+    monitorGain.connect(actx.destination);
+  }
+  if (actx.state === 'suspended') actx.resume();
+}
+
+function stopCurrent(){
+  if (current){ try { current.stop(); } catch(e){} current = null; }
+  if (monitorGain) monitorGain.gain.value = 1;
+}
+
+function playBuffer(buffer, name){
+  ensureCtx(); stopCurrent();
+  const src = actx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(masterGain);
+  src.start();
+  const me = { kind:'file', stop(){ src.onended = null; src.stop(); } };
+  src.onended = () => { if (current === me) finish(); };
+  current = me;
+  beginRun(name);
+}
+
+async function loadFile(file){
+  ensureCtx();
+  $('#track').textContent = 'decoding…';
+  const buf = await file.arrayBuffer();
+  try {
+    const audio = await actx.decodeAudioData(buf);
+    playBuffer(audio, file.name.replace(/\.[^.]+$/, ''));
+  } catch(e){
+    $('#track').textContent = "couldn't decode that file";
+  }
+}
+
+async function useMic(){
+  ensureCtx(); stopCurrent();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+    const src = actx.createMediaStreamSource(stream);
+    src.connect(masterGain);
+    monitorGain.gain.value = 0;              // never play the mic back
+    current = { kind:'mic', stop(){ src.disconnect(); stream.getTracks().forEach(t => t.stop()); } };
+    beginRun('microphone');
+  } catch(e){
+    $('#track').textContent = 'microphone blocked';
+  }
+}
+
+/* ---- a small synthwave track, generated on the fly ---- */
+function startDemo(){
+  ensureCtx(); stopCurrent();
+  const bpmDemo = 126, step = 60 / bpmDemo / 4;
+  const noise = actx.createBuffer(1, actx.sampleRate, actx.sampleRate);
+  { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
+  const chords = [[57,60,64,67],[53,57,60,64],[60,64,67,71],[55,59,62,66]];  // Am7 Fmaj7 Cmaj7 G7-ish
+  const bus = actx.createGain(); bus.gain.value = 0.9; bus.connect(masterGain);
+  const delay = actx.createDelay(1); delay.delayTime.value = step * 3;
+  const fb = actx.createGain(); fb.gain.value = 0.38;
+  const wet = actx.createGain(); wet.gain.value = 0.35;
+  delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(bus);
+
+  function env(g, t, a, peak, d, sustain, r, end){ g.gain.cancelScheduledValues(t); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(Math.max(sustain,0.0001), t + a + d); g.gain.setValueAtTime(Math.max(sustain,0.0001), end); g.gain.exponentialRampToValueAtTime(0.0001, end + r); }
+  function kick(t){ const o = actx.createOscillator(), g = actx.createGain(); o.frequency.setValueAtTime(160, t); o.frequency.exponentialRampToValueAtTime(42, t + 0.12); g.gain.setValueAtTime(1.0, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.38); o.connect(g); g.connect(bus); o.start(t); o.stop(t + 0.4); }
+  function snare(t){ const n = actx.createBufferSource(); n.buffer = noise; const f = actx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1800; f.Q.value = 0.7; const g = actx.createGain(); g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.2); n.connect(f); f.connect(g); g.connect(bus); n.start(t); n.stop(t + 0.25);
+    const o = actx.createOscillator(); o.type = 'triangle'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(120, t + 0.08); const g2 = actx.createGain(); g2.gain.setValueAtTime(0.4, t); g2.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.connect(g2); g2.connect(bus); o.start(t); o.stop(t + 0.12); }
+  function hat(t, open){ const n = actx.createBufferSource(); n.buffer = noise; const f = actx.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7000; const g = actx.createGain(); const d = open ? 0.16 : 0.045; g.gain.setValueAtTime(open ? 0.16 : 0.12, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d); n.connect(f); f.connect(g); g.connect(bus); n.start(t); n.stop(t + d + 0.02); }
+  function bassNote(t, m, len){ const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.Q.value = 4; f.frequency.setValueAtTime(1400, t); f.frequency.exponentialRampToValueAtTime(260, t + len); const g = actx.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.28, t + 0.01); g.gain.setValueAtTime(0.28, t + len - 0.03); g.gain.exponentialRampToValueAtTime(0.0001, t + len); o.connect(f); f.connect(g); g.connect(bus); o.start(t); o.stop(t + len + 0.02); }
+  function pad(t, notes, len){ const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(500, t); f.frequency.linearRampToValueAtTime(1600, t + len * 0.5); f.frequency.linearRampToValueAtTime(600, t + len); const g = actx.createGain(); env(g, t, 0.4, 0.05, 0.3, 0.045, 0.6, t + len - 0.6); f.connect(g); g.connect(bus);
+    notes.forEach(m => [-8, 8].forEach(det => { const o = actx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = mtof(m); o.detune.value = det; o.connect(f); o.start(t); o.stop(t + len + 0.8); })); }
+  function arp(t, m){ const o = actx.createOscillator(); o.type = 'square'; o.frequency.value = mtof(m); const f = actx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2600; const g = actx.createGain(); g.gain.setValueAtTime(0.07, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16); o.connect(f); f.connect(g); g.connect(bus); g.connect(delay); o.start(t); o.stop(t + 0.2); }
+
+  let i = 0, next = actx.currentTime + 0.15;
+  const pattern = [1,0,1,1,0,1,0,1, 1,0,1,0,1,1,0,1];
+  function schedule(i, t){
+    const bar = Math.floor(i / 16), s = i % 16, sect = Math.floor(bar / 8) % 3;   // 3 sections of 8 bars: build, drop, breakdown
+    const chord = chords[Math.floor(bar / 2) % 4];
+    if (s === 0) pad(t, chord, step * 32);
+    if (sect !== 2 || bar % 8 >= 4){ if (s % 4 === 0) kick(t); }
+    if (sect === 1 || (sect === 0 && bar % 8 >= 4)) { if (s === 4 || s === 12) snare(t); }
+    if (sect !== 2) { if (s % 2 === 0) hat(t, s % 4 === 2); }
+    if (sect !== 2 && s % 2 === 0) bassNote(t, chord[0] - 24 + (s === 6 || s === 14 ? 12 : 0), step * 1.8);
+    if (pattern[s] && (sect === 1 || s % 2 === 0)) arp(t, chord[(s * 5) % 4] + 12 + (s >= 8 ? 12 : 0));
+  }
+  const timer = setInterval(() => { while (next < actx.currentTime + 0.3){ schedule(i, next); i++; next += step; } }, 40);
+  current = { kind:'demo', stop(){ clearInterval(timer); bus.gain.setTargetAtTime(0, actx.currentTime, 0.05); setTimeout(() => bus.disconnect(), 400); } };
+  beginRun('built-in synthwave · 126 bpm');
+}
+
+/* ---- per-frame analysis ---- */
+function analyse(dt, now){
+  analyser.getByteFrequencyData(freq);
+  const hz = actx.sampleRate / analyser.fftSize;
+  const band = (lo, hi) => { let s = 0, n = 0; for (let i = Math.max(1, Math.floor(lo / hz)); i < Math.ceil(hi / hz); i++){ const v = freq[i] / 255; s += v * v; n++; } return n ? s / n : 0; };
+  bass = band(30, 250); mids = band(250, 2000); highs = band(2000, 8000);
+  loud = bass * 0.5 + mids * 0.4 + highs * 0.1;
+  const k = 1 - Math.exp(-dt * 3.5);
+  loudS += (loud - loudS) * k;
+  peak = Math.max(peak * Math.exp(-dt * 0.08), loudS, 0.02);          // slow-decaying peak: the song's own loudness ceiling
+  drive = clamp(loudS / peak, 0, 1);                                  // 0..1 however quiet or loud the file is
+  bassS += (bass - bassS) * (1 - Math.exp(-dt * 12));
+
+  // onset detection by spectral flux: only the *increase* in each low bin counts, so a sustained
+  // bass note contributes nothing and a kick drum contributes a lot
+  if (!prevFreq) prevFreq = new Uint8Array(freq.length);
+  flux = 0;
+  for (let i = Math.max(1, Math.floor(30 / hz)); i < Math.ceil(400 / hz); i++){ const d = (freq[i] - prevFreq[i]) / 255; if (d > 0) flux += d * d; }
+  prevFreq.set(freq);
+  history.push(flux); if (history.length > 45) history.shift();
+  const avg = history.reduce((a, b) => a + b, 0) / history.length;
+  const isBeat = history.length > 20 && flux > avg * 1.6 && flux > 0.004 && now - lastBeat > 0.22;
+  if (isBeat){
+    if (lastBeat > 0){ intervals.push(now - lastBeat); if (intervals.length > 16) intervals.shift(); }
+    lastBeat = now; beatPulse = 1; beatCount++;
+    if (intervals.length >= 6){ const s = [...intervals].sort((a, b) => a - b); let iv = s[s.length >> 1]; while (iv < 0.3) iv *= 2; while (iv > 0.7) iv /= 2; bpm = Math.round(60 / iv); }
+    onBeat();
+  }
+}
+
+/* =====================================================================
+   2. SCENE — road, city, sky, bike
+   ===================================================================== */
+const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.outputEncoding = THREE.sRGBEncoding;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+const scene = new THREE.Scene();
+const FOG = new THREE.Color(0x5c2a72);
+scene.fog = new THREE.Fog(FOG.clone(), 30, 300);
+const camera = new THREE.PerspectiveCamera(70, 1, 0.1, 1500);
+
+/* sky */
+const skyMat = new THREE.ShaderMaterial({
+  side: THREE.BackSide, depthWrite: false, fog: false,
+  uniforms: { top:{ value:new THREE.Color(0x0d0722) }, mid:{ value:new THREE.Color(0x7b2d86) }, low:{ value:new THREE.Color(0xff8a70) }, pulse:{ value:0 } },
+  vertexShader: 'varying vec3 vP; void main(){ vP = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: 'uniform vec3 top, mid, low; uniform float pulse; varying vec3 vP; void main(){ float h = normalize(vP).y; vec3 c = mix(low, mid, smoothstep(-0.02, 0.14, h)); c = mix(c, top, smoothstep(0.14, 0.7, h)); c += pulse * 0.10 * vec3(1.0, 0.45, 0.8) * (1.0 - smoothstep(0.0, 0.35, abs(h))); gl_FragColor = vec4(c, 1.0); }'
+});
+scene.add(new THREE.Mesh(new THREE.SphereGeometry(1000, 32, 16), skyMat));
+
+/* stars */
+{
+  const n = 900, pos = new Float32Array(n * 3);
+  for (let i = 0; i < n; i++){ const th = rand(0, Math.PI * 2), ph = rand(0.08, 1.2), r = 950; pos[i*3] = r * Math.cos(ph) * Math.sin(th); pos[i*3+1] = r * Math.sin(ph); pos[i*3+2] = -r * Math.cos(ph) * Math.cos(th); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffe6f2, size: 2.2, sizeAttenuation: false, fog: false, transparent: true, opacity: 0.8 })));
+}
+
+/* glow sprite texture */
+const glowTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const x = c.getContext('2d'); const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.25, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })();
+function glow(color, size){ const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color, blending: THREE.AdditiveBlending, transparent: true, depthWrite: false })); s.scale.set(size, size, 1); return s; }
+
+/* sun on the horizon */
+const sun = glow(0xff7aa8, 320); sun.position.set(120, 40, -900); sun.material.fog = false; scene.add(sun);
+
+/* lights */
+scene.add(new THREE.HemisphereLight(0x9a6cff, 0x1a0a20, 0.55));
+const moon = new THREE.DirectionalLight(0xffb0d0, 0.55); moon.position.set(-60, 80, -120); scene.add(moon);
+
+/* ground + water */
+scene.add(at(new THREE.Mesh(new THREE.PlaneGeometry(400, LOOP * 1.4), new THREE.MeshStandardMaterial({ color: 0x0c0914, roughness: 1 })), -180, -0.06, -LOOP / 2).rotateX(-Math.PI / 2));
+scene.add(at(new THREE.Mesh(new THREE.PlaneGeometry(600, LOOP * 1.4), new THREE.MeshStandardMaterial({ color: 0x0a1030, roughness: 0.25, metalness: 0.8, emissive: 0x1a0838, emissiveIntensity: 0.6 })), 308, -1.2, -LOOP / 2).rotateX(-Math.PI / 2));
+
+/* road */
+const roadTex = (() => {
+  const c = document.createElement('canvas'); c.width = 256; c.height = 512; const x = c.getContext('2d');
+  x.fillStyle = '#17161f'; x.fillRect(0, 0, 256, 512);
+  for (let i = 0; i < 4000; i++){ x.fillStyle = `rgba(255,255,255,${Math.random() * 0.05})`; x.fillRect(Math.random() * 256, Math.random() * 512, 2, 2); }
+  x.fillStyle = '#d8d3c8'; x.fillRect(4, 0, 4, 512); x.fillRect(248, 0, 4, 512);
+  x.fillStyle = '#efe7d0'; for (const lx of [256/3, 512/3]) for (let y = 0; y < 512; y += 128) x.fillRect(lx - 2, y + 20, 4, 64);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1, LOOP * 1.4 / 24); t.anisotropy = 8; return t;
+})();
+const road = new THREE.Mesh(new THREE.PlaneGeometry(ROAD_W, LOOP * 1.4), new THREE.MeshStandardMaterial({ map: roadTex, roughness: 0.55, metalness: 0.15 }));
+road.rotateX(-Math.PI / 2); road.position.set(0, 0, -LOOP / 2 + 60); scene.add(road);
+
+/* barriers: concrete wall left, fence right */
+scene.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.9, LOOP * 1.4), new THREE.MeshStandardMaterial({ color: 0x3a3546, roughness: 0.9 })), -6.5, 0.45, -LOOP / 2 + 60));
+scene.add(at(new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, LOOP * 1.4), new THREE.MeshStandardMaterial({ color: 0x3a3546, roughness: 0.9 })), 6.6, 0.25, -LOOP / 2 + 60));
+const fenceTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'); x.strokeStyle = 'rgba(200,190,220,.85)'; x.lineWidth = 2; for (let i = -64; i < 128; i += 16){ x.beginPath(); x.moveTo(i, 0); x.lineTo(i + 64, 64); x.stroke(); x.beginPath(); x.moveTo(i + 64, 0); x.lineTo(i, 64); x.stroke(); } x.fillStyle = 'rgba(160,150,180,1)'; x.fillRect(0, 0, 64, 3); const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(LOOP * 1.4 / 2, 1); return t; })();
+const fence = new THREE.Mesh(new THREE.PlaneGeometry(LOOP * 1.4, 1.6), new THREE.MeshBasicMaterial({ map: fenceTex, transparent: true, side: THREE.DoubleSide, opacity: 0.9 }));
+fence.rotateY(Math.PI / 2); fence.position.set(7.2, 1.3, -LOOP / 2 + 60); scene.add(fence);
+const posts = [];
+{ const pg = new THREE.BoxGeometry(0.08, 1.6, 0.08), pmat = new THREE.MeshStandardMaterial({ color: 0x8a86a0 });
+  for (let z = 0; z > -LOOP; z -= 4){ const p = at(new THREE.Mesh(pg, pmat), 7.2, 1.3, z + 30); scene.add(p); posts.push(p); } }
+
+/* buildings */
+function windowTexture(warm){
+  const c = document.createElement('canvas'); c.width = 96; c.height = 384; const x = c.getContext('2d');
+  x.fillStyle = '#07070d'; x.fillRect(0, 0, 96, 384);
+  for (let r = 0; r < 24; r++) for (let col = 0; col < 6; col++){
+    if (Math.random() > 0.42) continue;
+    const a = rand(0.35, 1);
+    x.fillStyle = warm ? `rgba(255,${200 + rand(0, 40) | 0},${140 + rand(0, 60) | 0},${a})` : `rgba(${150 + rand(0, 60) | 0},${210 + rand(0, 40) | 0},255,${a})`;
+    x.fillRect(col * 16 + 4, r * 16 + 4, 8, 10);
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; return t;
+}
+const winTex = [windowTexture(true), windowTexture(true), windowTexture(false)];
+const bldgMats = winTex.map(t => new THREE.MeshStandardMaterial({ color: 0x0d0c16, roughness: 0.8, emissive: 0xffffff, emissiveMap: t, emissiveIntensity: 1 }));
+const boxGeo = new THREE.BoxGeometry(1, 1, 1); boxGeo.translate(0, 0.5, 0);
+const buildings = [];
+function addBuilding(x, z, w, d, h){
+  const m = bldgMats[Math.floor(Math.random() * 3)].clone();
+  m.emissiveMap = m.emissiveMap.clone(); m.emissiveMap.repeat.set(Math.max(1, Math.round(w / 2.2)), Math.max(1, Math.round(h / 7))); m.emissiveMap.needsUpdate = true;
+  const b = new THREE.Mesh(boxGeo, m); b.position.set(x, 0, z); b.scale.set(w, h, d); scene.add(b); buildings.push(b);
+  // rooftop beacon on tall ones
+  if (h > 55){ const s = glow(0xff3b6b, 3); s.position.set(0, 1.02, 0); s.scale.set(3 / w, 3 / h, 1); b.add(s); }
+}
+for (let z = 30; z > -LOOP + 30; z -= rand(14, 26)){ const w = rand(8, 18); addBuilding(-10 - w / 2 - rand(0, 3), z, w, rand(8, 16), rand(14, 70)); }
+for (let z = 30; z > -LOOP + 30; z -= rand(18, 34)){ const w = rand(10, 22); addBuilding(-34 - w / 2 - rand(0, 8), z, w, rand(10, 20), rand(30, 110)); }
+for (let z = 30; z > -LOOP + 30; z -= rand(30, 60)){ const w = rand(14, 30); addBuilding(90 + rand(0, 60), z, w, rand(14, 30), rand(40, 140)); }
+
+/* streetlights */
+const poles = [];
+{
+  const poleGeo = new THREE.CylinderGeometry(0.1, 0.14, 7, 8); poleGeo.translate(0, 3.5, 0);
+  const armGeo = new THREE.BoxGeometry(2.2, 0.12, 0.12); armGeo.translate(-1.0, 7, 0);
+  const pm = new THREE.MeshStandardMaterial({ color: 0x555066, roughness: 0.7 });
+  const lampMat = new THREE.MeshBasicMaterial({ color: 0xfff1c8 });
+  for (let z = 30; z > -LOOP + 30; z -= 32){
+    for (const side of [-1, 1]){
+      const g = new THREE.Group();
+      g.add(new THREE.Mesh(poleGeo, pm));
+      const arm = new THREE.Mesh(armGeo, pm); if (side > 0) arm.scale.x = -1; g.add(arm);
+      const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.22, 8, 8), lampMat); lamp.position.set(-2 * side, 6.9, 0); g.add(lamp);
+      const s = glow(0xffd9a0, 6); s.position.copy(lamp.position); g.add(s); g.userData.glow = s;
+      g.position.set(side * 6.9, 0, z); scene.add(g); poles.push(g);
+    }
+  }
+}
+
+/* the bike */
+const bike = new THREE.Group();
+{
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1a1a22, roughness: 0.4, metalness: 0.7 });
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.45, 1.7), dark); body.position.y = 0.62; bike.add(body);
+  const tank = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.28, 0.7), new THREE.MeshStandardMaterial({ color: 0x8a1bd8, roughness: 0.3, metalness: 0.6 })); tank.position.set(0, 0.9, -0.15); bike.add(tank);
+  const wheelGeo = new THREE.CylinderGeometry(0.34, 0.34, 0.16, 18); wheelGeo.rotateZ(Math.PI / 2);
+  for (const z of [-0.75, 0.75]){ const w = new THREE.Mesh(wheelGeo, dark); w.position.set(0, 0.34, z); bike.add(w); }
+  const rider = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 0.75, 10), new THREE.MeshStandardMaterial({ color: 0x15121c, roughness: 0.8 }));
+  rider.position.set(0, 1.25, 0.15); rider.rotation.x = -0.5; bike.add(rider);
+  const helmet = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 12), new THREE.MeshStandardMaterial({ color: 0x222233, roughness: 0.2, metalness: 0.5 })); helmet.position.set(0, 1.62, -0.25); bike.add(helmet);
+  const head = new THREE.Mesh(new THREE.CircleGeometry(0.14, 12), new THREE.MeshBasicMaterial({ color: 0xfff6dc })); head.position.set(0, 0.85, -0.86); bike.add(head);
+  bike.add(at(glow(0xfff0c8, 3), 0, 0.85, -0.95));
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.1, 0.05), new THREE.MeshBasicMaterial({ color: 0xff2040 })); tail.position.set(0, 0.8, 0.86); bike.add(tail);
+  bike.add(at(glow(0xff2040, 1.5), 0, 0.8, 0.95));
+  const spot = new THREE.SpotLight(0xfff0d0, 3.5, 70, 0.42, 0.6, 1); spot.position.set(0, 0.9, -0.8); spot.target.position.set(0, -0.5, -30); bike.add(spot); bike.add(spot.target);
+  const coneGeo = new THREE.ConeGeometry(4.5, 34, 24, 1, true); coneGeo.rotateX(Math.PI / 2); coneGeo.translate(0, 0, -17);
+  const beam = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: 0.05, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+  beam.position.set(0, 0.85, -0.9); bike.add(beam); bike.userData.beam = beam;
+  scene.add(bike);
+}
+
+/* orbs and cars */
+const orbGeo = new THREE.SphereGeometry(0.42, 16, 16);
+const orbs = [], cars = [];
+for (let i = 0; i < 24; i++){ const o = new THREE.Group(); o.add(new THREE.Mesh(orbGeo, new THREE.MeshBasicMaterial({ color: 0x8ef8ff }))); o.add(glow(0x4df3ff, 4)); o.visible = false; scene.add(o); orbs.push(o); }
+{
+  const carMat = new THREE.MeshStandardMaterial({ color: 0x25213a, roughness: 0.4, metalness: 0.5 });
+  for (let i = 0; i < 6; i++){
+    const c = new THREE.Group();
+    const b = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.7, 4.2), carMat); b.position.y = 0.55; c.add(b);
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.6, 2.0), carMat); cab.position.set(0, 1.15, 0.2); c.add(cab);
+    for (const x of [-0.6, 0.6]){ const t = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.12, 0.05), new THREE.MeshBasicMaterial({ color: 0xff2030 })); t.position.set(x, 0.75, 2.12); c.add(t); c.add(at(glow(0xff2040, 2.2), x, 0.75, 2.2)); }
+    c.visible = false; scene.add(c); cars.push(c);
+  }
+}
+
+/* =====================================================================
+   3. GAME — state, input, loop
+   ===================================================================== */
+let playing = false, lane = 1, playerX = 0, playerVX = 0, speed = 0, dist = 0, shake = 0, hit = 0;
+let score = 0, combo = 1, caught = 0, missed = 0, startTime = 0;
+
+function beginRun(name){
+  $('#track').textContent = name; $('#overlay').classList.add('hidden'); $('#stop').style.display = '';
+  score = 0; combo = 1; caught = 0; missed = 0; beatCount = 0; bpm = 0; intervals.length = 0; history.length = 0; lastBeat = -1; peak = 0.02;
+  orbs.forEach(o => o.visible = false); cars.forEach(c => c.visible = false);
+  startTime = performance.now() / 1000; playing = true; updateStats();
+}
+function finish(){
+  stopCurrent(); playing = false; $('#stop').style.display = 'none';
+  $('#intro').style.display = 'none'; $('#result').style.display = 'block';
+  const acc = caught + missed ? Math.round(100 * caught / (caught + missed)) : 0;
+  $('#r-text').innerHTML = `Finished. <b style="color:#fff">${score.toLocaleString()}</b> points, ${caught} of ${caught + missed} beats caught (${acc}%), tempo read as ${bpm || '—'} bpm.`;
+  $('#overlay').classList.remove('hidden');
+}
+function onBeat(){
+  if (beatCount % 6 === 0){ const c = cars.find(c => !c.visible); if (c){ c.visible = true; c.userData.lane = Math.floor(Math.random() * 3); c.position.set(LANES[c.userData.lane], 0, -170); c.userData.hit = false; } }
+  else { const o = orbs.find(o => !o.visible); if (o){ o.visible = true; o.userData.lane = Math.floor(Math.random() * 3); o.position.set(LANES[o.userData.lane], 1.0, -(speed * 1.5 + 25)); } }
+}
+function setLane(l){ lane = clamp(l, 0, 2); }
+addEventListener('keydown', e => { if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') setLane(lane - 1); if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') setLane(lane + 1); });
+stage.addEventListener('pointerdown', e => { if (e.target.closest('button, a, input, .panel')) return; const r = stage.getBoundingClientRect(); setLane(lane + (e.clientX - r.left < r.width / 2 ? -1 : 1)); });
+
+$('#pick').onclick = $('#pick2').onclick = () => { ensureCtx(); $('#file').click(); };
+$('#file').onchange = e => { if (e.target.files[0]) loadFile(e.target.files[0]); e.target.value = ''; };
+$('#demo').onclick = startDemo;
+$('#again').onclick = startDemo;
+$('#mic').onclick = useMic;
+$('#stop').onclick = finish;
+['dragenter', 'dragover'].forEach(ev => addEventListener(ev, e => { e.preventDefault(); stage.classList.add('drag'); }));
+addEventListener('dragleave', e => { if (!e.relatedTarget) stage.classList.remove('drag'); });
+addEventListener('drop', e => { e.preventDefault(); stage.classList.remove('drag'); const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+
+function resize(){
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  hud.width = w * devicePixelRatio; hud.height = h * devicePixelRatio;
+}
+addEventListener('resize', resize); resize();
+
+function updateStats(){
+  $('#s-bpm').textContent = bpm ? bpm : '—';
+  $('#s-speed').textContent = Math.round(speed * 3.6);
+  $('#s-score').textContent = score.toLocaleString();
+  $('#s-combo').textContent = '×' + combo;
+}
+
+let last = performance.now(), statTimer = 0;
+function frame(nowMs){
+  requestAnimationFrame(frame);
+  const dt = Math.min(0.05, (nowMs - last) / 1000); last = nowMs;
+  const now = nowMs / 1000;
+  if (playing && analyser) analyse(dt, now); else { loudS *= Math.exp(-dt * 2); bassS *= Math.exp(-dt * 4); drive *= Math.exp(-dt * 2); }
+  beatPulse *= Math.exp(-dt * 6); shake *= Math.exp(-dt * 5); hit *= Math.exp(-dt * 3);
+
+  const target = playing ? 10 + 72 * Math.pow(drive, 1.5) : 7;
+  speed += (target - speed) * (1 - Math.exp(-dt * 1.4)) * (hit > 0.4 ? 0.3 : 1);
+  const dz = speed * dt; dist += dz;
+
+  /* scroll */
+  roadTex.offset.y -= dz / 24;
+  fenceTex.offset.x -= dz / 2;
+  const wrap = o => { o.position.z += dz; if (o.position.z > 30) o.position.z -= LOOP; };
+  buildings.forEach(wrap); poles.forEach(p => { wrap(p); p.userData.glow.scale.setScalar(5 + 3 * beatPulse); });
+  posts.forEach(wrap);
+
+  /* player */
+  const tx = LANES[lane]; const ax = (tx - playerX) * 60 - playerVX * 11; playerVX += ax * dt; playerX += playerVX * dt;
+  bike.position.set(playerX, 0, 0); bike.rotation.z = clamp(-playerVX * 0.06, -0.45, 0.45); bike.rotation.y = clamp(-playerVX * 0.03, -0.25, 0.25);
+  bike.userData.beam.material.opacity = 0.04 + 0.05 * bassS;
+
+  /* orbs */
+  for (const o of orbs){ if (!o.visible) continue; o.position.z += dz; o.rotation.y += dt * 3; o.position.y = 1.0 + 0.15 * Math.sin(now * 6 + o.position.z);
+    if (o.position.z > -1.2 && o.position.z < 1.4 && o.userData.lane === lane && Math.abs(playerX - LANES[lane]) < 1.6){ o.visible = false; caught++; score += 100 * combo; combo = Math.min(combo + 1, 16); shake = Math.max(shake, 0.15); }
+    else if (o.position.z > 3){ o.visible = false; missed++; combo = 1; } }
+  /* cars: they drive the same way at about half our speed */
+  for (const c of cars){ if (!c.visible) continue; c.position.z += dz - Math.max(0, speed * 0.55) * dt;
+    if (!c.userData.hit && c.position.z > -2.5 && c.position.z < 2.5 && c.userData.lane === lane && Math.abs(playerX - LANES[lane]) < 1.6){ c.userData.hit = true; combo = 1; score = Math.max(0, score - 250); shake = 1; hit = 1; }
+    if (c.position.z > 20) c.visible = false; }
+
+  /* look */
+  skyMat.uniforms.pulse.value = beatPulse;
+  scene.fog.color.copy(FOG).lerp(new THREE.Color(0xff5fa8), beatPulse * 0.25 + hit * 0.4);
+  bldgMats.forEach(m => m.emissiveIntensity = 0.75 + 1.1 * beatPulse);
+  buildings.forEach(b => b.material.emissiveIntensity = 0.75 + 1.1 * beatPulse);
+  camera.fov = 70 + 9 * beatPulse + 12 * clamp((speed - 40) / 70, 0, 1); camera.updateProjectionMatrix();
+  const sx = (Math.random() - 0.5) * shake * 0.5, sy = (Math.random() - 0.5) * shake * 0.3;
+  camera.position.set(playerX * 0.55 + sx, 2.3 + sy, 5.6);
+  camera.lookAt(playerX * 0.85, 1.0 - 0.3 * beatPulse, -8);
+  camera.rotation.z += -playerVX * 0.01;
+  renderer.render(scene, camera);
+
+  /* spectrum HUD */
+  const W = hud.width, H = hud.height, dpr = devicePixelRatio;
+  hctx.clearRect(0, 0, W, H);
+  if (analyser && playing){
+    const bars = 56, bw = W / bars;
+    for (let i = 0; i < bars; i++){
+      const idx = Math.floor(Math.pow(i / bars, 1.8) * 300) + 1;
+      const v = freq[idx] / 255, h = v * v * 90 * dpr + 2;
+      hctx.fillStyle = `hsla(${300 + i * 1.2}, 90%, ${60 + 20 * v}%, ${0.25 + 0.45 * v})`;
+      hctx.fillRect(i * bw + 1, H - h, bw - 2, h);
+    }
+  }
+  if (hit > 0.05){ hctx.fillStyle = `rgba(255,40,80,${hit * 0.25})`; hctx.fillRect(0, 0, W, H); }
+
+  statTimer += dt; if (statTimer > 0.12){ statTimer = 0; updateStats(); }
+}
+requestAnimationFrame(frame);
+window.beatRacer = { state: () => ({ bass, flux, loudS, drive, beats: beatCount, bpm, speed, score, combo, caught, missed }) };
+})();
+</script>
