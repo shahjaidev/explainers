@@ -1,0 +1,453 @@
+<meta charset="utf-8">
+<title>Coup at Equilibrium</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;
+    --accent:#A32D4B;--accent-soft:rgba(163,45,75,0.11);
+    --teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --duke:#A32D4B;--assassin:#5B6068;--ambassador:#9C7F00;--captain:#2F7FBF;--contessa:#C4512B;
+    --s1:#2a78d6;--s2:#eb6834;
+    --seq1:#cde2fb;--seq2:#9ec5f4;--seq3:#6da7ec;--seq4:#3987e5;--seq5:#256abf;--seq6:#184f95;--seq7:#0d366b;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+    --measure:66ch;--maxw:1080px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+      --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+      --accent:#E8798F;--accent-soft:rgba(232,121,143,0.15);
+      --teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+      --duke:#E8798F;--assassin:#A3A9B3;--ambassador:#D9B93A;--captain:#6FB1E8;--contessa:#EF8A66;
+      --s1:#3987e5;--s2:#d95926;
+      --seq1:#184f95;--seq2:#1c5cab;--seq3:#256abf;--seq4:#3987e5;--seq5:#5598e7;--seq6:#86b6ef;--seq7:#b7d3f6;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+    --accent:#E8798F;--accent-soft:rgba(232,121,143,0.15);
+    --teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --duke:#E8798F;--assassin:#A3A9B3;--ambassador:#D9B93A;--captain:#6FB1E8;--contessa:#EF8A66;
+    --s1:#3987e5;--s2:#d95926;
+    --seq1:#184f95;--seq2:#1c5cab;--seq3:#256abf;--seq4:#3987e5;--seq5:#5598e7;--seq6:#86b6ef;--seq7:#b7d3f6;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .col{max-width:var(--measure)}
+  a{color:var(--accent)}
+  h1,h2,h3,h4{font-family:var(--serif);letter-spacing:-0.015em;text-wrap:balance}
+  h1{font-size:clamp(2.3rem,5.5vw,3.4rem);line-height:1.05;margin:0 0 .3em}
+  h2{font-size:clamp(1.6rem,3.2vw,2.1rem);line-height:1.14;margin:.1em 0 .5em}
+  h3{font-size:1.16rem;margin:1.7em 0 .4em}
+  p{margin:0 0 1.05em}
+  code,.mono{font-family:var(--mono);font-size:.86em}
+  code{background:var(--surface-2);padding:.12em .38em;border-radius:5px;border:1px solid var(--line-soft)}
+  pre{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.82rem;line-height:1.5}
+  pre code{background:none;border:0;padding:0}
+  header{padding:clamp(56px,10vw,104px) 0 clamp(28px,5vw,48px)}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:1.1em;display:flex;align-items:center;gap:.7em}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--accent);opacity:.6}
+  .byline{font-family:var(--mono);font-size:.78rem;color:var(--faint);margin-top:1.2em;display:flex;gap:18px;flex-wrap:wrap}
+  .lede{font-size:1.12rem;color:var(--dim)}
+  section{padding:clamp(40px,6vw,72px) 0;border-top:1px solid var(--line-soft)}
+  .secnum{font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;color:var(--accent);background:var(--accent-soft);padding:3px 8px;border-radius:5px;margin-right:.6em;vertical-align:middle}
+  .abstract{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:26px 28px;box-shadow:var(--shadow);margin:0 0 8px}
+  .abstract h2{font-size:1.05rem;margin:0 0 .6em;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:600}
+  .abstract p{margin:0}
+  .pull{font-family:var(--serif);font-size:1.28rem;line-height:1.35;border-left:3px solid var(--accent);padding-left:18px;margin:1.6em 0;color:var(--text)}
+  .note{background:var(--teacher-soft);border-left:3px solid var(--teacher);padding:12px 16px;border-radius:0 10px 10px 0;margin:1.2em 0;font-size:.95rem}
+  .note strong{color:var(--teacher)}
+  table{border-collapse:collapse;width:100%;font-size:.92rem;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 12px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:top}
+  th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  td.num,th.num{text-align:right}
+  .tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);margin:18px 0}
+  .tablewrap table{min-width:520px}
+  .tablewrap th{background:var(--surface-2);position:sticky;top:0}
+  .cap{font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.6;margin:8px 0 22px}
+  .cap b{color:var(--dim);font-weight:600}
+  figure{margin:24px 0}
+  .fig{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:18px 18px 8px;overflow-x:auto}
+  .fig svg{display:block;width:100%;height:auto;font-family:var(--mono)}
+  .fig text{fill:var(--text);font-size:11px}
+  .fig .lbl{fill:var(--dim)}
+  .fig .grid{stroke:var(--line-soft)}
+  .fig .axis{stroke:var(--line)}
+  .fig .ref{stroke:var(--dim);stroke-dasharray:3 3}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:.78rem;white-space:nowrap}
+  .chip i{width:9px;height:9px;border-radius:2px;display:inline-block;flex:none}
+  .chip.duke i{background:var(--duke)}.chip.assassin i{background:var(--assassin)}.chip.ambassador i{background:var(--ambassador)}.chip.captain i{background:var(--captain)}.chip.contessa i{background:var(--contessa)}
+  .legend{display:flex;gap:18px;flex-wrap:wrap;font-family:var(--mono);font-size:.74rem;color:var(--dim);margin:6px 0 4px 4px}
+  .legend span{display:inline-flex;align-items:center;gap:7px}
+  .legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:18px 0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+  .card h4{margin:0 0 .4em;font-size:1.02rem}
+  .card p{margin:0;font-size:.94rem;color:var(--dim)}
+  .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 18px;font-size:.92rem;margin:14px 0}
+  .kv dt{font-family:var(--mono);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);padding-top:3px}
+  .kv dd{margin:0}
+  ol.refs{padding-left:1.4em;font-size:.94rem}
+  ol.refs li{margin-bottom:.5em}
+  footer{border-top:1px solid var(--line-soft);padding:32px 0 64px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.7}
+  .tooltip{position:fixed;pointer-events:none;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:var(--mono);font-size:.74rem;box-shadow:var(--shadow);color:var(--text);display:none;z-index:9}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+
+<div class="tooltip" id="tip"></div>
+
+<header>
+  <div class="wrap">
+    <div class="eyebrow">Research paper · game theory · self-play</div>
+    <h1>Coup at Equilibrium</h1>
+    <p class="lede col">Which two starting cards win the bluffing game Coup? A study of hand equity under scripted agents, a heads-up counterfactual-regret solver, and an empirical equilibrium over a family of multiplayer strategies, with an honest account of where each method's authority ends.</p>
+    <div class="byline"><span>Jaidev Shah</span><span>·</span><span>September 2026</span><span>·</span><span>~50 million simulated games</span></div>
+  </div>
+</header>
+
+<main>
+<div class="wrap">
+
+<div class="abstract col">
+  <h2>Abstract</h2>
+  <p>Coup is a five-role bluffing game in which every character action can be claimed without holding the card and every claim can be challenged. We ask a simple question: given two random starting cards, which pair is most likely to win? We answer it three ways. First, scripted agents with hand-tuned bluff and challenge rates play 10 million four-player games; Duke + Duke wins 31.6% against a 25% fair share, and Contessa + Contessa wins 12.6%. Second, we solve heads-up Coup with outcome-sampling Monte Carlo CFR under a coin-bucketed abstraction, evaluating with duplicate (seat-swapped) scoring: Duke + Ambassador leads at 62.8% and Contessa + Contessa trails at 27.4%, and equilibrium play turns out to bluff on 45% of character claims and challenge 30% of them, ending the average game inside five turns. Third, we compute a symmetric equilibrium over a 28-strategy grid of scripted agents for the four-player game by empirical game-theoretic analysis. When every challenge policy is a per-claim probability the equilibrium bluffs maximally and never challenges; once a challenger that fires only on near-certain evidence is available, the equilibrium becomes a mixture in which 82% of players challenge only on strong evidence and bluff at varying rates. Catching a bluff is a public good in multiplayer Coup: a challenger pays the whole cost of being wrong and shares the benefit of being right three ways, so only near-certain challenges survive. Duke is the strongest card under every method. The ranking below Duke is not stable across methods, which we treat as the central finding about methodology rather than a nuisance. We report cross-seed agreement, a best-response exploitability lower bound of 0.16 on the ±1 utility scale, and the abstractions used, and we state plainly which claims the evidence does and does not support.</p>
+</div>
+
+<section id="intro">
+  <div class="col">
+    <h2><span class="secnum">1</span>Introduction</h2>
+    <p>Coup (Indie Boards &amp; Cards, 2012) is a short game of hidden roles and open lies. Each player holds two face-down character cards and takes one action per turn. Three actions are always available: Income (take 1 coin), Foreign Aid (take 2), and Coup (pay 7 coins to remove one of an opponent's cards). The other four are character actions. A player may take any of them by claiming the matching character, whether or not they hold it. Any other player may challenge the claim. If the claimant holds the card, the challenger loses a card; otherwise the claimant does. A player with no cards is out. Last player standing wins.</p>
+    <p>The question this paper answers is the one every player asks after the deal: <em>which two cards do I want?</em> It sounds like a lookup. It is not, because the value of a card depends entirely on how opponents bluff and challenge, and the right way to bluff and challenge depends on which cards are likely to be held. Any answer is an answer relative to a model of the opponents.</p>
+    <p>We therefore give three answers under three progressively stronger models, and we spend as much effort on the disagreements between them as on the rankings themselves.</p>
+    <div class="grid2">
+      <div class="card"><h4>Scripted agents</h4><p>Hand-written bots with fixed bluff and challenge probabilities. Fast, transparent, and only as good as the person who wrote them.</p></div>
+      <div class="card"><h4>Heads-up CFR</h4><p>A regret-minimization solver for the two-player game. Principled, converges toward a Nash equilibrium, but limited to two players and an abstraction.</p></div>
+      <div class="card"><h4>Empirical equilibrium</h4><p>A Nash equilibrium of the four-player game restricted to a grid of scripted strategies. Multiplayer, but only as expressive as the grid.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="game">
+  <div class="col">
+    <h2><span class="secnum">2</span>The game</h2>
+    <p>The deck holds fifteen cards, three of each character. Each player is dealt two and starts with 2 coins. A player with 10 or more coins must Coup. The reference card shipped with the game summarises the character actions and counteractions:</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Character</th><th>Action</th><th>Effect</th><th>Counteraction</th></tr></thead>
+    <tbody>
+      <tr><td>—</td><td>Income</td><td>Take 1 coin</td><td>—</td></tr>
+      <tr><td>—</td><td>Foreign Aid</td><td>Take 2 coins</td><td>—</td></tr>
+      <tr><td>—</td><td>Coup</td><td>Pay 7 coins; target loses a card</td><td>—</td></tr>
+      <tr><td><span class="chip duke"><i></i>Duke</span></td><td>Tax</td><td>Take 3 coins</td><td>Blocks Foreign Aid</td></tr>
+      <tr><td><span class="chip assassin"><i></i>Assassin</span></td><td>Assassinate</td><td>Pay 3 coins; target loses a card</td><td>—</td></tr>
+      <tr><td><span class="chip ambassador"><i></i>Ambassador</span></td><td>Exchange</td><td>Draw 2 from the deck, return 2</td><td>Blocks stealing</td></tr>
+      <tr><td><span class="chip captain"><i></i>Captain</span></td><td>Steal</td><td>Take 2 coins from a player</td><td>Blocks stealing</td></tr>
+      <tr><td><span class="chip contessa"><i></i>Contessa</span></td><td>—</td><td>—</td><td>Blocks assassination</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap"><b>Table 1.</b> Actions and counteractions, transcribed from the game's reference card. Counteractions are themselves claims and can be challenged.</p>
+  <div class="col">
+    <p>Two properties make the game hard to analyse. It is a game of imperfect information: a player never sees opponents' cards, and the sequence of claims and challenges is the only evidence about them. And the sequential challenge and block structure creates a deep tree: a single Steal can produce a challenge, a block, a challenge of the block, and two card-loss decisions before the turn ends.</p>
+    <p>Throughout, we assume the base game's rules as printed, resolve simultaneous challenge opportunities in random player order, and treat a game that exceeds a turn cap as a draw. Draws occurred in fewer than 0.001% of games in every final run reported here.</p>
+  </div>
+</section>
+
+<section id="methods">
+  <div class="col">
+    <h2><span class="secnum">3</span>Methods</h2>
+
+    <h3>3.1 Scripted agents</h3>
+    <p>The baseline agent is a priority list. It Coups when forced or when it can afford to and has no better use for the coins, assassinates when it holds an Assassin (or bluffs one), steals or taxes when it holds the card, exchanges sometimes with an Ambassador, and otherwise takes Foreign Aid or Income. Each bluff is a fixed probability, scaled down by the number of copies of the claimed card already visible to the bluffer, and refused outright when all three copies are visible. Each challenge fires with probability <code>base + slope × k</code>, where <code>k</code> counts visible copies of the claimed card, and always fires when <code>k = 3</code>. Blocks follow the same pattern. The agent remembers which opponents have successfully blocked it and stops repeating the same attack on them, which turned out to be necessary: without this memory, an honest no-challenge table deadlocks forever against a known Contessa.</p>
+    <p>The exact constants used for the baseline are listed in the reproducibility section. They are not derived from anything. That is the point of the later methods.</p>
+
+    <h3>3.2 Heads-up counterfactual regret minimization</h3>
+    <p>For two players, Coup is a zero-sum extensive-form game and counterfactual regret minimization (CFR) converges to a Nash equilibrium in the average strategy. The full game tree is far too large to traverse, so we use outcome-sampling Monte Carlo CFR (MCCFR), which updates regrets along a single sampled trajectory per iteration with exploration parameter ε = 0.6. External sampling was ruled out because the traverser's branching compounds across a tree that is regularly thirty decisions deep.</p>
+    <p>The game engine implements every rule in Table 1 with explicit decision nodes for actions, responses (pass, challenge, or block), block challenges, which card to lose, and which cards to keep after an Exchange. Chance events (the deal, replacement draws after a successful challenge, and Exchange draws) are sampled on-policy.</p>
+    <p>An information set for the acting player consists of their own hand, both coin counts, the opponent's card count, the multiset of revealed cards, the current decision type and pending action, and one bit per character recording whether the opponent has previously claimed it. Two abstractions keep the state count tractable. Coins are bucketed as 0, 1, 2, 3, 4–6, 7–9, and 10+, which preserves the three thresholds that matter (Assassinate at 3, Coup at 7, forced Coup at 10). Claim history is reduced to that one bit per character, so the solver can react to "has claimed Duke" but cannot count how many times.</p>
+    <p>We trained two variants. The first is plain outcome-sampling MCCFR with uniform strategy averaging, run for 3M iterations on three independent seeds. The second adds CFR+ style regret clamping (negative regrets are floored at zero) and linear strategy averaging (iteration <em>t</em> contributes weight <em>t</em>), run for 10M iterations on two seeds, reaching 2.1M information sets per seed. We note in advance that the theoretical guarantees for CFR+ are established for full-tree traversal, not sampled updates, and Section 4.3 tests whether the second variant actually plays better.</p>
+
+    <h3>3.3 Evaluation</h3>
+    <p><strong>Duplicate scoring.</strong> Heads-up Coup has a large first-mover advantage (55–58% in our solves). Reporting raw win rate by hand would confound the hand with the seat. Every heads-up number in this paper is therefore duplicate scored: each deal is played twice with the seats swapped, and a hand's result is its average over both seats.</p>
+    <p><strong>Clustered bootstrap.</strong> The two hands in a deal are not independent samples; they are drawn from the same fifteen-card deck, and one hand's result determines the other's. Confidence intervals are 95% percentile bootstraps over 400 resamples of whole deals. Four-player results use the same construction with hands rotated through all four seats.</p>
+    <p><strong>Cross-seed matches.</strong> Independent solves that have converged should have equal strength. We play each solve against the others under duplicate scoring and report the seat-corrected win rate.</p>
+    <p><strong>Exploitability.</strong> The average-strategy responder failed: it won 32.9% against the CFR+ solve and 29.8% against the plain solve, weaker than the strategy it was trained to exploit, which establishes nothing. The greedy responder (argmax of accumulated regret, conservative fallback at unvisited states, 1.5M training iterations) succeeded: it wins <b>58.1%</b> of seat-balanced games against the CFR+ solve and <b>59.5%</b> against the plain solve, over 200,000 games each. In the win = +1, loss = −1 utility of the game these are exploitability lower bounds of 0.16 and 0.19. Two readings follow. The solves are not close to equilibrium: an exact Nash strategy holds any responder to 50%, and ours concede eight to ten points to a responder trained with a fraction of their compute. And the CFR+ variant is measurably less exploitable than the plain variant by this bound, even though it loses to it head-to-head, which is the ordering theory predicts, since head-to-head results between two non-equilibrium strategies say nothing about their distance from equilibrium. We therefore keep CFR+ as the primary solve. The word "equilibrium" in this paper should still be read as "the average strategy of a regret minimizer with a measured exploitability of at least 0.16."</p>
+
+    <h3>3.4 Multiplayer: empirical game-theoretic analysis</h3>
+    <p>CFR offers no equilibrium guarantee beyond two players, and a four-player Coup engine with the full challenge structure was out of scope. Instead we compute an equilibrium of the restricted four-player game whose strategies are drawn from a grid of scripted agents: four bluff levels (0, 0.15, 0.35, 0.60 as the base probability applied to every bluff type) crossed with seven challenge policies (never; challenge only when two copies of the claimed card are already visible, which we call the strong-evidence challenger; two evidence-only policies with base 0 and slopes 0.35 or 0.70 per visible copy; and three base-plus-slope policies from timid to trigger-happy). All other parameters are held at the baseline.</p>
+    <p>For each of the 31,465 unordered profiles of four strategies, we simulate 150 deals rotated through all four seats (600 games) with strategies assigned to random seats, and estimate the payoff (win probability) of each strategy against each unordered triple of opponents: 18.9 million games in all. We then solve the symmetric empirical game. Replicator dynamics from the uniform mixture converged to a pure vertex with a deviation regret of 0.31, which is not an equilibrium: every vertex is a fixed point of replicator dynamics whether or not it is Nash, and once a strategy's weight underflows it cannot recover. We report that failure and use regret matching instead (12,000 iterations, linearly averaged), which yields a mixed ε-equilibrium; we verify it by computing the expected payoff of every pure strategy against the mixture and report the largest gain as ε.</p>
+  </div>
+</section>
+
+<section id="results">
+  <div class="col">
+    <h2><span class="secnum">4</span>Results</h2>
+    <h3>4.1 Heads-up hand equity at approximate equilibrium</h3>
+    <p>Figure 1 shows the duplicate-scored win rate of each starting pair when both players follow the CFR+ average strategy, averaged over the two 10M-iteration seeds with 150,000 deals each.</p>
+  </div>
+  <figure>
+    <div class="fig" id="fig1"></div>
+    <figcaption class="cap"><b>Figure 1.</b> Heads-up win rate by starting pair under CFR+ self-play, duplicate scored, mean of two seeds. Whiskers span the union of the two seeds' 95% clustered-bootstrap intervals. Dashed line is the 50% fair share. Hover a bar for the per-seed values.</figcaption>
+  </figure>
+  <div class="col">
+    <p>Duke sits in the top four pairs, and the four Duke pairs are the only hands above 57%. Contessa + Contessa is last by a wide margin. Between those poles the picture differs from the scripted baseline in two ways that survive both seeds: Ambassador is a strong card (Duke + Ambassador is the best hand, and Ambassador + Ambassador beats every non-Duke pair except Ambassador + Captain), and Captain is a weak one (Captain + Captain, Assassin + Captain, and Captain + Contessa all lose more than they win).</p>
+    <p>The cross-seed agreement is good at the top and bottom and poorer in the middle. Assassin + Assassin differs by 7.3 points between seeds and Duke + Contessa by 3.7; the two best and three worst hands agree within 2 points. We treat any ordering that swaps under a seed change as unresolved.</p>
+
+    <h3>4.2 What equilibrium play looks like</h3>
+    <p>The solved strategy is not a cautious one. Table 2 summarises 30,000 self-play games per seed.</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Statistic</th><th class="num">Seed 1</th><th class="num">Seed 2</th></tr></thead>
+    <tbody>
+      <tr><td>Mean game length (turns)</td><td class="num">5.0</td><td class="num">4.8</td></tr>
+      <tr><td>Character claims that are bluffs</td><td class="num">45.9%</td><td class="num">44.3%</td></tr>
+      <tr><td>Claims that get challenged</td><td class="num">29.2%</td><td class="num">31.2%</td></tr>
+      <tr><td>Challenges that were correct</td><td class="num">50.3%</td><td class="num">47.7%</td></tr>
+      <tr><td>Bluffs that got caught</td><td class="num">40.4%</td><td class="num">42.4%</td></tr>
+      <tr><td>Responses that block</td><td class="num">26.4%</td><td class="num">26.6%</td></tr>
+      <tr><td>Blocks that are bluffs</td><td class="num">55.4%</td><td class="num">56.3%</td></tr>
+      <tr><td>Blocks that get challenged</td><td class="num">54.2%</td><td class="num">54.1%</td></tr>
+      <tr><td>First-player win rate (self-play, 300k games)</td><td class="num">54.9%</td><td class="num">56.6%</td></tr>
+      <tr><td>Decisions at unvisited information sets</td><td class="num">0.19%</td><td class="num">0.48%*</td></tr>
+    </tbody>
+  </table></div>
+  <p class="cap"><b>Table 2.</b> Behaviour of the CFR+ average strategy in self-play. Bluff and challenge rates are per claim. *Unvisited rate for the plain-MCCFR seed 1 solve; the CFR+ seed 2 figure was not measured separately. At an unvisited information set the strategy plays uniformly at random.</p>
+  <div class="col">
+    <p>Heads-up equilibrium Coup is a knife fight. Nearly half of all character claims are lies, nearly a third of claims are challenged, and challengers are right about half the time, which is what a mixed equilibrium should look like: if challenges were right more often, opponents would bluff less. Under these rates a card is lost roughly every turn, and games end in about five turns. The two seeds agree on every rate within three points, which is stronger evidence of convergence in aggregate behaviour than the hand rankings alone provide.</p>
+    <p class="pull">At equilibrium, a challenge is a coin flip and a game is five turns long.</p>
+
+    <h3>4.3 Convergence and exploitability</h3>
+    <p>We report four diagnostics, one of which took two attempts.</p>
+    <p><strong>Cross-seed strength.</strong> The two CFR+ seeds are equally strong: seed 1 wins 49.6% of duplicate-scored games against seed 2 (200,000 games each way). Under the plain-MCCFR variant the spread between seeds was larger, with seed 1 beating seed 2 by 2.4 points and seed 3 by 1.0.</p>
+    <p><strong>CFR+ versus plain MCCFR.</strong> The CFR+ variant, despite three times the iterations and better cross-seed agreement, <em>loses</em> to the plain-MCCFR solve in direct play: 46.6% seat-corrected over 160,000 games. Regret clamping with sampled updates discards information that the sampled estimate would later have corrected, and our result is consistent with the literature's warning that CFR+ does not combine cleanly with Monte Carlo sampling. We present the CFR+ solve as the primary result because its two seeds agree more closely with each other, but the honest summary is that neither variant dominates and both are approximate.</p>
+    
+    <p><strong>Coverage.</strong> In self-play the CFR+ strategy hits an unvisited information set on 0.19% of decisions, almost all of them Exchange keep-decisions with rare card pools. The hand-equity figures are therefore not contaminated by the uniform fallback.</p>
+
+    <h3>4.4 Four players: scripted baseline, robustness sweep, and empirical equilibrium</h3>
+    <p>Figure 2 compares four-player hand equity under two models: the scripted-agent parameter sweep (5 million games, each seat's eleven parameters drawn independently and uniformly from wide ranges every game) and the empirical equilibrium of the 28-strategy grid.</p>
+  </div>
+  <figure>
+    <div class="legend"><span><i style="background:var(--s1)"></i>Randomized scripted agents (5M games)</span><span><i style="background:var(--s2)"></i>Empirical ε-equilibrium mixture (600k games)</span></div>
+    <div class="fig" id="fig2"></div>
+    <figcaption class="cap"><b>Figure 2.</b> Four-player win rate by starting pair, duplicate rotated through all four seats where applicable, 95% clustered-bootstrap intervals (narrower than the marks for most rows). Dashed line is the 25% fair share. Rows are ordered by the sweep result.</figcaption>
+  </figure>
+  <div class="col">
+    <p>Under the randomized sweep Duke + Duke leads at 33.0%, the four Duke pairs occupy the top four rows, and Contessa + Contessa is last at 12.3%. Partitioning the sweep by how much the table bluffs changes nothing: Duke + Duke leads at 31.2% on low-bluff tables, 32.9% on mid, and 33.2% on high, and the Duke pairs are the top four in each partition. This is a robustness result, not an optimality result: it says that against any of a wide family of scripted opponents Duke is the card to hold.</p>
+    <p>The empirical equilibrium is where the multiplayer game departs from the heads-up one. We solved the empirical game twice. On a first grid of 24 strategies, whose challenge policies were all per-claim probabilities, the equilibrium was pure and stark: bluff at the maximum rate and never challenge, with every challenging strategy losing to it (the best challenger won 19.7% against three copies of it). Adding the strong-evidence challenger, which fires only when two of the three copies of the claimed card are already face up, changed the answer. No pure strategy is a symmetric equilibrium of the 28-strategy game, and regret matching finds a mixed ε-equilibrium with ε = 3.2 points: strong-evidence challengers carry 82% of the weight, spread across bluff rates of 0.15 (34%), 0.35 (26%), 0.60 (15%), and 0 (8%), with the remaining 18% on non-challengers, mostly the maximal bluffer. Against this mixture every per-claim probabilistic challenger wins 13% or less of games (Figure 3). Hand equity under the mixture, rotated through all four seats over 150,000 deals, has Duke + Duke first at 35.2%, Captain + Captain second at 33.1%, Duke + Contessa third at 29.9%, and Contessa + Contessa last at 19.3%; the range between best and worst hand is 16 points, against 21 in the randomized sweep and 35 heads-up.</p>
+  </div>
+  <figure>
+    <div class="fig" id="fig3"></div>
+    <figcaption class="cap"><b>Figure 3.</b> Expected payoff of each grid strategy when one player deviates to it against three opponents drawn from the equilibrium mixture (fair share 25%). Rows are the strategy's bluff rate; columns are its challenge policy: never; only when two copies of the claimed card are already visible ("k≥2 only"); evidence-only slopes of 0.35 and 0.70 per visible copy; and three base-plus-slope policies. Sequential shading, one hue. Hover a cell for the value.</figcaption>
+  </figure>
+  <div class="col">
+    <p class="pull">In four-player Coup, catching a bluff is a public good: the challenger pays the whole cost of a wrong challenge and shares the benefit of a right one three ways.</p>
+    <p>The heatmap makes the incentive visible. Reading across any row, payoff collapses the moment a strategy challenges on weak evidence: at every bluff level the never-challenge and strong-evidence columns sit between 20% and 28%, and the five probabilistic columns sit between 4% and 13%. A wrong challenge costs the challenger a card, but a right one removes a card from a player who was threatening all three opponents equally, so two-thirds of the benefit is captured by players who took no risk. Only a challenge that is almost certainly right pays for itself, and in the base game the only such challenge is the one made when the claimed card is already nearly exhausted. Reading down the strong-evidence column, payoff falls gently with bluff rate (28.2% honest, 24.0% at the maximum), which is why the equilibrium mixes rather than settling: an honest strong-evidence challenger is the best response to the mixture but is exploited by heavier bluffers when it becomes common. Captain + Captain's rise to second place under this mixture follows from the same logic. Steals are blocked only by real Captains and Ambassadors or by bluffed blocks, bluffed blocks are rarely challenged at this equilibrium, and a player who actually holds two Captains both steals freely and survives the rare strong-evidence challenge.</p>
+
+    <h3>4.5 The no-bluffing counterfactual</h3>
+    <p>A natural question is what the cards are worth if nobody lies. We ran the scripted baseline with bluffing disabled in two versions: one where agents still challenge at their usual rates, and one where they do not (since every challenge of an honest claim loses, a rational honest table stops challenging). Ten million four-player games each.</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Hand</th><th class="num">Baseline</th><th class="num">No bluffs, still challenge</th><th class="num">Fully honest</th></tr></thead>
+    <tbody id="tbl-honest"></tbody>
+  </table></div>
+  <p class="cap"><b>Table 3.</b> Four-player win rate under three bluffing regimes, scripted baseline agent, 10M games each. Fair share is 25%. Ordered by the fully honest column.</p>
+  <div class="col">
+    <p>Removing bluffs while keeping challenges barely moves the table. Removing both inverts it: Duke falls from the best card to below fair share, and Captain rises from the middle to the top, with Assassin + Captain at 41.3%. The mechanism is that most of Duke's value is defensive. When anyone can claim Duke, a real Duke survives challenges and blocks fake Foreign Aid claims; when no one lies, Duke is three coins a turn against a Foreign Aid that pays two. Captain's steal is a four-coin swing that only a real Captain or Ambassador can stop, and an honest Assassin kills anyone without a real Contessa. We flag that the size of Captain's lead here is partly an artifact of the scripted agent, which prefers stealing to taxing when it holds both cards.</p>
+  </div>
+</section>
+
+<section id="discussion">
+  <div class="col">
+    <h2><span class="secnum">5</span>Discussion</h2>
+    <p><strong>Duke is the answer to the question as asked.</strong> Under scripted play, randomized scripted play, heads-up regret minimization, and the multiplayer empirical equilibrium, Duke is the single most valuable card, and no non-Duke pair beats the best Duke pair under any method. The reasons are consistent: Tax is the highest unconditional income in the game, Duke is the only card that blocks the second-highest, and because Duke is the most-claimed card, holding a real one converts opponents' challenges into free card removals.</p>
+    <p><strong>The ranking below Duke belongs to the model, not the game.</strong> Ambassador is mediocre under scripted play and excellent under CFR. Captain is strong under scripted play and weak under CFR. Both flips have a clean explanation. The scripted agents never use Exchange to launder a bluff; the solver does, and once it does, Ambassador is a card that makes every earlier lie true. The scripted agents steal whenever they can; the solver learns that a Steal claim invites a challenge and a block, and that Income is unchallengeable. Neither explanation could have been extracted from the scripted results, which is the argument for the solver.</p>
+    <p><strong>Multiplayer changes the equilibrium's character.</strong> Heads-up, the solver challenges 30% of claims and is right half the time. In the four-player empirical game, a challenger that is right half the time is destroyed, and the only challengers that survive are those that fire when the claimed card is nearly exhausted. These are not contradictory. In a two-player game every card an opponent loses is a card you gain against; in a four-player game two-thirds of that gain accrues to players who took no risk, so the break-even accuracy for a challenge rises from one half to roughly three quarters. Whether human tables converge on this is an empirical question, but the incentive structure is real, and the folk wisdom that "someone else will call it" has a game-theoretic basis. It also explains why multiplayer equilibrium compresses hand equity: with fewer challenges, bluffed claims succeed more often, and the difference between holding a card and pretending to shrinks.</p>
+    <p><strong>Equilibrium heads-up Coup is fast and violent.</strong> The five-turn average game with a 45% bluff rate is far from the deliberate play most people associate with the game, and may be partly an abstraction artifact (Section 6). But the two seeds' agreement on every behavioural rate, and the near-50% challenge accuracy that a mixed equilibrium predicts, are consistent with it being real.</p>
+  </div>
+</section>
+
+<section id="limitations">
+  <div class="col">
+    <h2><span class="secnum">6</span>Limitations</h2>
+    <p>We state these in the order we believe they matter.</p>
+    <p><strong>The solves are measurably far from equilibrium.</strong> Section 4.3. A responder trained with a fraction of the solver's compute beats each solve by eight to ten points, and that is only a lower bound; the true best response may do better. The hand ordering could shift as the solve tightens. The behavioural rates in Table 2, which agree across seeds to within three points, are the part of the heads-up result we trust most.</p>
+    <p><strong>Abstraction.</strong> Coin bucketing and one-bit claim history are lossy. The solver cannot distinguish a player who has claimed Duke once from one who has claimed it five times, which is exactly the evidence a human uses to challenge. The five-turn game length may partly reflect a solver that cannot afford to wait for evidence it cannot represent.</p>
+    <p><strong>CFR+ with sampling.</strong> The variant we present as primary lost head-to-head to the variant we present as secondary. We report both and take neither as definitive.</p>
+    <p><strong>Multiplayer strategy space.</strong> The empirical equilibrium is an equilibrium over 28 scripted strategies. A strategy outside the grid, for instance one that challenges based on a Bayesian estimate of the claim's probability rather than a copy count, could invade it. The finding that challenging is a public good does not depend on the grid; the finding that it is never worth doing does.</p>
+    <p><strong>Two players is not four.</strong> The heads-up solve is the only equilibrium in this paper with a convergence theorem behind it, and heads-up Coup is a different game from the three-to-six-player game most people play.</p>
+    <p><strong>Draw handling and rule interpretation.</strong> Games beyond 160 half-turns (heads-up) or 2,000 turns (multiplayer) are scored as draws; none of the final runs produced more than a handful. Where the printed rules leave order of challenges ambiguous, we resolved in random player order.</p>
+  </div>
+</section>
+
+<section id="repro">
+  <div class="col">
+    <h2><span class="secnum">7</span>Reproducibility</h2>
+    <p>Everything ran in pure Python 3.11 on four CPU cores. The scripts are committed alongside this page in <code>coup-cfr/</code>.</p>
+    <dl class="kv">
+      <dt>coup.py</dt><dd>Original 3–5 player scripted simulator (bot v1, no block memory). 30M games across table sizes.</dd>
+      <dt>coup3.py</dt><dd>Scripted simulator with block memory and the three bluffing modes. 10M games per mode.</dd>
+      <dt>sweep.py</dt><dd>Per-seat randomized parameters and preset deals. 5M games.</dd>
+      <dt>cfr.py / cfr2.py</dt><dd>Heads-up engine, outcome-sampling MCCFR, and the CFR+ variant. Seeds 1–3 at 3M iterations; seeds 1–2 at 10M.</dd>
+      <dt>eval2.py</dt><dd>Duplicate-scored evaluation with clustered bootstrap.</dd>
+      <dt>br.py / br2.py</dt><dd>Best-response training against a frozen strategy.</dd>
+      <dt>egta.py</dt><dd>Strategy grid, payoff estimation, replicator dynamics, equity at equilibrium.</dd>
+      <dt>stats.py</dt><dd>Behavioural statistics of a strategy in self-play.</dd>
+    </dl>
+    <p>Baseline scripted-agent constants: bluff Tax 0.30, Steal 0.22, Assassinate 0.20, block Foreign Aid 0.18, block Steal 0.30, block Assassination 0.40 (0.85 on last card); challenge probability 0.06 + 0.30 × visible copies; Exchange 0.35 when holding Ambassador; Foreign Aid over Income 0.75. Each bluff probability is multiplied by (1 − 0.3 × visible copies).</p>
+    <p>Approximate compute: scripted runs at 8,000 games per second per core; MCCFR at 3,800 iterations per second per core; the 10M-iteration solves at 45 minutes each; the 31,465-profile payoff estimation at 20 minutes on four cores.</p>
+  </div>
+</section>
+
+<section id="appendix">
+  <div class="col">
+    <h2><span class="secnum">A</span>Full tables</h2>
+    <p>Complete numbers behind Figures 1 and 2.</p>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Hand</th><th class="num">CFR+ seed 1</th><th class="num">CFR+ seed 2</th><th class="num">Mean</th><th class="num">Plain MCCFR, seed 1</th></tr></thead>
+    <tbody id="tbl-hu"></tbody>
+  </table></div>
+  <p class="cap"><b>Table A1.</b> Heads-up win rate by starting pair. CFR+ columns are duplicate scored (150k deals each). Plain-MCCFR column is the 3M-iteration seed 1 solve, duplicate scored over 100k deals, so the two solvers are compared on equal footing.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Hand</th><th class="num">Scripted baseline</th><th class="num">Randomized sweep</th><th class="num">Empirical equilibrium</th></tr></thead>
+    <tbody id="tbl-4p"></tbody>
+  </table></div>
+  <p class="cap"><b>Table A2.</b> Four-player win rate by starting pair. Baseline: 10M games, fixed constants. Sweep: 5M games, randomized constants per seat. Equilibrium: 150k deals rotated through four seats.</p>
+</section>
+
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    Written from simulation output; every number in the text is traceable to a script and seed listed in Section 7. Errors are the author's.
+  </div>
+</footer>
+
+<script>
+const HU=[ // hand, s1, s2, plain3seed, ci_lo, ci_hi
+["Duke + Ambassador",62.73,62.92,66.17,62.34,63.37],
+["Duke + Captain",59.68,58.97,62.26,58.54,60.05],
+["Duke + Duke",59.77,57.88,53.66,57.22,60.50],
+["Duke + Assassin",59.40,56.02,53.26,55.56,59.84],
+["Ambassador + Captain",53.31,54.98,53.91,52.87,55.41],
+["Ambassador + Ambassador",52.18,54.12,60.49,51.49,54.88],
+["Duke + Contessa",50.28,53.99,51.18,49.88,54.45],
+["Assassin + Ambassador",49.92,51.95,53.76,49.50,52.35],
+["Ambassador + Contessa",48.49,53.32,55.62,48.06,53.72],
+["Captain + Captain",46.92,44.14,41.35,43.39,47.61],
+["Assassin + Captain",46.50,41.35,40.57,40.97,46.89],
+["Captain + Contessa",40.87,41.71,43.90,40.48,42.11],
+["Assassin + Contessa",36.95,36.84,31.39,36.45,37.36],
+["Assassin + Assassin",38.95,31.66,34.10,31.01,39.68],
+["Contessa + Contessa",28.38,26.40,24.50,25.77,29.07]];
+const FP={ // hand: [baseline, sweep, sweep_ci, eq, eq_ci_lo, eq_ci_hi]
+"Duke + Duke":[33.63,33.01,0.12],"Duke + Contessa":[31.28,30.73,0.07],"Duke + Ambassador":[31.29,30.69,0.07],"Duke + Assassin":[30.15,30.42,0.07],
+"Captain + Captain":[27.40,28.00,0.12],"Duke + Captain":[26.36,27.82,0.07],"Captain + Contessa":[25.63,26.15,0.07],"Assassin + Captain":[24.09,25.17,0.06],
+"Ambassador + Captain":[23.01,23.88,0.06],"Assassin + Ambassador":[22.85,22.32,0.06],"Ambassador + Ambassador":[24.02,21.95,0.11],"Ambassador + Contessa":[23.14,21.71,0.06],
+"Assassin + Assassin":[17.11,16.66,0.10],"Assassin + Contessa":[15.56,15.46,0.05],"Contessa + Contessa":[12.73,12.30,0.09]};
+const EQ={"Duke + Duke": [35.23, 34.85, 35.61], "Captain + Captain": [33.12, 32.72, 33.47], "Duke + Contessa": [29.89, 29.7, 30.11], "Duke + Ambassador": [27.78, 27.6, 27.97], "Duke + Assassin": [26.69, 26.5, 26.88], "Captain + Contessa": [24.96, 24.76, 25.14], "Ambassador + Contessa": [24.7, 24.51, 24.88], "Duke + Captain": [24.59, 24.4, 24.79], "Assassin + Assassin": [24.11, 23.8, 24.46], "Assassin + Captain": [23.83, 23.66, 24.02], "Ambassador + Ambassador": [23.49, 23.15, 23.82], "Assassin + Ambassador": [22.67, 22.49, 22.84], "Ambassador + Captain": [21.78, 21.61, 21.97], "Assassin + Contessa": [19.74, 19.56, 19.91], "Contessa + Contessa": [19.33, 19.03, 19.62]};
+const HONEST=[ // hand, baseline, nobluff+challenge, honest
+["Assassin + Captain",24.09,23.63,41.33],["Captain + Captain",27.40,27.31,38.12],["Captain + Contessa",25.63,26.40,36.74],["Ambassador + Captain",23.01,24.51,35.79],
+["Ambassador + Ambassador",24.02,26.62,24.74],["Duke + Captain",26.36,26.12,24.00],["Duke + Ambassador",31.29,31.24,23.72],["Assassin + Ambassador",22.85,23.17,23.31],
+["Duke + Assassin",30.15,28.06,22.00],["Ambassador + Contessa",23.14,25.77,21.89],["Duke + Duke",33.63,31.44,16.96],["Duke + Contessa",31.28,30.69,16.43],
+["Assassin + Assassin",17.11,15.62,13.02],["Contessa + Contessa",12.73,14.70,12.16],["Assassin + Contessa",15.56,13.53,11.45]];
+const HEAT={"cols": [["never", ""], ["k\u22652 only", ""], ["0.35k", "evidence only"], ["0.70k", "evidence only"], ["0.05+0.15k", "base+slope"], ["0.10+0.35k", "base+slope"], ["0.20+0.55k", "base+slope"]], "rows": ["0.00", "0.15", "0.35", "0.60"], "v": [[20.84, 28.21, 11.9, 9.12, 11.91, 7.05, 3.93], [21.6, 26.78, 13.06, 10.1, 12.37, 7.13, 4.29], [21.09, 25.51, 12.88, 10.48, 11.77, 7.33, 4.61], [20.14, 24.04, 12.34, 9.5, 11.61, 7.21, 4.19]], "n": [[0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0]]};
+
+const tip=document.getElementById('tip');
+function showTip(e,html){tip.innerHTML=html;tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';}
+function hideTip(){tip.style.display='none';}
+const svgNS='http://www.w3.org/2000/svg';
+function el(n,a,txt){const x=document.createElementNS(svgNS,n);for(const k in a)x.setAttribute(k,a[k]);if(txt!=null)x.textContent=txt;return x;}
+
+// Figure 1: horizontal bars with whiskers
+(function(){
+  const W=900,rowH=26,L=200,R=60,T=18,B=30,H=T+B+HU.length*rowH;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Heads-up win rate by starting pair'});
+  const x=v=>L+(v/80)*(W-L-R);
+  for(let v=0;v<=80;v+=10){svg.appendChild(el('line',{x1:x(v),x2:x(v),y1:T-6,y2:H-B+4,class:'grid'}));svg.appendChild(el('text',{x:x(v),y:H-B+18,'text-anchor':'middle',class:'lbl'},v+'%'));}
+  svg.appendChild(el('line',{x1:x(50),x2:x(50),y1:T-6,y2:H-B+4,class:'ref'}));
+  HU.forEach((r,i)=>{
+    const y=T+i*rowH,m=(r[1]+r[2])/2;
+    svg.appendChild(el('text',{x:L-10,y:y+rowH/2+4,'text-anchor':'end'},r[0]));
+    const bar=el('rect',{x:x(0),y:y+5,width:x(m)-x(0),height:rowH-10,rx:3,fill:'var(--accent)',opacity:.9});
+    svg.appendChild(bar);
+    svg.appendChild(el('line',{x1:x(r[4]),x2:x(r[5]),y1:y+rowH/2,y2:y+rowH/2,stroke:'var(--text)','stroke-width':1.5}));
+    svg.appendChild(el('text',{x:x(r[5])+6,y:y+rowH/2+4,class:'lbl'},m.toFixed(1)+'%'));
+    const hit=el('rect',{x:0,y:y,width:W,height:rowH,fill:'transparent'});
+    hit.addEventListener('mousemove',e=>showTip(e,`<b>${r[0]}</b><br>seed 1: ${r[1].toFixed(2)}%<br>seed 2: ${r[2].toFixed(2)}%<br>plain MCCFR (dup.): ${r[3].toFixed(2)}%`));
+    hit.addEventListener('mouseleave',hideTip);svg.appendChild(hit);
+  });
+  document.getElementById('fig1').appendChild(svg);
+})();
+
+// Figure 2: dot plot, two series
+(function(){
+  const rows=Object.keys(FP);
+  const W=900,rowH=26,L=200,R=60,T=18,B=30,H=T+B+rows.length*rowH,MAX=50;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Four-player win rate by starting pair, two models'});
+  const x=v=>L+(v/MAX)*(W-L-R);
+  for(let v=0;v<=MAX;v+=10){svg.appendChild(el('line',{x1:x(v),x2:x(v),y1:T-6,y2:H-B+4,class:'grid'}));svg.appendChild(el('text',{x:x(v),y:H-B+18,'text-anchor':'middle',class:'lbl'},v+'%'));}
+  svg.appendChild(el('line',{x1:x(25),x2:x(25),y1:T-6,y2:H-B+4,class:'ref'}));
+  rows.forEach((h,i)=>{
+    const y=T+i*rowH+rowH/2,d=FP[h],e=EQ[h]||[NaN,NaN,NaN];
+    svg.appendChild(el('text',{x:L-10,y:y+4,'text-anchor':'end'},h));
+    svg.appendChild(el('line',{x1:x(Math.min(d[1],e[0])),x2:x(Math.max(d[1],e[0])),y1:y,y2:y,stroke:'var(--line)','stroke-width':2}));
+    svg.appendChild(el('line',{x1:x(d[1]-d[2]),x2:x(d[1]+d[2]),y1:y,y2:y,stroke:'var(--s1)','stroke-width':2}));
+    svg.appendChild(el('line',{x1:x(e[1]),x2:x(e[2]),y1:y,y2:y,stroke:'var(--s2)','stroke-width':2}));
+    svg.appendChild(el('circle',{cx:x(d[1]),cy:y,r:5.5,fill:'var(--s1)',stroke:'var(--surface)','stroke-width':2}));
+    svg.appendChild(el('circle',{cx:x(e[0]),cy:y,r:5.5,fill:'var(--s2)',stroke:'var(--surface)','stroke-width':2}));
+    const hit=el('rect',{x:0,y:y-rowH/2,width:W,height:rowH,fill:'transparent'});
+    hit.addEventListener('mousemove',ev=>showTip(ev,`<b>${h}</b><br>scripted baseline: ${d[0].toFixed(2)}%<br>randomized sweep: ${d[1].toFixed(2)}% ±${d[2]}<br>empirical equilibrium: ${e[0].toFixed(2)}% [${e[1].toFixed(2)}, ${e[2].toFixed(2)}]`));
+    hit.addEventListener('mouseleave',hideTip);svg.appendChild(hit);
+  });
+  document.getElementById('fig2').appendChild(svg);
+})();
+
+// Figure 3: heatmap of deviation payoffs
+(function(){
+  const cols=HEAT.cols,rowsL=HEAT.rows,V=HEAT.v,N=HEAT.n;
+  const W=900,L=110,T=64,cw=(W-L-20)/cols.length,ch=54,H=T+ch*rowsL.length+16;
+  const svg=el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Deviation payoff heatmap'});
+  const ramp=['var(--seq1)','var(--seq2)','var(--seq3)','var(--seq4)','var(--seq5)','var(--seq6)','var(--seq7)'];
+  const vmax=Math.max(...V.flat()),vmin=Math.min(...V.flat());
+  svg.appendChild(el('text',{x:L,y:16,class:'lbl'},'challenge policy →'));
+  cols.forEach((c,j)=>{const t=el('text',{x:L+j*cw+cw/2,y:T-24,'text-anchor':'middle',class:'lbl'},c[0]);svg.appendChild(t);
+    svg.appendChild(el('text',{x:L+j*cw+cw/2,y:T-10,'text-anchor':'middle',class:'lbl','font-size':'9.5'},c[1]));});
+  svg.appendChild(el('text',{x:12,y:T-24,class:'lbl'},'bluff rate ↓'));
+  rowsL.forEach((r,i)=>{
+    svg.appendChild(el('text',{x:L-10,y:T+i*ch+ch/2+4,'text-anchor':'end'},r));
+    cols.forEach((c,j)=>{
+      const v=V[i][j],k=Math.min(6,Math.floor((v-vmin)/(vmax-vmin+1e-9)*7));
+      const rect=el('rect',{x:L+j*cw+1,y:T+i*ch+1,width:cw-2,height:ch-2,rx:4,fill:ramp[k]});
+      svg.appendChild(rect);
+      const light=k>=4;
+      const t=el('text',{x:L+j*cw+cw/2,y:T+i*ch+ch/2+4,'text-anchor':'middle','font-size':'12',fill:light?'#ffffff':'var(--text)'},v.toFixed(1)+'%');
+      svg.appendChild(t);
+      const hit=el('rect',{x:L+j*cw,y:T+i*ch,width:cw,height:ch,fill:'transparent'});
+      hit.addEventListener('mousemove',e=>showTip(e,`bluff ${r}, challenge ${c[0]}${c[1]?' ('+c[1]+')':''}<br><b>${v.toFixed(2)}%</b> expected win rate vs the equilibrium mixture`));
+      hit.addEventListener('mouseleave',hideTip);svg.appendChild(hit);
+    });
+  });
+  document.getElementById('fig3').appendChild(svg);
+})();
+
+// Tables
+(function(){
+  const fmt=v=>v==null||isNaN(v)?'—':v.toFixed(2)+'%';
+  const hu=document.getElementById('tbl-hu');
+  HU.forEach(r=>{hu.insertAdjacentHTML('beforeend',`<tr><td>${r[0]}</td><td class="num">${fmt(r[1])}</td><td class="num">${fmt(r[2])}</td><td class="num"><b>${fmt((r[1]+r[2])/2)}</b></td><td class="num">${fmt(r[3])}</td></tr>`);});
+  const fp=document.getElementById('tbl-4p');
+  Object.keys(FP).forEach(h=>{const d=FP[h],e=EQ[h]||[];fp.insertAdjacentHTML('beforeend',`<tr><td>${h}</td><td class="num">${fmt(d[0])}</td><td class="num">${fmt(d[1])}</td><td class="num">${fmt(e[0])}</td></tr>`);});
+  const ho=document.getElementById('tbl-honest');
+  HONEST.forEach(r=>{ho.insertAdjacentHTML('beforeend',`<tr><td>${r[0]}</td><td class="num">${fmt(r[1])}</td><td class="num">${fmt(r[2])}</td><td class="num"><b>${fmt(r[3])}</b></td></tr>`);});
+})();
+</script>
