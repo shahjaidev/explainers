@@ -1,0 +1,619 @@
+<meta charset="utf-8">
+<title>RL for a Search Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="How easy is it to RL a search model? An anatomy of jasper-lu/sec-search-rl: Dr. GRPO on gpt-oss-20b over SEC filings, the F4 reward, the format penalty that won, three cookbook patches, and eight ideas to build on top.">
+<style>
+:root{
+  --bg:#F5F6F8; --surface:#FFFFFF; --surface-2:#ECEFF3; --line:#D8DEE6; --line-soft:#E5EAF0;
+  --ink:#151A21; --ink-2:#48525F; --ink-3:#78828F;
+  --policy:#0F6F8C; --policy-bg:#E1EFF4;     /* the agent / sampled tokens */
+  --reward:#A2561A; --reward-bg:#F6E9DC;     /* reward terms */
+  --fix:#5A4BA6;   --fix-bg:#EAE6F6;         /* engineering patches */
+  --idea:#2C7A4B;  --idea-bg:#E1F0E6;        /* proposals */
+  --pos:#2C7A4B; --neg:#B0452F;
+  --shadow:0 1px 2px rgba(21,26,33,.05),0 8px 24px -12px rgba(21,26,33,.18);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1116; --surface:#151A21; --surface-2:#1C222B; --line:#2A323D; --line-soft:#222932;
+    --ink:#E6EAF0; --ink-2:#A8B2BE; --ink-3:#76808D;
+    --policy:#5BC0DE; --policy-bg:#10303A;
+    --reward:#E0A15F; --reward-bg:#34240F;
+    --fix:#AFA3EE; --fix-bg:#241F3C;
+    --idea:#6CC58E; --idea-bg:#14301E;
+    --pos:#6CC58E; --neg:#E4826A;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1116; --surface:#151A21; --surface-2:#1C222B; --line:#2A323D; --line-soft:#222932;
+  --ink:#E6EAF0; --ink-2:#A8B2BE; --ink-3:#76808D;
+  --policy:#5BC0DE; --policy-bg:#10303A;
+  --reward:#E0A15F; --reward-bg:#34240F;
+  --fix:#AFA3EE; --fix-bg:#241F3C;
+  --idea:#6CC58E; --idea-bg:#14301E;
+  --pos:#6CC58E; --neg:#E4826A;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 24px -12px rgba(0,0,0,.7);
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",sans-serif;font-size:17px;line-height:1.62;letter-spacing:-.003em}
+code,.mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+code{font-size:.88em;background:var(--surface-2);padding:1px 5px;border-radius:4px}
+pre{margin:0;background:var(--surface-2);border:1px solid var(--line-soft);border-radius:9px;padding:13px 15px;
+  font-size:12.5px;line-height:1.55;overflow:auto;white-space:pre}
+pre code{background:none;padding:0;font-size:inherit}
+a{color:var(--policy)}
+.wrap{max-width:1040px;margin:0 auto;padding:0 22px}
+.col{max-width:66ch;margin:0 auto}
+
+header{border-bottom:1px solid var(--line);background:var(--surface)}
+.bar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}
+.src{font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.toggle{font:inherit;font-size:12px;padding:6px 12px;border:1px solid var(--line);border-radius:999px;
+  background:var(--surface-2);color:var(--ink-2);cursor:pointer}
+.toggle:hover{color:var(--ink);border-color:var(--ink-3)}
+.toggle:focus-visible{outline:2px solid var(--policy);outline-offset:2px}
+
+.hero{padding:60px 0 44px}
+h1{font-family:ui-serif,"New York",Palatino,Georgia,serif;font-weight:600;
+  font-size:clamp(34px,5.4vw,52px);line-height:1.06;letter-spacing:-.022em;margin:0 0 18px;text-wrap:balance}
+.lede{font-size:19.5px;color:var(--ink-2);margin:0;max-width:60ch}
+.lede b{color:var(--ink);font-weight:600}
+.note{margin:18px 0 0;font-size:13.5px;color:var(--ink-3);border-left:2px solid var(--line);padding-left:12px;max-width:60ch}
+
+section{padding:36px 0}
+h2{font-family:ui-serif,"New York",Palatino,Georgia,serif;font-weight:600;
+  font-size:26px;letter-spacing:-.015em;margin:0 0 6px;text-wrap:balance}
+h3{font-size:16.5px;margin:22px 0 8px;letter-spacing:-.01em}
+.eyebrow{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--ink-3);
+  margin:0 0 10px;font-family:ui-monospace,"SF Mono",Menlo,monospace}
+p{margin:0 0 16px}
+.sub{color:var(--ink-2);margin-bottom:22px}
+hr{border:0;border-top:1px solid var(--line-soft);margin:0}
+ul.plain{padding-left:20px;margin:0 0 16px;color:var(--ink-2)}
+ul.plain li{margin-bottom:6px}
+
+/* stat strip */
+.strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line-soft);
+  border:1px solid var(--line-soft);border-radius:12px;overflow:hidden;margin:6px 0 24px}
+.stat{background:var(--surface);padding:13px 15px}
+.stat .k{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:3px}
+.stat .v{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat .u{font-size:12px;color:var(--ink-3);font-weight:400;margin-left:3px}
+
+/* loop diagram */
+.loop{display:grid;grid-template-columns:repeat(5,1fr);gap:0;border:1px solid var(--line);border-radius:14px;
+  background:var(--surface);box-shadow:var(--shadow);overflow:hidden;counter-reset:step}
+.lstep{padding:18px 16px;border-right:1px solid var(--line-soft);position:relative}
+.lstep:last-child{border-right:0}
+.lstep::before{counter-increment:step;content:counter(step,decimal-leading-zero);font-family:ui-monospace,"SF Mono",Menlo,monospace;
+  font-size:10.5px;letter-spacing:.1em;color:var(--policy);display:block;margin-bottom:6px}
+.lstep h4{margin:0 0 6px;font-size:14px;letter-spacing:-.01em}
+.lstep p{margin:0;font-size:13.5px;color:var(--ink-2);line-height:1.5}
+@media(max-width:860px){.loop{grid-template-columns:1fr 1fr}.lstep{border-bottom:1px solid var(--line-soft)}}
+@media(max-width:520px){.loop{grid-template-columns:1fr}}
+
+/* tool cards */
+.tools{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.tool{border:1px solid var(--line);border-radius:11px;background:var(--surface);overflow:hidden;
+  box-shadow:var(--shadow);border-left:3px solid var(--policy)}
+.tool summary{list-style:none;cursor:pointer;padding:14px 16px;display:flex;flex-direction:column;gap:6px}
+.tool summary::-webkit-details-marker{display:none}
+.tool summary:focus-visible{outline:2px solid var(--policy);outline-offset:-2px}
+.tname{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:15px;font-weight:600;
+  display:flex;align-items:center;justify-content:space-between;gap:10px}
+.tname .caret{color:var(--ink-3);font-size:12px;transition:transform .18s ease}
+details[open] .caret{transform:rotate(90deg)}
+.tgloss{font-size:13.5px;color:var(--ink-2);line-height:1.45}
+.tbody{padding:0 16px 16px;border-top:1px solid var(--line-soft);margin-top:2px}
+.params{margin:14px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:9px}
+.params li{font-size:13.5px;color:var(--ink-2);line-height:1.5}
+.params .p{font-family:ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink);font-size:12.5px}
+.params .req{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;color:var(--policy);
+  letter-spacing:.06em;text-transform:uppercase;margin-left:5px}
+.quote{margin:14px 0 0;padding:11px 13px;background:var(--surface-2);border-radius:8px;font-size:13px;line-height:1.55;color:var(--ink-2)}
+.quote b{display:block;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-3);margin-bottom:5px;font-weight:600}
+
+/* reward lab */
+.lab{border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);
+  padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:26px}
+@media(max-width:760px){.lab{grid-template-columns:1fr}}
+.lab h3{margin:0 0 4px;font-size:19px;font-family:ui-serif,"New York",Palatino,Georgia,serif;font-weight:600}
+.ctl{margin:14px 0 0}
+.ctl label{display:flex;justify-content:space-between;font-size:13px;color:var(--ink-2);margin-bottom:4px}
+.ctl label b{font-family:ui-monospace,"SF Mono",Menlo,monospace;color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+.ctl input[type=range]{width:100%;accent-color:var(--reward)}
+.seg{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.seg button{font:inherit;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;padding:6px 12px;border-radius:8px;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink-2);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg button:focus-visible{outline:2px solid var(--reward);outline-offset:2px}
+.ledger{margin:0;padding:0;list-style:none;border:1px solid var(--line-soft);border-radius:10px;overflow:hidden}
+.ledger li{display:flex;justify-content:space-between;gap:12px;padding:9px 13px;font-size:13.5px;border-top:1px solid var(--line-soft);background:var(--surface)}
+.ledger li:first-child{border-top:0}
+.ledger li span:last-child{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;color:var(--ink)}
+.ledger li.tot{background:var(--reward-bg);font-weight:600}
+.ledger li.off{color:var(--ink-3)}
+.ledger li.off span:last-child{color:var(--ink-3)}
+.big{font-size:40px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums;line-height:1;margin:4px 0 6px;color:var(--reward)}
+.finding{margin:14px 0 0;font-size:14px;color:var(--ink-2);line-height:1.55}
+.chk{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink-2);margin-top:10px}
+.chk input{accent-color:var(--reward)}
+
+/* results chart */
+.chart{border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);padding:18px 18px 8px}
+.chart svg{width:100%;height:auto;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:13px;color:var(--ink-2);margin:8px 0 6px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:14px 0 6px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+td.num{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-variant-numeric:tabular-nums;text-align:right}
+th.num{text-align:right}
+td.best{color:var(--pos);font-weight:600}
+.tablewrap{overflow-x:auto}
+
+/* header form */
+.hdr{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}
+@media(max-width:700px){.hdr{grid-template-columns:1fr}}
+.hcard{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:14px 16px}
+.hcard .k{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;margin-bottom:8px;font-weight:600}
+.hcard.ok .k{color:var(--pos)}.hcard.bad .k{color:var(--neg)}
+.hcard pre{font-size:12px;white-space:pre-wrap;word-break:break-all}
+.hcard,.lab>div,.ep>div,.lstep,.tool,.patch,.idea,.stat,.chart,.tablewrap{min-width:0}
+.col pre{max-width:100%}
+.hl-ok{color:var(--pos);font-weight:600}.hl-bad{color:var(--neg);font-weight:600}
+
+/* patches */
+.patches{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+.patch{border:1px solid var(--line);border-radius:11px;background:var(--surface);padding:17px 18px;box-shadow:var(--shadow);border-top:3px solid var(--fix)}
+.patch h4{margin:0 0 7px;font-size:15px;letter-spacing:-.01em}
+.patch p{margin:0;font-size:14px;color:var(--ink-2);line-height:1.55}
+.patch .tag{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10px;letter-spacing:.09em;text-transform:uppercase;color:var(--fix);display:block;margin-bottom:8px}
+
+/* episode stepper */
+.ep{border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:var(--shadow);padding:20px;display:grid;grid-template-columns:1.2fr 1fr;gap:22px}
+@media(max-width:760px){.ep{grid-template-columns:1fr}}
+.turns{display:flex;flex-direction:column;gap:6px}
+.turn{border:1px solid var(--line-soft);border-radius:9px;padding:9px 12px;font-size:13.5px;color:var(--ink-3);display:flex;gap:10px;align-items:baseline}
+.turn.on{border-color:var(--policy);color:var(--ink);background:var(--policy-bg)}
+.turn.done{color:var(--ink-2)}
+.turn .t{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;min-width:34px;color:var(--ink-3)}
+.turn .call{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:12.5px;color:var(--policy)}
+.turn.on .call{font-weight:600}
+.epctl{display:flex;gap:8px;margin-top:12px}
+.epctl button{font:inherit;font-size:13px;padding:7px 14px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.epctl button:hover{border-color:var(--ink-3)}
+.epctl button:focus-visible{outline:2px solid var(--policy);outline-offset:2px}
+.facts{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin:8px 0 14px}
+.fact{border:1px solid var(--line-soft);border-radius:8px;padding:8px 6px;text-align:center;font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:var(--ink-3)}
+.fact.seen{border-color:var(--policy);color:var(--policy)}
+.fact.cur{background:var(--reward-bg);border-color:var(--reward);color:var(--reward);font-weight:600}
+.mini{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line-soft);border:1px solid var(--line-soft);border-radius:10px;overflow:hidden}
+.epnote{font-size:13px;color:var(--ink-2);margin-top:12px;line-height:1.5}
+
+/* ideas */
+.ideas{display:flex;flex-direction:column;gap:12px}
+.idea{border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow);border-left:3px solid var(--idea);overflow:hidden}
+.idea summary{list-style:none;cursor:pointer;padding:15px 18px;display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:baseline}
+.idea summary::-webkit-details-marker{display:none}
+.idea summary:focus-visible{outline:2px solid var(--idea);outline-offset:-2px}
+.idea .n{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:11px;color:var(--idea);letter-spacing:.08em}
+.idea .h{font-size:16px;font-weight:600;letter-spacing:-.01em}
+.idea .h small{display:block;font-weight:400;font-size:13.5px;color:var(--ink-2);margin-top:3px}
+.idea .cost{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.07em;text-transform:uppercase;
+  padding:3px 8px;border-radius:5px;background:var(--idea-bg);color:var(--idea);white-space:nowrap}
+.idea .body{padding:0 18px 18px;border-top:1px solid var(--line-soft);font-size:14.5px;color:var(--ink-2);line-height:1.6}
+.idea .body p{margin:12px 0 0}
+.idea .body b{color:var(--ink)}
+.idea .body .lab-k{font-family:ui-monospace,"SF Mono",Menlo,monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-3);display:block;margin-bottom:2px}
+
+footer{border-top:1px solid var(--line);margin-top:20px;padding:26px 0 44px;color:var(--ink-3);font-size:13.5px;line-height:1.7}
+footer a{color:var(--ink-2)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<header>
+  <div class="wrap bar">
+    <span class="src mono">jasper-lu/sec-search-rl · jasperlu.com/blog/training-search-agents-grpo</span>
+    <button class="toggle" id="themeBtn" type="button">Dark</button>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="hero col">
+    <p class="eyebrow">Agentic RL · search</p>
+    <h1>How easy is it to RL a search model?</h1>
+    <p class="lede">Take a 20B open model, six tools, a 238k-chunk corpus of SEC filings and a recall-weighted reward, and run synchronous Dr. GRPO through Tinker for 24 updates. Held-out F4 goes from <b>0.166 to 0.42</b>, for a few hundred dollars. The surprise is what moved the needle most: <b>not a better reward, but a 0.1 penalty for mis-formatted tool-call headers.</b> This page is an anatomy of the repo behind the write-up, then eight ideas to build on it.</p>
+    <p class="note">Reconstructed from the <code>sec-search-rl</code> source, its README and search excerpts of the post; the post itself could not be fetched from this session. Every number below is from the README's results table or read off the code.</p>
+  </div>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The setup</p>
+    <h2>One query, six tools, one curated set</h2>
+    <p class="sub">The task is Harness-1's SEC retrieval subagent task: a multi-clue question whose answer needs 3, 5 or 7 evidence facts, each fact satisfiable by any of a few interchangeable chunks. The agent never answers. It searches, reads, and builds a <b>curated set</b> of chunk IDs, and that set is the entire output. gpt-oss-20b with a rank-32 LoRA is the policy; the harness is deliberately thin.</p>
+  </div>
+  <div class="strip">
+    <div class="stat"><div class="k">Policy</div><div class="v">gpt-oss-20b<span class="u">LoRA r=32</span></div></div>
+    <div class="stat"><div class="k">Train corpus</div><div class="v">237,533<span class="u">chunks</span></div></div>
+    <div class="stat"><div class="k">Train queries</div><div class="v">1,024<span class="u">638 / 317 / 69 by facts</span></div></div>
+    <div class="stat"><div class="k">Per update</div><div class="v">64 × 8<span class="u">queries × rollouts</span></div></div>
+    <div class="stat"><div class="k">Budget / episode</div><div class="v">40<span class="u">turns · 30k tokens</span></div></div>
+    <div class="stat"><div class="k">Held-out eval</div><div class="v">32<span class="u">dev queries · SE ≈ 0.03</span></div></div>
+  </div>
+  <div class="col">
+    <p class="sub">The corpus is not the full 2.1M-chunk Harness-1 dump. <code>prepare-sec</code> keeps every gold chunk, its same-filing neighbours within ±4 positions (hard distractors), and a stable random 60k background sample, indexed in SQLite FTS5. Query families are split so no train and dev query share a gold chunk. Click a tool for its parameters and the description the model actually sees.</p>
+  </div>
+  <div class="tools" id="tools"></div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The loop</p>
+    <h2>Synchronous, fresh-rollout Dr. GRPO</h2>
+    <p class="sub">Nothing exotic. Every update samples fresh trajectories from the current weights, scores them with the terminal reward, centres each query's eight rewards on their own mean, and takes one importance-sampling policy-gradient step. No value model, no KL penalty, no standard-deviation normalisation (that is the "Dr." in Dr. GRPO: dividing by a group's std would over-weight queries where the rollouts nearly agree).</p>
+  </div>
+  <div class="loop">
+    <div class="lstep"><h4>Draw a batch</h4><p>64 queries in a fixed difficulty interleave, so every batch spans 3-, 5- and 7-fact tasks and the hard ones are not exhausted early.</p></div>
+    <div class="lstep"><h4>Roll out ×8</h4><p>Eight independent 40-turn episodes per query against the live FTS5 index, parallel tool execution, temperature 1. Sampling is 90%+ of wall-clock.</p></div>
+    <div class="lstep"><h4>Score</h4><p>Terminal reward on the curated set: F4 against the fact groups, minus flat penalties. Timeouts and context overflows still get partial credit.</p></div>
+    <div class="lstep"><h4>Centre &amp; filter</h4><p>Advantage = reward − group mean. Groups where all eight rewards are equal carry no gradient and are dropped before the step.</p></div>
+    <div class="lstep"><h4>One step</h4><p>Importance-sampling loss, lr 1e-4, one substep, save every update. Sixteen updates is one epoch; a resumed half-epoch on reshuffled queries gets to 24.</p></div>
+  </div>
+  <div class="col" style="margin-top:22px">
+    <p class="sub">The recipe is a flat TOML file whose keys are CLI flags, which is a small thing that makes ablations honest: the three results below differ from each other by exactly one line.</p>
+<pre><code># configs/f4_w_format_penalty.toml
+model = "openai/gpt-oss-20b"
+renderer = "gpt_oss_no_sysprompt"
+data-dir = "data/sec_1024"
+reward = "f4"
+learning-rate = 1e-4
+lora-rank = 32
+group-size = 8
+groups-per-batch = 64
+max-steps = 16
+max-turns = 40
+max-trajectory-tokens = 30720
+format-penalty = 0.1      # the only line that differs from f4.toml</code></pre>
+  </div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The reward</p>
+    <h2>F4 is almost recall, and that is the point</h2>
+    <p class="sub">Precision counts curated chunks that support any fact. Recall counts fact groups covered by at least one of their interchangeable chunks. F-beta with β=4 weights recall sixteen times more than precision, because a downstream answerer can ignore junk but cannot recover a missing clue. Drag the sliders; switch β to see why F1 would train a timid curator and why a "curate everything you saw" policy still has a high ceiling under F4.</p>
+  </div>
+  <div class="lab">
+    <div>
+      <h3>Reward lab</h3>
+      <p class="finding" style="margin-top:0">Mirrors <code>rewards.py</code> and <code>RetrievalReward.__call__</code>, including the order in which the flat terms apply.</p>
+      <div class="ctl"><label>Fact groups in the query <b id="vFacts">5</b></label><input type="range" id="facts" min="3" max="7" step="2" value="5"></div>
+      <div class="ctl"><label>Fact groups covered <b id="vCov">3</b></label><input type="range" id="cov" min="0" max="5" step="1" value="3"></div>
+      <div class="ctl"><label>Chunks curated <b id="vCur">8</b></label><input type="range" id="cur" min="0" max="30" step="1" value="8"></div>
+      <div class="ctl"><label>…of which support some fact <b id="vTp">4</b></label><input type="range" id="tp" min="0" max="8" step="1" value="4"></div>
+      <div class="ctl"><label>β</label>
+        <div class="seg" id="beta">
+          <button type="button" data-b="1">F1</button><button type="button" data-b="2">F2</button><button type="button" data-b="4" aria-pressed="true">F4</button>
+        </div>
+      </div>
+      <label class="chk"><input type="checkbox" id="offfmt"> any tool call with an off-form header (format penalty 0.1)</label>
+      <label class="chk"><input type="checkbox" id="f4s"> use <code>f4s</code>: + 0.2 × candidate recall − 0.02 × curated docs</label>
+      <div class="ctl" id="crWrap" style="display:none"><label>Fact groups merely <i>encountered</i> <b id="vEnc">4</b></label><input type="range" id="enc" min="0" max="5" step="1" value="4"></div>
+    </div>
+    <div>
+      <div class="eyebrow">Episode reward</div>
+      <div class="big" id="big">0.000</div>
+      <ul class="ledger" id="ledger"></ul>
+      <p class="finding" id="labNote"></p>
+    </div>
+  </div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">An episode</p>
+    <h2>What the reward actually sees</h2>
+    <p class="sub">The reward never reads the transcript. It reads a tiny per-episode <code>SearchSession</code>: which IDs the agent has <i>encountered</i> in any tool result, which it has <i>curated</i>, and a handful of counters. Step through an illustrative 5-fact episode to watch those two sets and the score move. (The trace is synthetic; the accounting is the repo's.)</p>
+  </div>
+  <div class="ep">
+    <div>
+      <div class="turns" id="turns"></div>
+      <div class="epctl"><button type="button" id="prev">← Back</button><button type="button" id="next">Step →</button><button type="button" id="reset">Reset</button></div>
+    </div>
+    <div>
+      <div class="eyebrow">Fact groups</div>
+      <div class="facts" id="facts5"></div>
+      <div class="mini" id="epstats"></div>
+      <p class="epnote" id="epnote"></p>
+    </div>
+  </div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">Results</p>
+    <h2>Three recipes, one line apart</h2>
+    <p class="sub">Held-out F4 on 32 dev queries, mean of two eval draws per checkpoint. Plain F4 training triples the base score by update 24. Adding a discovery bonus for facts merely encountered helps early and then falls behind. The format penalty wins at every checkpoint and peaks at 0.424, at about 40% more cost, because clean episodes are longer episodes.</p>
+  </div>
+  <div class="chart">
+    <div class="legend">
+      <span><i style="background:var(--ink-3)"></i>F4</span>
+      <span><i style="background:var(--reward)"></i>F4 + discovery bonus − per-doc cost</span>
+      <span><i style="background:var(--policy)"></i>F4 + format penalty 0.1</span>
+      <span><i style="background:transparent;border:1px dashed var(--ink-3)"></i>base model 0.166</span>
+    </div>
+    <svg viewBox="0 0 640 260" role="img" aria-label="Held-out F4 at updates 16, 20 and 24 for three recipes, base model dashed at 0.166" id="chart"></svg>
+  </div>
+  <div class="col">
+    <div class="tablewrap">
+    <table>
+      <thead><tr><th>Recipe</th><th>Config</th><th class="num">U16</th><th class="num">U20</th><th class="num">U24</th><th class="num">Cost</th></tr></thead>
+      <tbody>
+        <tr><td>F4</td><td><code>f4.toml</code></td><td class="num">0.202</td><td class="num">0.284</td><td class="num">0.316</td><td class="num">$134–384</td></tr>
+        <tr><td>F4 + discovery − doc cost</td><td><code>f4_w_traj_recall.toml</code></td><td class="num">0.246</td><td class="num">0.295</td><td class="num">0.305</td><td class="num">$149–412</td></tr>
+        <tr><td>F4 + format penalty 0.1</td><td><code>f4_w_format_penalty.toml</code></td><td class="num">0.353</td><td class="num best">0.424</td><td class="num">0.418</td><td class="num">$174–533</td></tr>
+      </tbody>
+    </table>
+    </div>
+    <p class="finding">Cost spans no prompt caching to full caching at list prices; each run is 12,288 rollouts and 8–12 hours. With a single-draw standard error near 0.03, the gap between the two 0.31s is noise and the gap to 0.42 is not.</p>
+    <h3>Best-of-N as the "is this RL-able?" test</h3>
+    <p class="finding" style="margin-top:0">Before training, the post samples the base model four times per eval query and compares best-of-4 to a single draw. A wide gap means the base policy already contains good trajectories that RL only needs to sharpen. That is what group-relative methods can exploit; if every rollout in a group fails identically, advantages are zero and the group teaches nothing. The eval tool keeps this built in via <code>--tries N</code>, reporting pooled means and per-query best-of-N.</p>
+  </div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The finding</p>
+    <h2>The penalty that beat the shaping</h2>
+    <p class="sub">gpt-oss emits tool calls in Harmony format. There is exactly one canonical header, but the base model drifts from it in roughly a quarter of episodes: wrong channel, missing <code>&lt;|constrain|&gt;</code>, <code>code</code> where <code>json</code> belongs. The cookbook's lenient parser executes those calls anyway, so plain F4 training never sees a reason to stop, and locks the drift in. Subtracting 0.1 once per episode whenever any header is off-form drives the rate to near zero, and eval F4 rises with it.</p>
+  </div>
+  <div class="hdr">
+    <div class="hcard ok"><div class="k">Canonical (what the renderer itself produces)</div>
+<pre><code>&lt;|channel|&gt;<span class="hl-ok">commentary</span> to=functions.bm25_search <span class="hl-ok">&lt;|constrain|&gt;json</span>&lt;|message|&gt;{"query":"Acme 10-K goodwill impairment","k":10}&lt;|call|&gt;</code></pre></div>
+    <div class="hcard bad"><div class="k">Off-form (executed, but penalised)</div>
+<pre><code>&lt;|channel|&gt;<span class="hl-bad">analysis</span> to=functions.bm25_search <span class="hl-bad">code</span>&lt;|message|&gt;{"query":"Acme 10-K goodwill impairment","k":10}&lt;|call|&gt;</code></pre></div>
+  </div>
+  <div class="col">
+    <p class="sub">The detector is one regex over the raw sampled tokens: count <code>to=functions.</code> occurrences, subtract the canonical matches, and anything left is off-form. Why would a header the parser tolerates cost so much retrieval quality? Two mechanisms are plausible, and the repo does not separate them. First, drifted headers are out-of-distribution for the model's own training, so what follows them is worse (an <code>analysis</code>-channel call is the model calling a tool from inside its thinking). Second, the penalty acts as a cheap regulariser that keeps the policy on the base model's manifold, which is what a KL term would do, and this run has <code>kl_penalty_coef = 0</code>. Idea 03 below is the ablation that would tell them apart.</p>
+  </div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">The engineering</p>
+    <h2>Three patches that made the run honest and 9× cheaper</h2>
+    <p class="sub">Most of <code>train.py</code> and half of <code>environment.py</code> are monkeypatches on tinker-cookbook. None change the gradient; they change what gets counted and what gets paid for.</p>
+  </div>
+  <div class="patches">
+    <div class="patch"><span class="tag">Token-in, token-out</span><h4>Never re-render what the model sampled</h4><p>The cookbook rebuilds every turn's prompt from parsed messages, so a drifted header comes back canonicalised, the prefix check in <code>trajectory_to_data</code> fails, and each turn becomes its own training datum carrying the full context. The patch builds the next prompt as previous prompt + sampled tokens + rendered tool results, so the prefix holds by construction. One packed sequence per episode: about 9× fewer training tokens, and the policy trains on exactly the context it sampled from.</p></div>
+    <div class="patch"><span class="tag">Pre-filter metrics</span><h4>Log rewards before dropping the failures</h4><p>Constant-reward groups are removed before the step, and the cookbook computes its train metrics after that removal, which averages away the all-fail groups. The patch wraps the filter and records <code>train_raw/*</code> on the full batch: reward, entropy, groups dropped, fraction that curated anything. The logged train curve is then not flattered by the filter.</p></div>
+    <div class="patch"><span class="tag">Graded overflows</span><h4>Every ending is scored on the session</h4><p>A context overflow normally returns a flat reward and never calls the reward function, so a long episode with a good curated set trains on a constant. Because the reward reads the session rather than the messages, the patch grades overflows like turn-cap timeouts. Only an empty curated set gets the flat −0.2 floor, and that floor is applied last, so it deliberately overrides the format penalty.</p></div>
+  </div>
+</section>
+</div>
+
+<hr>
+
+<div class="wrap">
+<section>
+  <div class="col">
+    <p class="eyebrow">Building on it</p>
+    <h2>Eight ideas, each pinned to a file</h2>
+    <p class="sub">Ordered from cheapest to most speculative. Each says what to change, why the current code invites it, and what result would confirm it. Several use data the trainer already writes to <code>train_rollout_summaries.jsonl</code>.</p>
+  </div>
+  <div class="ideas" id="ideas"></div>
+</section>
+</div>
+
+<footer>
+  <div class="wrap col">
+    Source: <a href="https://github.com/jasper-lu/sec-search-rl">jasper-lu/sec-search-rl</a> (MIT), the code behind Jasper Lu's write-up <i>How easy is it to RL a search model?</i> at <a href="https://jasperlu.com/blog/training-search-agents-grpo/">jasperlu.com/blog/training-search-agents-grpo</a>. Task and data from <a href="https://github.com/pat-jj/harness-1">Harness-1</a> (arXiv 2606.02373); training on Tinker with tinker-cookbook 0.5.4. Results table and cost figures quoted from the repo README at commit <code>a461bf0</code>; the episode trace in the stepper is illustrative. The proposals in the last section are this page's, not the author's.
+  </div>
+</footer>
+
+<script>
+(function(){
+  // theme
+  var btn=document.getElementById('themeBtn');
+  function cur(){var s=document.documentElement.getAttribute('data-theme');
+    if(s)return s; return matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light';}
+  function sync(){btn.textContent = cur()==='dark' ? 'Light' : 'Dark';}
+  btn.addEventListener('click',function(){
+    document.documentElement.setAttribute('data-theme', cur()==='dark'?'light':'dark'); sync();});
+  sync();
+
+  // ---------- tools ----------
+  var TOOLS=[
+   {n:'bm25_search',g:'Keyword search over the corpus. SQLite FTS5, OR of the query tokens, porter-stemmed.',
+    p:[['query','string',1,'A lexical search query; concise keywords usually work best.'],
+       ['k','integer',0,'Number of compact results to return (1-25). Omit to use the harness default (10).']],
+    d:'Search the full corpus with BM25 lexical ranking. Every hit returns a document_id, a filing title (company · form · date), a 220-char snippet around the first query term, and a score. The result also carries a search_state block: how many candidates have been encountered, how many are curated, and a nudge to curate every plausibly relevant document rather than the single best one.'},
+   {n:'grep_corpus',g:'A bounded Python regex over the corpus, pre-filtered by BM25 on the pattern’s own literals.',
+    p:[['pattern','string',1,'A Python-style regular expression to find exact terms, phrases, or variants. Keep it short and targeted (max 160 chars).'],
+       ['case_sensitive','boolean',0,'Whether letter case must match exactly.'],
+       ['k','integer',0,'Maximum compact matches to return (1-25).']],
+    d:'Scan the full corpus with a bounded regular expression. Implementation: the longest eight alphanumeric terms in the pattern become an FTS5 OR query capped at 5,000 candidates, which are then regex-scanned in batches of 200 with a 50 ms per-document timeout until k match. So grep is really "regex over the BM25 neighbourhood of the pattern", not a full corpus scan.'},
+   {n:'read_document',g:'Full text of one chunk, capped at 4,000 characters. Only IDs already seen in a search result may be read.',
+    p:[['document_id','string',1,'A document ID previously returned by one of the search tools.']],
+    d:'Read a candidate document’s title and text. An ID the session has not encountered returns document_not_encountered: "Search for this document before reading it." The chunk text is truncated at read_max_chars with a truncated flag.'},
+   {n:'curate',g:'Add chunk IDs to the curated set, the one thing that gets scored. Capped at 30.',
+    p:[['document_ids','string[]',1,'Document IDs to add to the curated evidence set. Must have been returned by a search tool earlier in this episode.']],
+    d:'Add relevant documents to the curated set that is returned as your output. Unseen IDs are rejected and listed back; IDs beyond the 30-document cap are dropped and listed back. Either counts as one invalid curation (a −0.02 penalty that is off by default). Duplicates are ignored. The response echoes the full curated list.'},
+   {n:'drop_curated',g:'Remove chunk IDs from the curated set.',
+    p:[['document_ids','string[]',1,'Document IDs to remove from the curated evidence set.']],
+    d:'Remove documents from the curated set (e.g. redundant or off-topic ones). IDs that were never curated are reported under not_curated but cost nothing.'},
+   {n:'finish',g:'End the episode. The curated set is scored the same way whether or not this is ever called.',
+    p:[],
+    d:'End the search. The curated set is returned as the final evidence. Sets should_stop on the environment. An episode that ends by turn cap, context overflow, or a plain-text reply is scored identically by default (Harness-1 semantics); a −0.1 unfinished penalty exists for ablations only.'}
+  ];
+  var grid=document.getElementById('tools');
+  TOOLS.forEach(function(t){
+    var d=document.createElement('details'); d.className='tool';
+    d.innerHTML='<summary><span class="tname">'+t.n+'<span class="caret">›</span></span><span class="tgloss">'+t.g+'</span></summary>'+
+      '<div class="tbody"><ul class="params">'+
+      (t.p.length? t.p.map(function(p){return '<li><span class="p">'+p[0]+'</span> <span class="p" style="color:var(--ink-3)">'+p[1]+'</span>'+
+        (p[2]?'<span class="req">required</span>':'')+'<br>'+p[3]+'</li>';}).join('') : '<li style="color:var(--ink-3)">no parameters</li>')+
+      '</ul><div class="quote"><b>Docstring and behaviour</b>'+t.d+'</div></div>';
+    grid.appendChild(d);
+  });
+
+  // ---------- reward lab ----------
+  var facts=document.getElementById('facts'), cov=document.getElementById('cov'), curN=document.getElementById('cur'),
+      tp=document.getElementById('tp'), enc=document.getElementById('enc'), offfmt=document.getElementById('offfmt'),
+      f4s=document.getElementById('f4s'), crWrap=document.getElementById('crWrap'), beta=4;
+  function fbeta(p,r,b){var b2=b*b, den=b2*p+r; return den>0?(1+b2)*p*r/den:0;}
+  function lab(){
+    var F=+facts.value; cov.max=F; enc.max=F; if(+cov.value>F)cov.value=F; if(+enc.value>F)enc.value=F;
+    var C=+curN.value; tp.max=C; if(+tp.value>C)tp.value=C;
+    var K=+cov.value, T=+tp.value, E=+enc.value;
+    document.getElementById('vFacts').textContent=F; document.getElementById('vCov').textContent=K;
+    document.getElementById('vCur').textContent=C; document.getElementById('vTp').textContent=T; document.getElementById('vEnc').textContent=E;
+    crWrap.style.display=f4s.checked?'':'none';
+    var P=C?T/C:0, R=K/F, Fb=fbeta(P,R,beta), v=Fb, rows=[];
+    rows.push(['precision = '+T+' / '+C, P.toFixed(3)]);
+    rows.push(['recall = '+K+' / '+F+' fact groups', R.toFixed(3)]);
+    rows.push(['F'+beta, Fb.toFixed(3)]);
+    if(f4s.checked){var cr=E/F, bonus=0.2*cr, cost=0.02*C; v+=bonus-cost;
+      rows.push(['+ 0.2 × candidate recall ('+cr.toFixed(2)+')','+'+bonus.toFixed(3)]);
+      rows.push(['− 0.02 × '+C+' curated docs','−'+cost.toFixed(3)]);}
+    var floor=false;
+    if(C===0){v=-0.2; floor=true; rows.push(['empty curated set → flat floor (applied last)','−0.200']);}
+    if(offfmt.checked){ if(floor){rows.push(['format penalty (on top of the floor)','−0.100']); v=-0.3;}
+      else{rows.push(['format penalty, once per episode','−0.100']); v=Math.max(-1,v-0.1);} }
+    var ledger=document.getElementById('ledger');
+    ledger.innerHTML=rows.map(function(r){return '<li><span>'+r[0]+'</span><span>'+r[1]+'</span></li>';}).join('')+
+      '<li class="tot"><span>reward</span><span>'+v.toFixed(3)+'</span></li>';
+    document.getElementById('big').textContent=v.toFixed(3);
+    var note;
+    if(C===0) note='Nothing curated scores −0.2 however the episode ended, so an instant empty finish can never beat an honest attempt.';
+    else if(beta===4 && P<=0.25 && R===1) note='Perfect recall at low precision still scores '+Fb.toFixed(2)+' under F4. Curating everything you saw is a strong baseline strategy, which is why the cap is 30 and why f4s adds a per-document cost.';
+    else if(beta===1 && R<1) note='Under F1 the same curated set is worth '+Fb.toFixed(2)+'. A curator trained on this learns to be stingy, and a missing clue costs the answerer more than ten junk chunks.';
+    else note='Recall is worth β² = '+(beta*beta)+'× precision. Covering one more fact group here is worth '+(fbeta(P,Math.min(1,(K+1)/F),beta)-Fb).toFixed(3)+'; one more junk chunk costs '+(Fb-fbeta(T/(C+1),R,beta)).toFixed(3)+'.';
+    document.getElementById('labNote').textContent=note;
+  }
+  [facts,cov,curN,tp,enc].forEach(function(el){el.addEventListener('input',lab);});
+  [offfmt,f4s].forEach(function(el){el.addEventListener('change',lab);});
+  Array.prototype.forEach.call(document.querySelectorAll('#beta button'),function(b){
+    b.addEventListener('click',function(){beta=+b.dataset.b;
+      Array.prototype.forEach.call(document.querySelectorAll('#beta button'),function(o){o.setAttribute('aria-pressed',o===b);}); lab();});
+  });
+  lab();
+
+  // ---------- episode stepper ----------
+  // 5 fact groups; each has interchangeable chunk ids. Synthetic trace.
+  var GROUPS=[['g1a','g1b'],['g2a'],['g3a','g3b'],['g4a'],['g5a']];
+  var GOLD={}; GROUPS.forEach(function(g,i){g.forEach(function(id){GOLD[id]=i;});});
+  var TRACE=[
+    {call:'bm25_search("Acme goodwill impairment 2023")',seen:['g1a','n1','n2','g2a','n3'],note:'Ten hits come back; two of them are gold. The session now knows seven IDs. Candidate recall 2/5, but nothing is curated, so the reward is still the −0.2 floor.'},
+    {call:'curate(["g1a","g2a","n1"])',cur:['g1a','g2a','n1'],note:'Three curated, two support facts. P = 0.67, R = 0.40. F4 is already 0.41: recall dominates.'},
+    {call:'grep_corpus("impairment charge of \\\\$[0-9]")',seen:['g3b','n4','n5'],note:'The regex finds an alternative chunk for fact 3 plus two neighbours from the same filing. Encountered grows; curated does not.'},
+    {call:'read_document("g3b")',note:'Reading changes nothing in the session but the read counter. The reward cannot tell a verified curation from a blind one.'},
+    {call:'curate(["g3b","n4","n5","n2"])',cur:['g3b','n4','n5','n2'],note:'Curating the whole neighbourhood. Precision drops to 3/7 but recall rises to 3/5, and F4 goes up. This is the recall-heavy objective doing what it was told.'},
+    {call:'bm25_search("Acme segment revenue fiscal 2023")',seen:['g4a','n6','g5a'],note:'Both remaining facts surface in one search. They are encountered, not curated: under plain F4 this turn is worth exactly nothing until the next curate.'},
+    {call:'curate(["g4a","g5a"])',cur:['g4a','g5a'],note:'Recall 5/5 with 9 curated, 5 supporting. F4 ≈ 0.94. The four junk chunks cost about 0.06.'},
+    {call:'finish()',fin:true,note:'Finish sets one boolean. The score would have been identical at a turn-cap timeout; finishing only saves tokens.'}
+  ];
+  var facts5=document.getElementById('facts5'), turnsEl=document.getElementById('turns'), epstats=document.getElementById('epstats'), epnote=document.getElementById('epnote'), step=0;
+  TRACE.forEach(function(t,i){var d=document.createElement('div');d.className='turn';d.innerHTML='<span class="t">t'+(i+1)+'</span><span class="call">'+t.call+'</span>';turnsEl.appendChild(d);});
+  function paintEp(){
+    var seen={}, curated=[], fin=false;
+    for(var i=0;i<step;i++){var t=TRACE[i];(t.seen||[]).forEach(function(id){seen[id]=1;});(t.cur||[]).forEach(function(id){if(curated.indexOf(id)<0)curated.push(id);});if(t.fin)fin=true;}
+    var covered=GROUPS.map(function(g){return g.some(function(id){return curated.indexOf(id)>=0;});});
+    var encountered=GROUPS.map(function(g){return g.some(function(id){return seen[id];});});
+    facts5.innerHTML=GROUPS.map(function(g,i){return '<div class="fact'+(covered[i]?' cur':encountered[i]?' seen':'')+'">fact '+(i+1)+'<br>'+(covered[i]?'curated':encountered[i]?'seen':'—')+'</div>';}).join('');
+    var C=curated.length, T=curated.filter(function(id){return GOLD[id]!==undefined;}).length, K=covered.filter(Boolean).length, E=encountered.filter(Boolean).length;
+    var P=C?T/C:0, R=K/5, F=fbeta(P,R,4), reward=C?F:-0.2;
+    var cells=[['encountered',Object.keys(seen).length,'ids'],['curated',C+' / '+T,'total / gold'],['candidate recall',(E/5).toFixed(2),''],['precision',P.toFixed(2),''],['recall',R.toFixed(2),''],['F4 reward',reward.toFixed(3),fin?'finished':'']];
+    epstats.innerHTML=cells.map(function(c){return '<div class="stat"><div class="k">'+c[0]+'</div><div class="v" style="font-size:19px">'+c[1]+'<span class="u">'+c[2]+'</span></div></div>';}).join('');
+    Array.prototype.forEach.call(turnsEl.children,function(el,i){el.className='turn'+(i===step-1?' on':i<step?' done':'');});
+    epnote.textContent = step? TRACE[step-1].note : 'Before the first turn the session is empty. Press Step.';
+  }
+  document.getElementById('next').addEventListener('click',function(){if(step<TRACE.length)step++;paintEp();});
+  document.getElementById('prev').addEventListener('click',function(){if(step>0)step--;paintEp();});
+  document.getElementById('reset').addEventListener('click',function(){step=0;paintEp();});
+  paintEp();
+
+  // ---------- results chart ----------
+  (function(){
+    var svg=document.getElementById('chart'), W=640,H=260, L=48,R=16,T=14,B=34;
+    var xs=[16,20,24], series=[
+      {c:'var(--ink-3)',v:[0.202,0.284,0.316]},
+      {c:'var(--reward)',v:[0.246,0.295,0.305]},
+      {c:'var(--policy)',v:[0.353,0.424,0.418]}];
+    var y0=0.1,y1=0.5;
+    function X(i){return L+(W-L-R)*(i/(xs.length-1));}
+    function Y(v){return T+(H-T-B)*(1-(v-y0)/(y1-y0));}
+    var s='';
+    [0.1,0.2,0.3,0.4,0.5].forEach(function(g){s+='<line x1="'+L+'" y1="'+Y(g)+'" x2="'+(W-R)+'" y2="'+Y(g)+'" stroke="var(--line-soft)"/><text x="'+(L-8)+'" y="'+(Y(g)+4)+'" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="ui-monospace,Menlo,monospace">'+g.toFixed(1)+'</text>';});
+    s+='<line x1="'+L+'" y1="'+Y(0.166)+'" x2="'+(W-R)+'" y2="'+Y(0.166)+'" stroke="var(--ink-3)" stroke-dasharray="4 4"/><text x="'+(W-R)+'" y="'+(Y(0.166)-5)+'" text-anchor="end" font-size="11" fill="var(--ink-3)" font-family="ui-monospace,Menlo,monospace">base 0.166</text>';
+    xs.forEach(function(x,i){s+='<text x="'+X(i)+'" y="'+(H-10)+'" text-anchor="middle" font-size="11.5" fill="var(--ink-3)" font-family="ui-monospace,Menlo,monospace">update '+x+'</text>';});
+    series.forEach(function(sr){
+      var pts=sr.v.map(function(v,i){return X(i)+','+Y(v);}).join(' ');
+      s+='<polyline points="'+pts+'" fill="none" stroke="'+sr.c+'" stroke-width="2.5" stroke-linejoin="round"/>';
+      sr.v.forEach(function(v,i){s+='<circle cx="'+X(i)+'" cy="'+Y(v)+'" r="4" fill="'+sr.c+'"/><text x="'+X(i)+'" y="'+(Y(v)-10)+'" text-anchor="middle" font-size="11.5" font-weight="600" fill="'+sr.c+'" font-family="ui-monospace,Menlo,monospace">'+v.toFixed(3)+'</text>';});
+    });
+    svg.innerHTML=s;
+  })();
+
+  // ---------- ideas ----------
+  var IDEAS=[
+   {h:'Separate the two stories behind the format penalty',s:'Is it format discipline, or a KL substitute?',cost:'1 run · ~$400',
+    b:'<p><b>Why.</b> The winning recipe has <code>kl_penalty_coef = 0</code>. A once-per-episode penalty tied to header drift is, in effect, a penalty on leaving the base model’s output distribution, which is what a KL term does more generally. The result table cannot say which of the two explanations is doing the work.</p><p><b>What.</b> Two ablations off <code>f4.toml</code>: (a) a strict parser that fails off-form calls outright (reward −0.2 via <code>failed_parse_reward</code>, no separate penalty) and (b) plain F4 with a small KL coefficient, no format term. If (a) matches 0.42, the story is format. If (b) matches it, the penalty was a regulariser and a proper KL term is the more general tool. Also log per-checkpoint <code>off_format_episode</code> on eval, not just train.</p><span class="lab-k">Confirms</span>Which single line to keep in every future config.'},
+   {h:'Potential-based shaping instead of a discovery bonus',s:'Reward the same thing per turn without changing the optimum',cost:'code only · same runs',
+    b:'<p><b>Why.</b> The <code>f4s</code> bonus (+0.2 × candidate recall) helped early and then hurt: it changed the objective, so the policy learned to encounter gold rather than curate it. The right way to add dense credit for discovery is a potential <i>Φ(state)</i> whose telescoping sum cancels over the episode: shaping = γΦ(s′) − Φ(s), with Φ = candidate recall so far. The optimal policy is provably unchanged; only the variance of the estimator drops.</p><p><b>What.</b> The environment already tracks <code>encountered_ids</code> per turn. Emit a per-transition reward equal to the change in candidate recall (and, for curations, in fact coverage) in <code>graded_step</code>, keep the terminal F4 as is. The cookbook sums per-transition rewards into the trajectory total, so the group-relative advantage is untouched. Compare against <code>f4s</code> at update 24.</p><span class="lab-k">Confirms</span>Early-training speed of f4s without its late-training regression.'},
+   {h:'Recycle zero-variance groups instead of dropping them',s:'Hardest queries teach nothing today',cost:'code + 1 run',
+    b:'<p><b>Why.</b> <code>remove_constant_reward_groups</code> throws away every query where all eight rollouts scored the same. Early in training that is the all-fail 7-fact tail, exactly the queries with the most headroom. The <code>train_raw/groups_dropped_constant</code> metric already tells you how many.</p><p><b>What.</b> For an all-fail group, re-roll that query in the next batch under an easier variant: seed the first user message with one gold snippet (a tutor hint, as in GrepSeek’s cold start), or raise <code>max_turns</code> for it. Any spread in reward makes the group trainable. For all-success groups, retire the query for a few updates (DAPO-style dynamic sampling) so batch compute goes to queries that still separate.</p><span class="lab-k">Confirms</span>Fewer dropped groups per update and better 7-fact eval recall, which is where the base model is weakest.'},
+   {h:'Headroom curriculum from best-of-8 minus mean-of-8',s:'The blog’s RL-ability test, applied per query and continuously',cost:'no new rollouts',
+    b:'<p><b>Why.</b> Every update already produces eight scored rollouts per query. Best-of-8 minus mean-of-8 is, per query, the same headroom statistic the post used to decide the task was worth training on. Right now it is written to <code>train_rollout_summaries.jsonl</code> and never read.</p><p><b>What.</b> Replace the fixed 3/5/7 interleave in <code>_sec_train_order</code> with sampling weighted by last-seen headroom: queries whose best-of-8 sits far above their mean get sampled more; queries with zero gap (mastered or hopeless) less. Track the eval headroom curve across checkpoints too: if best-of-4 stays flat while mean-of-4 rises, RL is sharpening rather than discovering, and the run has a ceiling you can read early.</p><span class="lab-k">Confirms</span>Same 0.42 in fewer updates, or a higher plateau at 24.'},
+   {h:'A precision term that scales with the query',s:'F4 lets a curate-everything policy score 0.8',cost:'1 run',
+    b:'<p><b>Why.</b> Play with the reward lab above: 30 curated, 5 gold, perfect recall gives F4 ≈ 0.76. The cap and the −0.02 per-doc cost are blunt guards. Neither knows that a 3-fact query should need roughly 3 chunks and a 7-fact query roughly 7.</p><p><b>What.</b> Score with F4 computed as if the curated set were truncated to <i>2 × fact groups</i>, so the agent has to rank as well as gather (Harness-1’s own evaluator scores the ranked output). Or, cheaper, make the per-doc cost start only beyond that budget. Log the <code>curated_documents</code> trend per checkpoint; under plain F4 it should drift up toward the cap, and this would arrest it.</p><span class="lab-k">Confirms</span>Same recall, fewer curated docs, higher precision-given-finish on eval.'},
+   {h:'Tree rollouts to share the prompt prefix',s:'Sampling is the cost; the eight rollouts repeat the same first turn',cost:'infra · saves ~30%',
+    b:'<p><b>Why.</b> Each run is 12,288 independent 40-turn episodes and 8–12 hours dominated by sampling. All eight rollouts of a query begin from the identical prompt and usually issue a near-identical first search. Tree-GRPO’s observation is that branching after the first few turns buys more rollouts per token budget, and the shared prefix is served from cache.</p><p><b>What.</b> In <code>RetrievalEnvGroupBuilder.make_envs</code>, roll the first turn once, then fork the <code>SearchSession</code> and token state into eight children (the token-in-token-out wrapper makes the prefix an explicit token list, which is exactly what a fork needs). Advantages can stay group-relative over the leaves, or go sibling-relative at each branch point for finer credit.</p><span class="lab-k">Confirms</span>Cost per update down, eval F4 unchanged.'},
+   {h:'Check whether the tools or the policy are the bottleneck',s:'The corpus has no dense index; BM25 is OR-of-tokens',cost:'diagnostics only',
+    b:'<p><b>Why.</b> <code>dataset.json</code> records <code>embedding_index: false</code> and the BM25 query is a bag of stemmed tokens joined by OR. If the gold chunk for a fact is lexically far from the question, no amount of policy improvement will surface it. <code>retrieval-diagnostics</code> already measures question-only BM25 recall at k; nobody has put it next to the trained agent’s candidate recall.</p><p><b>What.</b> Plot three curves per checkpoint: question-only BM25 recall@25 (the floor), trained-agent candidate recall (what the policy discovers), curated recall (what it keeps). The gap between the last two is a curation problem; a small gap between the first two means search strategy is not improving and a dense or phrase-aware <code>bm25_search</code> mode is the next lever. Then eval hosted frontier models through <code>api-eval</code> on the same harness to bound what the tools allow at all.</p><span class="lab-k">Confirms</span>Whether the next dollar goes to RL or to retrieval.'},
+   {h:'Transfer: does the LoRA learn search or learn SEC?',s:'Train on filings, evaluate on Harness-1’s other domains',cost:'eval only',
+    b:'<p><b>Why.</b> Harness-1’s headline claim is that RL over explicit search state generalises to held-out domains. This repo trains on one domain and evaluates on the same corpus. If the 0.166 → 0.42 gain is mostly format discipline and curate-more behaviour, it should transfer nearly for free; if it is SEC vocabulary, it should not.</p><p><b>What.</b> <code>prepare-sec</code> is specific to the SEC shards, but the harness is not: point <code>CorpusIndex</code> at a Harness-1 web or patents subset built the same way and run <code>eval</code> on the format-penalty checkpoints versus base. The delta by domain, split into off-format rate, candidate recall and curated recall, says which of the three learned behaviours travelled.</p><span class="lab-k">Confirms</span>Whether one cheap SEC run is a general-purpose search-agent post-training step.'}
+  ];
+  var ideasEl=document.getElementById('ideas');
+  IDEAS.forEach(function(it,i){
+    var d=document.createElement('details'); d.className='idea'; if(i===0)d.open=true;
+    d.innerHTML='<summary><span class="n">'+String(i+1).padStart(2,'0')+'</span><span class="h">'+it.h+'<small>'+it.s+'</small></span><span class="cost">'+it.cost+'</span></summary><div class="body">'+it.b+'</div>';
+    ideasEl.appendChild(d);
+  });
+})();
+</script>
