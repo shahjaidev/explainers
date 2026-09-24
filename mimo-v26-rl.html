@@ -1,0 +1,172 @@
+<meta charset="utf-8">
+<title>MiMo-V2.6 RL, Animated</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root{
+    --ground:#EEF1F5;--surface:#FFFFFF;--surface-2:#E7ECF2;--line:rgba(22,32,52,0.12);--line-soft:rgba(22,32,52,0.07);
+    --text:#161C28;--dim:#4E5A6B;--faint:#838E9E;
+    --accent:#1F7FA3;--accent-soft:rgba(31,127,163,0.11);
+    --teacher:#B9740C;--teacher-soft:rgba(185,116,12,0.12);
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 8px 24px rgba(16,24,40,.06);
+    --serif:ui-serif,"New York","Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --sans:system-ui,-apple-system,"Segoe UI","Helvetica Neue",sans-serif;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Menlo",Consolas,monospace;
+    --measure:66ch;--maxw:1080px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+      --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+      --accent:#58C4DD;--accent-soft:rgba(88,196,221,0.14);
+      --teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0B0E15;--surface:#141A26;--surface-2:#1B2333;--line:rgba(255,255,255,0.10);--line-soft:rgba(255,255,255,0.055);
+    --text:#E7EBF2;--dim:#9AA5B6;--faint:#6A7488;
+    --accent:#58C4DD;--accent-soft:rgba(88,196,221,0.14);
+    --teacher:#E9A93E;--teacher-soft:rgba(233,169,62,0.15);
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--ground);color:var(--text);font-family:var(--sans);font-size:17px;line-height:1.62;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 16px}
+  @media (min-width:640px){.wrap{padding:0 24px}}
+  .col{max-width:var(--measure)}
+  a{color:var(--accent)}
+  h1,h2,h3{font-family:var(--serif);letter-spacing:-0.015em;text-wrap:balance}
+  h1{font-size:clamp(2.2rem,5.5vw,3.4rem);line-height:1.05;margin:0 0 .3em}
+  h2{font-size:clamp(1.5rem,3.2vw,2rem);line-height:1.14;margin:.1em 0 .5em}
+  h3{font-size:1.12rem;margin:0 0 .35em}
+  p{margin:0 0 1.05em}
+  .back{font-family:var(--mono);font-size:.74rem;color:var(--faint);text-decoration:none;display:inline-block;margin-top:28px}
+  header{padding:clamp(40px,8vw,88px) 0 clamp(24px,4vw,40px)}
+  .eyebrow{font-family:var(--mono);font-size:.72rem;letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:1.1em;display:flex;align-items:center;gap:.7em}
+  .eyebrow::before{content:"";width:26px;height:1px;background:var(--accent);opacity:.6}
+  .lede{font-size:1.12rem;color:var(--dim)}
+  .byline{font-family:var(--mono);font-size:.78rem;color:var(--faint);margin-top:1.2em;display:flex;gap:18px;flex-wrap:wrap}
+  .player{background:#0c0f14;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);border:1px solid var(--line)}
+  .player video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#0c0f14}
+  .chapters{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;margin:14px 0 28px;padding:0;list-style:none}
+  .chapters button{all:unset;cursor:pointer;display:flex;gap:10px;align-items:baseline;width:100%;box-sizing:border-box;padding:9px 12px;border-radius:9px;background:var(--surface);border:1px solid var(--line-soft);font-size:.9rem;color:var(--text)}
+  .chapters button:hover,.chapters button:focus-visible{border-color:var(--accent)}
+  .chapters button.on{border-color:var(--accent);background:var(--accent-soft)}
+  .chapters .t{font-family:var(--mono);font-size:.74rem;color:var(--accent);min-width:3.2em}
+  section{padding:clamp(36px,6vw,64px) 0;border-top:1px solid var(--line-soft)}
+  .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow)}
+  .card .n{font-family:var(--mono);font-size:.7rem;letter-spacing:.12em;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:5px;margin-right:.5em}
+  .card p{margin:0;color:var(--dim);font-size:.95rem}
+  .card p + p{margin-top:.6em}
+  .tablewrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);margin:18px 0}
+  table{border-collapse:collapse;width:100%;font-size:.92rem;font-variant-numeric:tabular-nums}
+  th,td{padding:8px 12px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:top}
+  th{font-family:var(--mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600;background:var(--surface-2)}
+  td.num{text-align:right;white-space:nowrap}
+  .note{background:var(--teacher-soft);border-left:3px solid var(--teacher);padding:12px 16px;border-radius:0 10px 10px 0;margin:1.2em 0;font-size:.95rem}
+  .note strong{color:var(--teacher)}
+  code{font-family:var(--mono);font-size:.84em;background:var(--surface-2);padding:.12em .38em;border-radius:5px;border:1px solid var(--line-soft)}
+  pre{background:var(--surface-2);border:1px solid var(--line-soft);border-radius:10px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:.8rem}
+  footer{border-top:1px solid var(--line-soft);padding:32px 0 64px;font-family:var(--mono);font-size:.74rem;color:var(--faint);line-height:1.7}
+</style>
+
+<div class="wrap">
+  <a class="back" href="index.html">← all explainers</a>
+  <header>
+    <div class="eyebrow">Animated explainer · RL at scale</div>
+    <h1>MiMo-V2.6: three dials of RL</h1>
+    <p class="lede col">A seven-minute, 3Blue1Brown-style walkthrough of Xiaomi's <em>Scaling Reinforcement Learning Towards Self-Improvement</em> report and the live training dashboard at <a href="https://mimo.xiaomi.com/rl/">mimo.xiaomi.com/rl</a>. It covers one run that scaled RL compute, environment diversity and grader compute together, and the tricks that kept it stable.</p>
+    <div class="byline"><span>7 min · 1080p · captioned, no audio</span><span>rendered with Manim</span></div>
+  </header>
+
+  <div class="player">
+    <video id="v" controls preload="metadata" playsinline poster="mimo-v26-rl/poster.png">
+      <source src="mimo-v26-rl/mimo-v26-rl.mp4" type="video/mp4">
+    </video>
+  </div>
+  <ol class="chapters" id="chapters"></ol>
+</div>
+
+<main class="wrap">
+  <section>
+    <h2>The key points</h2>
+    <p class="col">The same ideas as the video, in text. Each card matches a chapter.</p>
+    <div class="grid">
+      <div class="card"><h3><span class="n">01</span>Only mixed groups teach</h3>
+        <p>GRPO scores each of 16 attempts against its own group. If all 16 pass or all 16 fail, every advantage is zero and the compute is wasted.</p>
+        <p>A dynamic sampler drops those groups (about 15% all-fail and 23% all-pass on the dashboard) and keeps pulling until it has 1,568 prompts that carry signal.</p></div>
+      <div class="card"><h3><span class="n">02</span>One step is huge</h3>
+        <p>1,568 prompts × 16 rollouts is about 25K trajectories, or 2.7–3.7B tokens per update, with contexts up to 1M tokens.</p>
+        <p>Pro's compute went 43.8% to rollouts, 43.5% to training and 12.7% to grading. The run cost about $2.6M for Pro and $0.9M for Flash.</p></div>
+      <div class="card"><h3><span class="n">03</span>Never wait for the slowest rollout</h3>
+        <p>Training is fully asynchronous: new weights are pushed into the inference engines mid-rollout. Each token records the policy version that produced it.</p>
+        <p>A trajectory is admitted only if enough of its tokens are fresh, and the stale prefix is masked from the loss. Per-token importance ratios are bounded on both sides.</p></div>
+      <div class="card"><h3><span class="n">04</span>You Only RL Once</h3>
+        <p>There are no per-domain specialists to merge. Every batch mixes 50 datasets: about two-thirds code, then visual, general agent, cybersecurity and chat.</p>
+        <p>Many lightweight harnesses (system prompt, tools, context management) are trained in the same batch. The gap to held-out harnesses narrows during RL.</p></div>
+      <div class="card"><h3><span class="n">05</span>Groupwise agentic grading</h3>
+        <p>Pass/fail can't tell a clean fix from a flailing one that also passes. An agentic grader reads the whole group side by side.</p>
+        <p><b>GRS</b> writes a task-specific rubric from the contrasts. <b>GAR</b> moves advantage toward the shorter, better passing solutions without changing the total. Pass rate keeps rising while turn counts stay flat.</p></div>
+      <div class="card"><h3><span class="n">06</span>Stability at a trillion parameters</h3>
+        <p>With a trainable MoE router, expert load drifted within about 20 steps: CV went from 0.78 to 2.0, the busiest expert from 6× to 16× the mean, and cold experts from 0.5% to 22%. The fix was to freeze the router.</p>
+        <p>Reward hacking is handled by several layers: reward design, adversarial evaluation, anomaly detection and cross-verified validators.</p></div>
+      <div class="card"><h3><span class="n">07</span>It kept paying off</h3>
+        <p>DeepSWE avg@3 rose steadily with cumulative RL cost: Pro went from 58.4 to 72.6 and Flash from 48.7 to 65.7.</p>
+        <p>Pro (1.02T total, 42B active) scored 46 on the Artificial Analysis index, the top open-weights model at launch. Flash is 309B total with 15B active. Both are MIT-licensed.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Numbers used in the video</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Quantity</th><th>Value</th></tr></thead>
+      <tbody>
+        <tr><td>Prompts per step × group size</td><td class="num">1,568 × 16</td></tr>
+        <tr><td>Trajectories per step</td><td class="num">≈25K</td></tr>
+        <tr><td>Tokens per step</td><td class="num">2.7–3.7B</td></tr>
+        <tr><td>Max context</td><td class="num">1M tokens</td></tr>
+        <tr><td>Compute split (Pro): rollout / train / grade</td><td class="num">43.8 / 43.5 / 12.7%</td></tr>
+        <tr><td>RL cost: Pro / Flash</td><td class="num">$2.6M / $0.9M</td></tr>
+        <tr><td>Sampler: all-fail / all-pass prompts</td><td class="num">≈15% / ≈23%</td></tr>
+        <tr><td>Batch mix: code / visual / general / cyber / chat</td><td class="num">≈⅔ / 13 / 12 / 4 / 3%</td></tr>
+        <tr><td>Router drift (trainable): load CV</td><td class="num">0.78 → 2.0</td></tr>
+        <tr><td>Router drift: busiest expert / cold experts</td><td class="num">6× → 16× / 0.5% → 22%</td></tr>
+        <tr><td>DeepSWE avg@3: Pro / Flash over RL</td><td class="num">58.4 → 72.6 / 48.7 → 65.7</td></tr>
+        <tr><td>Pro / Flash parameters (total, active)</td><td class="num">1.02T, 42B / 309B, 15B</td></tr>
+      </tbody>
+    </table></div>
+    <div class="note col"><strong>Schematic, not data.</strong> Four visuals show shapes, not measurements: the harness-transfer chart, the pass-rate/turns/tokens panels, the router bar heights, and the curve between the DeepSWE endpoints. Each is labelled "schematic" on screen. The rubric items in chapter 5 are illustrative examples.</div>
+  </section>
+
+  <section>
+    <h2>Re-render it</h2>
+    <p class="col">The source is <code>mimo-v26-rl/explainer.py</code>, a single Manim Community scene. It needs no LaTeX and uses the CMU (Computer Modern) fonts.</p>
+<pre>pip install manim            # 0.21; needs pango/cairo dev libs
+apt install fonts-cmu
+manim -qh mimo-v26-rl/explainer.py MiMoRL</pre>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    Source: Xiaomi MiMo, "MiMo-V2.6: Scaling Reinforcement Learning Towards Self-Improvement" (2026), and the public RL dashboard at mimo.xiaomi.com/rl. Any errors in this summary are the author's.
+  </div>
+</footer>
+
+<script>
+const CH=[[0,"Three dials"],[31.3,"Group-relative advantages"],[93.4,"How big is one step?"],[138.9,"Fully asynchronous RL"],[195.2,"You Only RL Once"],[253.3,"Groupwise agentic grading"],[316.5,"Keeping it stable"],[367.4,"Did scaling pay off?"],[395.9,"Recap"]];
+const v=document.getElementById("v"),ol=document.getElementById("chapters");
+const fmt=s=>`${Math.floor(s/60)}:${String(Math.floor(s%60)).padStart(2,"0")}`;
+const btns=CH.map(([t,name])=>{
+  const li=document.createElement("li"),b=document.createElement("button");
+  b.innerHTML=`<span class="t">${fmt(t)}</span><span></span>`;b.lastChild.textContent=name;
+  b.onclick=()=>{v.currentTime=t+0.05;v.play();};
+  li.appendChild(b);ol.appendChild(li);return b;
+});
+v.addEventListener("timeupdate",()=>{
+  let k=0;CH.forEach(([t],i)=>{if(v.currentTime>=t)k=i;});
+  btns.forEach((b,i)=>b.classList.toggle("on",i===k));
+});
+</script>
