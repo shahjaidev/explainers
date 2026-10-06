@@ -1,0 +1,674 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PipelineRL — never stop generating</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An explainer of PipelineRL (Piché, Kamalloo, Pardinas, Chen, Bahdanau; ServiceNow, 2025): in-flight weight updates that keep LLM generation running while the trainer learns, roughly 2x faster RL for long reasoning sequences.">
+<style>
+  :root {
+    --ground:      #F1F3F7;
+    --surface:     #FFFFFF;
+    --rule:        #DDE1EA;
+    --grid:        rgba(23, 48, 122, 0.055);
+    --text:        #171B26;
+    --muted:       #5E6779;
+    --faint:       #929BAC;
+    --ink:         #17307A;
+    --ink-soft:    rgba(23, 48, 122, 0.09);
+    --ink-2:       #176146;
+    --ink-2-soft:  rgba(23, 97, 70, 0.10);
+    --mark:        #A8281F;
+    --mark-soft:   rgba(168, 40, 31, 0.09);
+    --amber:       #9A6400;
+    --amber-soft:  rgba(154, 100, 0, 0.12);
+    --shadow:      0 1px 2px rgba(20,28,54,.05), 0 8px 24px -14px rgba(20,28,54,.22);
+
+    --serif: ui-serif, "New York", Palatino, "Palatino Linotype", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:     #0C0F16;
+      --surface:    #141924;
+      --rule:       #262D3D;
+      --grid:       rgba(140, 168, 255, 0.05);
+      --text:       #E5E8F0;
+      --muted:      #9AA4B8;
+      --faint:      #6B7488;
+      --ink:        #8CA8FF;
+      --ink-soft:   rgba(140, 168, 255, 0.13);
+      --ink-2:      #4FBE8E;
+      --ink-2-soft: rgba(79, 190, 142, 0.13);
+      --mark:       #FF8377;
+      --mark-soft:  rgba(255, 131, 119, 0.13);
+      --amber:      #E9B44C;
+      --amber-soft: rgba(233, 180, 76, 0.14);
+      --shadow:     0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0C0F16; --surface:#141924; --rule:#262D3D; --grid:rgba(140,168,255,.05);
+    --text:#E5E8F0; --muted:#9AA4B8; --faint:#6B7488;
+    --ink:#8CA8FF; --ink-soft:rgba(140,168,255,.13);
+    --ink-2:#4FBE8E; --ink-2-soft:rgba(79,190,142,.13);
+    --mark:#FF8377; --mark-soft:rgba(255,131,119,.13);
+    --amber:#E9B44C; --amber-soft:rgba(233,180,76,.14);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background-color: var(--ground);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px 96px; }
+  @media (min-width: 700px) { .wrap { padding: 0 28px 96px; } }
+  .col { max-width: 68ch; }
+  h1, h2, h3 { font-family: var(--serif); text-wrap: balance; font-weight: 600; }
+  p { margin: 0 0 1.05em; }
+  a { color: var(--ink); text-underline-offset: 3px; }
+  code, .mono { font-family: var(--mono); font-size: .88em; }
+  code { background: var(--ink-soft); padding: 1px 5px; border-radius: 3px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--faint); margin: 0 0 14px;
+  }
+  header { padding: 72px 0 36px; }
+  h1 { font-size: clamp(36px, 6.2vw, 62px); line-height: 1.03; letter-spacing: -.022em; margin: 0 0 22px; }
+  h1 em { font-style: italic; color: var(--ink); }
+  .standfirst { font-size: 20px; line-height: 1.55; color: var(--muted); max-width: 60ch; margin: 0; }
+  .byline {
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+  }
+  .theme-btn {
+    position: fixed; top: 18px; right: 18px; z-index: 20;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--muted);
+    font-size: 15px; cursor: pointer; box-shadow: var(--shadow);
+  }
+  .theme-btn:hover { color: var(--ink); border-color: var(--ink); }
+
+  .note {
+    background: var(--amber-soft); border-left: 3px solid var(--amber);
+    padding: 12px 16px; border-radius: 3px; font-size: 15px; color: var(--text);
+    margin: 28px 0 0; max-width: 72ch;
+  }
+  .note b { color: var(--amber); }
+
+  /* stats */
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+    border-radius: 3px; overflow: hidden; margin: 36px 0 44px;
+  }
+  .stat { background: var(--surface); padding: 20px 22px; }
+  .stat .n { font-family: var(--serif); font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -.02em; }
+  .stat .l { font-size: 13.5px; color: var(--muted); margin-top: 7px; line-height: 1.45; }
+
+  /* tabs */
+  .tabs {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--ground); padding: 10px 0;
+    border-bottom: 1px solid var(--rule);
+    display: flex; gap: 6px; flex-wrap: wrap;
+  }
+  .tab {
+    appearance: none; border: 1px solid var(--rule); background: var(--surface); color: var(--muted);
+    font-family: var(--sans); font-size: 14.5px; padding: 8px 16px; border-radius: 999px; cursor: pointer;
+  }
+  .tab[aria-selected="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+  :root[data-theme="dark"] .tab[aria-selected="true"],
+  .tab[aria-selected="true"].dark { color: #0C0F16; }
+  .tab:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .panel[hidden] { display: none; }
+
+  section { padding: 48px 0 8px; border-top: 1px solid var(--rule); }
+  section:first-of-type { border-top: 0; }
+  h2 { font-size: clamp(25px, 3.4vw, 33px); line-height: 1.18; letter-spacing: -.015em; margin: 0 0 20px; }
+  h3 { font-size: 19px; margin: 34px 0 12px; }
+  .lede { font-size: 18.5px; color: var(--muted); }
+  .pull {
+    font-family: var(--serif); font-size: 21px; line-height: 1.45; font-style: italic;
+    color: var(--text); border-left: 2px solid var(--ink); padding: 4px 0 4px 22px;
+    margin: 30px 0; max-width: 54ch;
+  }
+
+  /* takeaway cards */
+  .takeaways { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); margin: 10px 0 20px; }
+  .tk { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 20px 22px; box-shadow: var(--shadow); }
+  .tk .k { font-family: var(--mono); font-size: 11.5px; color: var(--ink); letter-spacing: .1em; text-transform: uppercase; }
+  .tk h3 { margin: 8px 0 8px; font-size: 18px; }
+  .tk p { margin: 0; font-size: 15.5px; color: var(--muted); }
+
+  /* diagram module */
+  .module { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; box-shadow: var(--shadow); margin: 30px 0 14px; overflow: hidden; }
+  .module-head { padding: 16px 22px; border-bottom: 1px solid var(--rule); display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 18px; }
+  .module-head .t { font-family: var(--serif); font-size: 18px; }
+  .module-head .q { font-family: var(--mono); font-size: 12px; color: var(--muted); flex: 1 1 260px; }
+  .module-body { padding: 20px 22px 22px; }
+  .cap { font-size: 14px; color: var(--muted); margin: 12px 0 0; }
+  svg text { font-family: var(--mono); font-size: 11px; fill: var(--muted); }
+  svg .lbl { fill: var(--text); font-family: var(--sans); font-size: 12.5px; }
+  svg .gen { fill: var(--ink); opacity: .85; }
+  svg .trn { fill: var(--ink-2); opacity: .85; }
+  svg .idle { fill: var(--mark-soft); stroke: var(--mark); stroke-dasharray: 3 3; }
+  svg .pause { fill: var(--mark); }
+  svg .box { fill: var(--surface); stroke: var(--rule); }
+  svg .arrow { stroke: var(--muted); fill: none; marker-end: url(#arr); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); margin-top: 10px; }
+  .legend span::before { content: ""; display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+  .legend .g::before { background: var(--ink); }
+  .legend .tr::before { background: var(--ink-2); }
+  .legend .id::before { background: var(--mark-soft); border: 1px dashed var(--mark); }
+  .legend .pz::before { background: var(--mark); }
+
+  /* controls */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; margin-bottom: 16px; font-size: 14px; color: var(--muted); }
+  .controls label { display: flex; align-items: center; gap: 10px; }
+  input[type=range] { accent-color: var(--ink); width: 180px; }
+  .readout { font-family: var(--mono); font-size: 12.5px; color: var(--text); background: var(--ink-soft); padding: 3px 8px; border-radius: 3px; }
+
+  /* table */
+  table { border-collapse: collapse; width: 100%; font-size: 15px; margin: 14px 0 6px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); font-weight: 500; }
+  td.num { font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 14px; }
+  .hi { color: var(--ink); font-weight: 600; }
+
+  /* math */
+  .eq {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    padding: 18px 22px; margin: 18px 0; overflow-x: auto; box-shadow: var(--shadow);
+  }
+  .eq .f { font-family: var(--serif); font-size: 21px; line-height: 1.5; letter-spacing: .005em; white-space: nowrap; }
+  .eq .f .v { font-style: italic; }
+  .eq .f sub, .eq .f sup { font-size: .62em; }
+  .eq .f .frac { display: inline-flex; flex-direction: column; vertical-align: middle; text-align: center; margin: 0 4px; }
+  .eq .f .frac span:first-child { border-bottom: 1.5px solid currentColor; padding: 0 5px 1px; }
+  .eq .f .frac span:last-child { padding: 1px 5px 0; }
+  .eq .f .big { font-size: 1.5em; vertical-align: middle; line-height: 1; }
+  .eq .f .hl { color: var(--ink); }
+  .eq .f .hl2 { color: var(--ink-2); }
+  .eq .f .hl3 { color: var(--mark); }
+  .eq .w { font-size: 15px; color: var(--muted); margin: 12px 0 0; }
+  .eq .w b { color: var(--text); font-weight: 600; }
+  .plain {
+    border-left: 2px solid var(--ink-2); padding: 2px 0 2px 18px; margin: 16px 0 22px;
+    color: var(--text); font-size: 16px; max-width: 64ch;
+  }
+  .plain .tag { font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); display: block; margin-bottom: 4px; }
+  ol.steps { padding-left: 1.2em; }
+  ol.steps li { margin: 0 0 10px; }
+  ol.steps li b { font-weight: 600; }
+  pre { background: var(--surface); border: 1px solid var(--rule); border-radius: 4px; padding: 14px 16px; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.55; margin: 14px 0; }
+  .dim { color: var(--faint); }
+  footer { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 12px; color: var(--faint); line-height: 1.7; }
+</style>
+</head>
+<body>
+<button class="theme-btn" id="themeBtn" aria-label="Toggle dark mode" title="Toggle theme">◐</button>
+
+<div class="wrap">
+<header>
+  <p class="eyebrow">Paper explainer · arXiv 2509.19128 · TMLR 2026</p>
+  <h1>PipelineRL: <em>never stop generating</em></h1>
+  <p class="standfirst">
+    RL for long reasoning chains has an ugly trade-off: either you keep your GPUs busy by learning from stale, off-policy data, or you stay on-policy and let half the cluster sit idle. PipelineRL's answer is to swap the model's weights <em>mid-sentence</em>, inside the inference engine, every optimizer step. Same reward, about twice as fast.
+  </p>
+  <div class="byline">
+    <span>Piché · Kamalloo · Pardinas · Chen · Bahdanau</span>
+    <span>ServiceNow Research · Mila</span>
+    <span>Sept 2025 (v2 Sept 26)</span>
+    <span>Code: github.com/ServiceNow/PipelineRL</span>
+  </div>
+  <div class="note">
+    <b>Sourcing note.</b> The arXiv PDF and every mirror were unreachable from the environment this page was built in. The content below comes from the paper's abstract and quoted passages surfaced through search, the authors' blog post excerpts, and a direct reading of the official PipelineRL code (the loss, the lag control and the weight-update path). Numbers are quoted as the paper states them where recoverable; anything inferred from code rather than the paper text is labelled.
+  </div>
+</header>
+
+<div class="stats">
+  <div class="stat"><div class="n">~2×</div><div class="l">faster to a given reward than the conventional RL baseline (G = 32), on 128 H100s</div></div>
+  <div class="stat"><div class="n">128</div><div class="l">H100 GPUs: 48 for generation, 80 for training, Qwen2.5-7B base on the Open-Reasoner-Zero data</div></div>
+  <div class="stat"><div class="n">≥ 0.93</div><div class="l">effective sample size: the training data stays almost on-policy despite the asynchrony</div></div>
+  <div class="stat"><div class="n">50k+</div><div class="l">samples of lag on some tokens, and it still does not hurt</div></div>
+</div>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button class="tab" role="tab" id="tab-take" aria-controls="panel-take" aria-selected="true">Key takeaways</button>
+  <button class="tab" role="tab" id="tab-how" aria-controls="panel-how" aria-selected="false">How it works</button>
+  <button class="tab" role="tab" id="tab-math" aria-controls="panel-math" aria-selected="false">The math, simply</button>
+  <button class="tab" role="tab" id="tab-results" aria-controls="panel-results" aria-selected="false">Results &amp; legacy</button>
+</nav>
+
+<!-- ============================================================ TAKEAWAYS -->
+<div class="panel" id="panel-take" role="tabpanel" aria-labelledby="tab-take">
+<section>
+  <h2>Six things to remember</h2>
+  <p class="lede col">If you only read one tab, read this one. Each card is one idea from the paper, in the order the argument builds.</p>
+
+  <div class="takeaways">
+    <div class="tk">
+      <div class="k">01 · the problem</div>
+      <h3>Long generations starve the GPUs</h3>
+      <p>In conventional RL you generate a batch, then train on it, then repeat. Short answers finish first, so the batch of in-flight sequences shrinks toward a few stragglers and accelerator utilization collapses. Throughput only grows roughly linearly up to a generation batch of about 128 sequences per server, so you cannot just throw more GPUs at a small batch.</p>
+    </div>
+    <div class="tk">
+      <div class="k">02 · the usual fix, and its cost</div>
+      <h3>Big batches buy throughput with staleness</h3>
+      <p>The standard workaround is to generate a huge batch and take G optimizer steps on it. Larger G means more throughput, but by step G the policy has drifted G updates away from the one that produced the data. The paper calls this gap the <em>lag</em>, and off-policy data learns worse per sample.</p>
+    </div>
+    <div class="tk">
+      <div class="k">03 · the idea</div>
+      <h3>In-flight weight updates</h3>
+      <p>Run generation and training concurrently on separate GPUs. After every optimizer step, broadcast the new weights to the inference servers over NCCL. The servers pause only for the time it takes to receive them, then keep decoding the <em>same</em> sequences with new weights. No preemption, no discarded partial rollouts, no KV cache recomputation.</p>
+    </div>
+    <div class="tk">
+      <div class="k">04 · the surprising part</div>
+      <h3>Stale KV caches are fine</h3>
+      <p>After a swap, the keys and values already in the cache were computed by the old weights. One might expect this to break stability. It does not. The paper measures the KL between these "mixed-policy" sequences and truly on-policy ones and finds it tracks on-policy closely, while conventional lagged data diverges more and more as lag grows.</p>
+    </div>
+    <div class="tk">
+      <div class="k">05 · staying honest</div>
+      <h3>Per-token log-probs plus a max-lag valve</h3>
+      <p>Each generated token stores the log-probability under whatever weights produced it. The trainer uses these for an importance-sampling ratio, clipped on one side. A single knob, <code>max_lag</code>, caps how far ahead the trainer may run of the slowest in-flight rollout, so the system cannot silently drift off-policy.</p>
+    </div>
+    <div class="tk">
+      <div class="k">06 · the payoff</div>
+      <h3>Same sample efficiency, double the speed</h3>
+      <p>PipelineRL matches the per-sample learning of conventional RL with G = 8 or 16, while producing samples about twice as fast as the G = 32 baseline. Net: the same reward in roughly half the wall-clock time, and 7B and 32B models that match or exceed Open-Reasoner-Zero on AIME-2024 and MATH-500.</p>
+    </div>
+  </div>
+
+  <blockquote class="pull">The whole paper is one bet: the cost of a weight swap inside a running sequence is far smaller than the cost of either stopping the sequence or training on stale data.</blockquote>
+
+  <h3>Why this mattered beyond the paper</h3>
+  <div class="col">
+    <p>Meta's ScaleRL study, which burned over 400,000 GPU-hours comparing RL recipes, adopted PipelineRL as its asynchrony scheme and reported it reached about the same asymptotic reward as off-policy PPO with much better compute efficiency. They ablated the off-policyness setting, found 4 and 8 steps of lag performed equally well, and defaulted to 8. Mistral's Magistral describes essentially the same trick. By late 2025 "in-flight weight updates" was a standard phrase in the RL systems vocabulary, and vLLM shipped first-class support for pausing and resuming generation around a weight load.</p>
+  </div>
+</section>
+</div>
+
+<!-- ============================================================ HOW IT WORKS -->
+<div class="panel" id="panel-how" role="tabpanel" aria-labelledby="tab-how" hidden>
+<section>
+  <h2>Two timelines</h2>
+  <p class="lede col">The clearest way to see the paper is to draw what the GPUs are doing over time. Below, each row is a pool of accelerators and each block is work.</p>
+
+  <div class="module">
+    <div class="module-head"><div class="t">Conventional RL</div><div class="q">generate → train → generate → train, on the same or separate GPUs</div></div>
+    <div class="module-body">
+      <svg viewBox="0 0 900 190" width="100%" role="img" aria-label="Conventional RL timeline: generation phases with shrinking batches and idle tails, alternating with training phases">
+        <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="currentColor" style="fill:var(--muted)"/></marker></defs>
+        <text x="8" y="40" class="lbl">Generation GPUs</text>
+        <text x="8" y="120" class="lbl">Training GPUs</text>
+        <!-- phase 1 gen: full then shrinking -->
+        <rect x="150" y="22" width="110" height="36" class="gen"/>
+        <rect x="260" y="30" width="60" height="28" class="gen"/>
+        <rect x="320" y="42" width="60" height="16" class="gen"/>
+        <rect x="380" y="52" width="40" height="6" class="gen"/>
+        <rect x="260" y="22" width="160" height="30" class="idle"/>
+        <text x="265" y="19">batch shrinks → GPUs idle (the "tail")</text>
+        <!-- train 1 -->
+        <rect x="150" y="100" width="270" height="36" class="idle"/>
+        <rect x="420" y="100" width="90" height="36" class="trn"/>
+        <text x="425" y="152">G optimizer steps</text>
+        <!-- phase 2 gen -->
+        <rect x="420" y="22" width="90" height="36" class="idle"/>
+        <rect x="510" y="22" width="110" height="36" class="gen"/>
+        <rect x="620" y="30" width="60" height="28" class="gen"/>
+        <rect x="680" y="42" width="60" height="16" class="gen"/>
+        <rect x="740" y="52" width="40" height="6" class="gen"/>
+        <rect x="620" y="22" width="160" height="30" class="idle"/>
+        <rect x="510" y="100" width="270" height="36" class="idle"/>
+        <rect x="780" y="100" width="90" height="36" class="trn"/>
+        <!-- weight copy arrows -->
+        <path d="M510,100 L510,62" class="arrow"/>
+        <text x="518" y="80">copy weights</text>
+        <line x1="150" y1="175" x2="870" y2="175" stroke="var(--rule)"/>
+        <text x="150" y="187">time →</text>
+      </svg>
+      <div class="legend"><span class="g">generating</span><span class="tr">training</span><span class="id">idle</span></div>
+      <p class="cap">Two kinds of waste. Inside each generation phase the batch thins out as short sequences finish, so accelerators run far below their efficient batch size. Between phases, whichever pool is not active waits. Making G bigger amortizes the waits, but the last of the G steps trains on data that is G updates stale.</p>
+    </div>
+  </div>
+
+  <div class="module">
+    <div class="module-head"><div class="t">PipelineRL</div><div class="q">generation never drains; weights are pushed in-flight after every optimizer step</div></div>
+    <div class="module-body">
+      <svg viewBox="0 0 900 190" width="100%" role="img" aria-label="PipelineRL timeline: continuous generation with brief pauses for weight updates, continuous training">
+        <text x="8" y="40" class="lbl">Generation GPUs</text>
+        <text x="8" y="120" class="lbl">Training GPUs</text>
+        <rect x="150" y="22" width="720" height="36" class="gen"/>
+        <!-- pauses -->
+        <rect x="300" y="22" width="4" height="36" class="pause"/>
+        <rect x="450" y="22" width="4" height="36" class="pause"/>
+        <rect x="600" y="22" width="4" height="36" class="pause"/>
+        <rect x="750" y="22" width="4" height="36" class="pause"/>
+        <text x="300" y="16" text-anchor="middle">pause ≈ time to receive weights</text>
+        <!-- training continuous, one step per window -->
+        <rect x="150" y="100" width="148" height="36" class="trn"/>
+        <rect x="302" y="100" width="146" height="36" class="trn"/>
+        <rect x="452" y="100" width="146" height="36" class="trn"/>
+        <rect x="602" y="100" width="146" height="36" class="trn"/>
+        <rect x="752" y="100" width="118" height="36" class="trn"/>
+        <text x="160" y="152">step v</text><text x="312" y="152">step v+1</text><text x="462" y="152">step v+2</text><text x="612" y="152">step v+3</text>
+        <path d="M298,100 L300,62" class="arrow"/>
+        <path d="M448,100 L450,62" class="arrow"/>
+        <path d="M598,100 L600,62" class="arrow"/>
+        <path d="M748,100 L750,62" class="arrow"/>
+        <text x="312" y="80">NCCL broadcast</text>
+        <line x1="150" y1="175" x2="870" y2="175" stroke="var(--rule)"/>
+        <text x="150" y="187">time →</text>
+      </svg>
+      <div class="legend"><span class="g">generating</span><span class="tr">training</span><span class="pz">weight-update pause</span></div>
+      <p class="cap">As soon as a sequence finishes, a new prompt takes its slot, so the inference servers sit at their optimal batch size continuously. Finished sequences stream to the trainer. Each optimizer step ends with a broadcast; the servers pause, load the tensors, and resume the very same in-progress sequences under the new weights.</p>
+    </div>
+  </div>
+
+  <h3>What one sequence looks like</h3>
+  <div class="col">
+    <p>Because weights change while a sequence is still being decoded, a single rollout can contain tokens produced by several model versions. The paper calls these <em>mixed-policy sequences</em>: the earliest tokens are the most off-policy, the latest are nearly on-policy. Each token carries the log-probability under the weights that actually sampled it, which is exactly what the trainer needs to correct for the mismatch.</p>
+  </div>
+  <div class="module">
+    <div class="module-head"><div class="t">A mixed-policy rollout</div><div class="q">one 8k-token reasoning chain spanning three weight versions</div></div>
+    <div class="module-body">
+      <svg viewBox="0 0 900 110" width="100%" role="img" aria-label="A single sequence whose tokens were generated under three successive weight versions">
+        <rect x="20" y="30" width="320" height="34" rx="3" style="fill:var(--ink);opacity:.45"/>
+        <rect x="340" y="30" width="300" height="34" rx="3" style="fill:var(--ink);opacity:.7"/>
+        <rect x="640" y="30" width="240" height="34" rx="3" style="fill:var(--ink);opacity:1"/>
+        <text x="180" y="52" text-anchor="middle" style="fill:#fff">tokens from θ<tspan baseline-shift="sub" font-size="9">v</tspan></text>
+        <text x="490" y="52" text-anchor="middle" style="fill:#fff">tokens from θ<tspan baseline-shift="sub" font-size="9">v+1</tspan></text>
+        <text x="760" y="52" text-anchor="middle" style="fill:#fff">tokens from θ<tspan baseline-shift="sub" font-size="9">v+2</tspan></text>
+        <rect x="338" y="24" width="4" height="46" class="pause"/>
+        <rect x="638" y="24" width="4" height="46" class="pause"/>
+        <text x="20" y="90">most stale · KV cache for these tokens was computed by θ<tspan baseline-shift="sub" font-size="9">v</tspan> and is never recomputed</text>
+        <text x="880" y="90" text-anchor="end">freshest</text>
+        <text x="20" y="18">prompt →</text>
+      </svg>
+      <p class="cap">The KV cache is not recomputed after a swap. The paper tested a variant that does recompute it ("PipelineRL with KV cache recomputed") and found the plain version's divergence from on-policy data stays close anyway, at three different stages of training (checkpoints 0, 100 and 190 of a 222-step run).</p>
+    </div>
+  </div>
+
+  <h3>The lag valve, as implemented</h3>
+  <div class="col">
+    <p>Asynchrony needs a brake. In the code, the actor process is allowed to have at most one update's worth of prompts plus <code>max_lag</code> extra samples in flight ahead of the trainer's latest broadcast version. When it hits that limit it stops submitting new prompts until the next weight version arrives. The trainer, on its side, counts how many samples arrived with a version more than <code>max_lag</code> behind the one it last broadcast. With <code>max_lag = 0</code> the system degenerates to synchronous RL; the larger it is, the more slack the generators have. <span class="dim">(Read from the code, not the paper text.)</span></p>
+  </div>
+
+  <div class="module">
+    <div class="module-head"><div class="t">Lag intuition</div><div class="q">illustrative, not paper data: how G and in-flight updates shape per-token staleness</div></div>
+    <div class="module-body">
+      <div class="controls">
+        <label>Conventional G <input type="range" id="gSlider" min="1" max="32" value="8"> <span class="readout" id="gRead">G = 8</span></label>
+        <label>PipelineRL max lag (updates) <input type="range" id="lagSlider" min="0" max="8" value="2"> <span class="readout" id="lagRead">max lag = 2</span></label>
+      </div>
+      <svg id="lagSvg" viewBox="0 0 900 150" width="100%" role="img" aria-label="Schematic of staleness per token for conventional RL versus PipelineRL"></svg>
+      <p class="cap">Left bar: in conventional RL every token in the batch is used for G optimizer steps, so staleness climbs to G − 1 by the last step. Right bar: in PipelineRL a token's staleness is bounded by how many updates landed after it was sampled, and the valve caps that. Conventional staleness is uniform across a sequence; PipelineRL staleness is concentrated in the earliest tokens.</p>
+    </div>
+  </div>
+
+  <h3>The six moving parts of the open-source system</h3>
+  <table>
+    <thead><tr><th>Component</th><th>Job</th><th>Detail worth knowing</th></tr></thead>
+    <tbody>
+      <tr><td>Orchestrator</td><td>Reads the Hydra config, splits each node's GPUs into actor, preprocessor and trainer pools, launches everything.</td><td>Pools are set as fractions, for example 4 actor and 4 trainer GPUs on one 8-GPU node.</td></tr>
+      <tr><td>Inference servers</td><td>vLLM, subclassed so a worker can join an NCCL group and accept a weight update.</td><td>Exposes <code>/receive_weight_update</code>; pauses generation in "keep" mode without clearing the cache, loads tensors, resumes.</td></tr>
+      <tr><td>Actors</td><td>Pull problems, call the servers for a group of attempts, score them, stream results.</td><td>Problem submission is throttled by <code>max_lag</code>; every sample is stamped with the weight version that produced it.</td></tr>
+      <tr><td>Preprocessor</td><td>Tokenizes, attaches reference log-probs, computes group advantages.</td><td>Ring-buffers samples so old data can be replaced when the trainer falls behind.</td></tr>
+      <tr><td>Trainer</td><td>Runs the RL step with DeepSpeed or FSDP, then broadcasts weights.</td><td>Broadcast interval is configurable; default is after every optimizer step.</td></tr>
+      <tr><td>Verifier</td><td>Optional service that checks final answers.</td><td>Math verification, code sandboxes, and other domain checkers plug in here.</td></tr>
+    </tbody>
+  </table>
+</section>
+</div>
+
+<!-- ============================================================ MATH -->
+<div class="panel" id="panel-math" role="tabpanel" aria-labelledby="tab-math" hidden>
+<section>
+  <h2>The math, as simply as possible</h2>
+  <p class="lede col">There are only four equations you need. Each one gets the formula, then a plain-English translation, then why PipelineRL cares about it.</p>
+
+  <h3>1 · What "lag" means</h3>
+  <div class="eq">
+    <div class="f">
+      <span class="hl">lag</span>(token) &nbsp;=&nbsp; <span class="v">v</span><sub>trainer</sub> &nbsp;−&nbsp; <span class="v">v</span><sub>sampled</sub>
+    </div>
+    <p class="w"><b>Where:</b> <span class="v">v</span><sub>sampled</sub> is the weight version that produced the token; <span class="v">v</span><sub>trainer</sub> is the version the trainer holds when it finally uses that token in a gradient.</p>
+  </div>
+  <div class="plain"><span class="tag">In words</span>
+    Lag is how many optimizer steps the model has taken since this piece of data was generated. Zero lag is pure on-policy. The paper's framing: when you take G optimizer steps per batch of data, the current policy π gets ahead of the behavior policy μ that generated the data, and lag is the number of steps between them. In conventional RL lag is uniform within a batch and reaches G − 1. In PipelineRL it varies token by token, and <code>max_lag</code> caps it.
+  </div>
+
+  <h3>2 · The two quantities every RL system trades off</h3>
+  <div class="eq">
+    <div class="f">
+      <span class="frac"><span>Δ<span class="v">R</span></span><span>Δ<span class="v">t</span></span></span>
+      &nbsp;=&nbsp;
+      <span class="hl"><span class="frac"><span>Δ<span class="v">R</span></span><span>Δ<span class="v">S</span></span></span></span>
+      &nbsp;×&nbsp;
+      <span class="hl2"><span class="frac"><span>Δ<span class="v">S</span></span><span>Δ<span class="v">t</span></span></span></span>
+    </div>
+    <p class="w"><b>Reward gained per second</b> equals <span class="hl">reward gained per sample</span> (learning effectiveness) times <span class="hl2">samples generated per second</span> (throughput efficiency).</p>
+  </div>
+  <div class="plain"><span class="tag">In words</span>
+    This is the whole paper in one line. Conventional on-policy RL (G = 1) has the best <em>reward per sample</em> because nothing is stale, but terrible <em>samples per second</em> because the batch keeps draining. Cranking G up fixes the second factor and damages the first. Adding more accelerators raises throughput linearly but, as the paper notes, may eventually hurt learning effectiveness because sequences become more mixed-policy. PipelineRL's claim is that it keeps the first factor at the G = 8 level while roughly doubling the second relative to G = 32.
+  </div>
+
+  <h3>3 · The advantage: how good was this answer, relative to its siblings?</h3>
+  <div class="eq">
+    <div class="f">
+      <span class="v">A</span><sub><span class="v">i</span></sub> &nbsp;=&nbsp; <span class="v">r</span><sub><span class="v">i</span></sub> &nbsp;−&nbsp;
+      <span class="frac"><span>1</span><span><span class="v">n</span> − 1</span></span>
+      <span class="big">∑</span><sub><span class="v">j</span> ≠ <span class="v">i</span></sub> <span class="v">r</span><sub><span class="v">j</span></sub>
+    </div>
+    <p class="w"><b>Where:</b> a group of <span class="v">n</span> attempts (default 8) is sampled for the same prompt, each gets a reward <span class="v">r</span> (1 for a verified-correct answer, 0 otherwise in the pure-success setting), and attempt <span class="v">i</span>'s advantage is its reward minus the mean reward of the <em>other</em> attempts. Optionally divided by the group's standard deviation, off by default.</p>
+  </div>
+  <div class="plain"><span class="tag">In words</span>
+    This is GRPO's group baseline, with the leave-one-out twist: an attempt is not compared against an average that includes itself. If 2 of 8 attempts were right, a correct one gets +1 − 1/7 ≈ +0.86, a wrong one gets 0 − 2/7 ≈ −0.29. No value network is needed. The README is explicit that the algorithm is a "simplified GRPO: no value network, no trust-region clamping, no KL or entropy bonuses by default."
+  </div>
+
+  <h3>4 · The loss: REINFORCE with a one-sided importance-sampling brake</h3>
+  <div class="eq">
+    <div class="f">
+      <span class="v">L</span> &nbsp;=&nbsp; −
+      <span class="big">∑</span><sub>tokens <span class="v">t</span></sub>
+      &nbsp;log π<sub>θ</sub>(<span class="v">y</span><sub><span class="v">t</span></sub>)
+      &nbsp;·&nbsp; <span class="v">A</span>
+      &nbsp;·&nbsp; <span class="hl3">min</span><span class="big">(</span>
+      <span class="frac"><span>π<sub>θ</sub>(<span class="v">y</span><sub><span class="v">t</span></sub>)</span><span>μ(<span class="v">y</span><sub><span class="v">t</span></sub>)</span></span>, &nbsp;1 + ε<span class="big">)</span><sub>stop-grad</sub>
+    </div>
+    <p class="w"><b>Where:</b> π<sub>θ</sub> is the current trainer policy, μ is whichever weights actually sampled token <span class="v">t</span> (its stored log-prob), <span class="v">A</span> is the advantage from equation 3, and ε is a small clip (0.02 in the released config). The ratio is treated as a constant, so gradients flow only through log π<sub>θ</sub>. <span class="dim">Read from the <code>reinforce</code> branch of the code's RL step; a standard PPO clipped-surrogate branch is also available.</span></p>
+  </div>
+  <div class="plain"><span class="tag">In words</span>
+    Start from the simplest policy gradient: push up the log-probability of tokens in good answers, push it down in bad ones, weighted by the advantage. Then multiply each token's contribution by an <em>importance weight</em>, the ratio of how likely the current model is to say that token versus how likely the sampling model was. If the token came from a slightly older model, the ratio corrects for that. The ratio is clipped from above at 1 + ε, so a token the new model now loves much more than the old one did cannot dominate the gradient. It is <em>not</em> clipped from below: tokens the new model has moved away from are simply down-weighted toward zero. This is why staleness is survivable: the correction is applied per token, using the exact weights that produced each token, which is precisely the information mixed-policy sequences preserve.
+  </div>
+
+  <h3>How do you know it stayed on-policy? Effective sample size</h3>
+  <div class="eq">
+    <div class="f">
+      <span class="v">w</span><sub><span class="v">i</span></sub> = <span class="frac"><span>π<sub>θ</sub>(<span class="v">y</span><sub><span class="v">i</span></sub>)</span><span>μ(<span class="v">y</span><sub><span class="v">i</span></sub>)</span></span>
+      &nbsp;&nbsp;&nbsp;
+      <span class="hl">ESS</span> &nbsp;=&nbsp;
+      <span class="frac"><span>1</span><span><span class="v">N</span></span></span>
+      &nbsp;·&nbsp;
+      <span class="frac"><span>(∑ <span class="v">w</span><sub><span class="v">i</span></sub>)<sup>2</sup></span><span>∑ <span class="v">w</span><sub><span class="v">i</span></sub><sup>2</sup></span>
+    </div>
+    <p class="w"><b>Where:</b> the importance weights <span class="v">w</span> are the same ratios as in the loss, and ESS is normalised so that 1.0 means "as good as <span class="v">N</span> fresh on-policy samples."</p>
+  </div>
+  <div class="plain"><span class="tag">In words</span>
+    If all weights are 1 (perfectly on-policy), ESS is 1. If a few tokens have huge weights and the rest tiny ones, the sum of squares blows up and ESS collapses toward 0: you effectively have only a handful of useful samples. The paper reports PipelineRL's ESS stays around the level of conventional RL with G = 8 (at least 0.93), even though its <em>maximum</em> lag is far higher, with some tokens over 50k samples stale. High max lag with high ESS is the signature of the method: a few early tokens are very stale, but the bulk of the data is fresh.
+  </div>
+
+  <h3>Optional terms, off by default</h3>
+  <div class="col">
+    <p>The code supports a KL penalty to a frozen reference model, computed with the unbiased estimator <code>exp(r) − r − 1</code> where <code>r = log π_ref − log π_θ</code>, with the log-ratio clamped to ±5 for numerical safety, and an entropy bonus. Both coefficients are zero in the released configs. A difficulty-aware length penalty and an overlong-response filter also exist as options. None of these are what makes PipelineRL work; they are standard knobs the authors left available.</p>
+  </div>
+
+  <h3>The whole algorithm in eight lines</h3>
+  <pre><span class="dim"># trainer loop (one process group); actors and vLLM servers run concurrently elsewhere</span>
+while training:
+    batch = next_ready_samples()                 <span class="dim"># streamed from actors; each token carries μ-logprob and version</span>
+    count_if(version_now - batch.version > max_lag)   <span class="dim"># monitored, not dropped</span>
+    A     = reward - leave_one_out_group_mean(reward)
+    ratio = exp(logp_θ - logp_μ).clamp(max=1 + ε).detach()
+    loss  = -(logp_θ * A * ratio).sum()  [- kl_coef * KL(π_ref ‖ π_θ)]
+    optimizer.step();  version_now += 1
+    nccl_broadcast(weights)  <span class="dim"># servers pause ≈ ms, load, resume the same in-flight sequences</span></pre>
+</section>
+</div>
+
+<!-- ============================================================ RESULTS -->
+<div class="panel" id="panel-results" role="tabpanel" aria-labelledby="tab-results" hidden>
+<section>
+  <h2>What the experiments showed</h2>
+  <p class="lede col">The main study fine-tunes Qwen2.5-7B base on the Open-Reasoner-Zero math data with 128 H100s, 48 for generation and 80 for training, against conventional RL baselines that differ in G, the number of optimizer steps taken per generated batch.</p>
+
+  <h3>The headline comparison</h3>
+  <table>
+    <thead><tr><th>Measure</th><th>Conventional RL</th><th>PipelineRL</th></tr></thead>
+    <tbody>
+      <tr><td>Reward vs wall-clock time</td><td>G = 32 is the fastest conventional variant</td><td class="hi">Reaches the same reward about 2× sooner than G = 32</td></tr>
+      <tr><td>Reward vs samples (learning effectiveness)</td><td>Best at small G; degrades as G grows</td><td class="hi">Matches G = 8 and G = 16</td></tr>
+      <tr><td>Sample throughput</td><td>Rises with G, with idle tails between phases</td><td class="hi">About 2× the G = 32 throughput, and steady over time</td></tr>
+      <tr><td>Maximum lag</td><td>Bounded by G − 1 steps</td><td>Higher than every baseline; some tokens exceed 50k samples</td></tr>
+      <tr><td>Effective sample size</td><td>Falls as G grows</td><td class="hi">Similar to G = 8 (at least 0.93)</td></tr>
+    </tbody>
+  </table>
+  <p class="cap">Paper's Figure 5 (reward vs time, reward vs samples, throughput over time) and Figure 6 (lag and ESS), as described in the text.</p>
+
+  <h3>Mixed-policy sequences are close to on-policy</h3>
+  <div class="col">
+    <p>To check that swapping weights mid-sequence does not quietly produce weird text, the authors measured KL divergence between sequences generated under PipelineRL's mixed behavior policy and sequences from the fully on-policy model, at three training stages (checkpoints 0, 100 and 190 of a 222-step run). They compared against conventional off-policy data at various lags k, and against a PipelineRL variant that recomputes the KV cache after each swap. Mixed-policy sequences stayed close to on-policy at all three stages. Conventional lagged sequences diverged more and more as k grew. Recomputing the KV cache was not needed.</p>
+  </div>
+
+  <h3>Benchmarks</h3>
+  <table>
+    <thead><tr><th>Model</th><th>AIME 2024</th><th>MATH-500</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Qwen2.5-7B base (no RL)</td><td class="num">3.3</td><td class="num">—</td><td>Starting point</td></tr>
+      <tr><td>PipelineRL 7B, batch 1024</td><td class="num">17.5</td><td class="num">—</td><td>After 2.0M samples</td></tr>
+      <tr><td>Open-Reasoner-Zero 7B</td><td class="num">17.9</td><td class="num">81.4</td><td>Reference recipe, PPO with a value network</td></tr>
+      <tr><td>Open-Reasoner-Zero 32B</td><td class="num">48.1</td><td class="num">92.2</td><td></td></tr>
+      <tr><td>PipelineRL 7B and 32B, batch 4096</td><td colspan="2">matches or exceeds Open-Reasoner-Zero</td><td>lr 1e-6, max 8192 tokens, simplified GRPO</td></tr>
+    </tbody>
+  </table>
+  <p class="cap">Exact PipelineRL 32B scores were not recoverable from the sources available; the paper and README state the match-or-exceed result against the Open-Reasoner-Zero numbers shown.</p>
+
+  <h3>Where it sits among asynchronous RL systems</h3>
+  <table>
+    <thead><tr><th>Approach</th><th>What happens to an in-flight sequence when weights change</th><th>Cost</th></tr></thead>
+    <tbody>
+      <tr><td>Synchronous RL (G = 1)</td><td>Nothing: generation fully drains before training starts</td><td>Idle accelerators during the tail; low throughput</td></tr>
+      <tr><td>Off-policy batching (large G)</td><td>Nothing: the whole batch is used for G steps</td><td>Uniform staleness up to G − 1; worse learning per sample</td></tr>
+      <tr><td>Partial rollouts (AReaL and others)</td><td>Abort, save state, resume later under new weights</td><td>Abort and resume overhead, KV cache recomputation, lower throughput</td></tr>
+      <tr><td class="hi">PipelineRL in-flight updates</td><td>Pause for the broadcast, keep decoding with the stale KV cache</td><td>Milliseconds of pause per step; mixed-policy early tokens, corrected per token</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Caveats the paper is honest about</h3>
+  <div class="col">
+    <ul>
+      <li>Throughput scales linearly with more generation GPUs, but learning effectiveness may eventually suffer because more updates land inside each sequence, making early tokens more stale.</li>
+      <li>The lag valve is a hyperparameter. ScaleRL later found 4 and 8 steps of lag indistinguishable and chose 8; the right value depends on the trainer-to-generator speed ratio.</li>
+      <li>Later work (for example variance-controlled off-policy methods in 2026) argues that at large lag the one-sided clipped ratio still lets ESS collapse, and proposes stronger corrections. PipelineRL's own numbers stay in the regime where ESS is high.</li>
+    </ul>
+  </div>
+
+  <footer>
+    Built from the paper's abstract and quoted passages, the authors' blog excerpts, and the ServiceNow/PipelineRL source (actor lag control, vLLM weight-update worker, RL step). arXiv 2509.19128, v2 September 26 2025; published in TMLR 2026. Diagrams are schematic. The lag slider is illustrative and does not plot paper data.
+  </footer>
+</section>
+</div>
+</div>
+
+<script>
+  // theme
+  (function () {
+    const root = document.documentElement, btn = document.getElementById('themeBtn');
+    let saved = null; try { saved = localStorage.getItem('theme'); } catch (e) {}
+    if (saved) root.setAttribute('data-theme', saved);
+    btn.addEventListener('click', () => {
+      const dark = root.getAttribute('data-theme') === 'dark' ||
+        (!root.getAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+      const next = dark ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('theme', next); } catch (e) {}
+    });
+  })();
+
+  // tabs
+  (function () {
+    const tabs = [...document.querySelectorAll('.tab')];
+    const panels = [...document.querySelectorAll('.panel')];
+    function show(id) {
+      tabs.forEach(t => t.setAttribute('aria-selected', t.id === id ? 'true' : 'false'));
+      panels.forEach(p => p.hidden = p.getAttribute('aria-labelledby') !== id);
+      try { history.replaceState(null, '', '#' + id.replace('tab-', '')); } catch (e) {}
+    }
+    tabs.forEach(t => t.addEventListener('click', () => show(t.id)));
+    tabs.forEach((t, i) => t.addEventListener('keydown', e => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+        const n = (i + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+        tabs[n].focus(); show(tabs[n].id);
+      }
+    }));
+    const h = location.hash.replace('#', '');
+    if (h && document.getElementById('tab-' + h)) show('tab-' + h);
+  })();
+
+  // lag schematic
+  (function () {
+    const svg = document.getElementById('lagSvg');
+    const gS = document.getElementById('gSlider'), lS = document.getElementById('lagSlider');
+    const gR = document.getElementById('gRead'), lR = document.getElementById('lagRead');
+    const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+    function draw() {
+      const G = +gS.value, L = +lS.value;
+      gR.textContent = 'G = ' + G; lR.textContent = 'max lag = ' + L;
+      const maxStale = Math.max(G - 1, L, 1);
+      const scale = 90 / maxStale;
+      let s = '';
+      // left: conventional, uniform across sequence, grows with optimizer step index
+      const x0 = 70, w = 340, steps = G;
+      s += `<text x="${x0}" y="14" class="lbl">Conventional: staleness by optimizer step (same for every token)</text>`;
+      for (let k = 0; k < steps; k++) {
+        const bw = w / steps, h = k * scale;
+        s += `<rect x="${x0 + k * bw}" y="${120 - h}" width="${Math.max(bw - 1, 1)}" height="${h}" style="fill:var(--ink);opacity:.8"/>`;
+      }
+      s += `<line x1="${x0}" y1="120" x2="${x0 + w}" y2="120" stroke="var(--rule)"/>`;
+      s += `<text x="${x0}" y="136">step 1</text><text x="${x0 + w}" y="136" text-anchor="end">step ${G}</text>`;
+      s += `<text x="${x0 + w + 6}" y="${120 - (G - 1) * scale + 4}">max ${G - 1}</text>`;
+      // right: pipeline, staleness decreases along the sequence (early tokens oldest), capped by L
+      const x1 = 500, w1 = 340, n = 40;
+      s += `<text x="${x1}" y="14" class="lbl">PipelineRL: staleness by token position (early tokens oldest)</text>`;
+      for (let i = 0; i < n; i++) {
+        const frac = 1 - i / (n - 1);
+        const st = Math.min(L, Math.round(frac * L * 1.4));
+        const bw = w1 / n, h = st * scale;
+        s += `<rect x="${x1 + i * bw}" y="${120 - h}" width="${Math.max(bw - 1, 1)}" height="${h}" style="fill:var(--ink-2);opacity:.85"/>`;
+      }
+      s += `<line x1="${x1}" y1="120" x2="${x1 + w1}" y2="120" stroke="var(--rule)"/>`;
+      s += `<text x="${x1}" y="136">first token</text><text x="${x1 + w1}" y="136" text-anchor="end">last token</text>`;
+      s += `<text x="${x1 + w1 + 6}" y="${120 - L * scale + 4}">cap ${L}</text>`;
+      s += `<text x="8" y="70" class="lbl" transform="rotate(-90 8 70)" text-anchor="middle">staleness</text>`;
+      svg.innerHTML = s;
+    }
+    gS.addEventListener('input', draw); lS.addEventListener('input', draw); draw();
+  })();
+</script>
+</body>
+</html>
