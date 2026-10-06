@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Frontier RL Is Cheaper Than You Think</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="An explainer of Fireworks AI's argument that frontier RL does not need one mega cluster: sparse checkpoint deltas, hot-load weight updates and bounded staleness let rollouts run across regions.">
+<style>
+:root{
+  --bg:#F4F5F7;
+  --surface:#FFFFFF;
+  --surface-2:#EAEDF1;
+  --ink:#121820;
+  --ink-2:#3A4555;
+  --muted:#6C7889;
+  --line:#D8DDE4;
+  --line-strong:#B9C1CC;
+  --accent:#C2410C;          /* ember: the "full checkpoint" / expensive side */
+  --accent-soft:#FBEBE3;
+  --good:#0F766E;            /* teal: the delta / cheap side */
+  --good-soft:#E0F0EE;
+  --warn:#B45309;
+  --warn-soft:#FBEFDD;
+  --shadow:0 1px 2px rgba(18,24,32,.05),0 10px 30px -18px rgba(18,24,32,.35);
+  --display:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --body:ui-serif,"New York","Iowan Old Style",Palatino,Georgia,serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D1117;--surface:#151B24;--surface-2:#1C2430;
+    --ink:#E8ECF2;--ink-2:#B8C2D0;--muted:#8591A3;
+    --line:#273040;--line-strong:#394557;
+    --accent:#F0834A;--accent-soft:#2E1A10;
+    --good:#4CC3B3;--good-soft:#10272A;
+    --warn:#E2A33A;--warn-soft:#2A2113;
+    --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -18px rgba(0,0,0,.9);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D1117;--surface:#151B24;--surface-2:#1C2430;
+  --ink:#E8ECF2;--ink-2:#B8C2D0;--muted:#8591A3;
+  --line:#273040;--line-strong:#394557;
+  --accent:#F0834A;--accent-soft:#2E1A10;
+  --good:#4CC3B3;--good-soft:#10272A;
+  --warn:#E2A33A;--warn-soft:#2A2113;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 10px 30px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:17px;line-height:1.65;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(2.3rem,6vw,4rem);font-weight:800;letter-spacing:-.035em;line-height:1.03}
+h2{font-size:clamp(1.5rem,3vw,2rem);font-weight:750;letter-spacing:-.025em;line-height:1.14}
+h3{font-size:1.08rem;font-weight:680;letter-spacing:-.012em;line-height:1.3}
+p{margin:0}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:2px}
+code{font-family:var(--mono);font-size:.86em;background:var(--surface-2);padding:.1em .34em;border-radius:3px;border:1px solid var(--line)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:2px}
+.eyebrow{font-family:var(--mono);font-size:.68rem;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:var(--muted)}
+.prose{max-width:68ch}
+.prose p + p{margin-top:.85em}
+.shell{max-width:1080px;margin:0 auto;padding:0 20px}
+
+/* topbar + hero */
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0 0}
+.wordmark{display:flex;align-items:center;gap:9px;font-family:var(--mono);font-size:.72rem;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);text-decoration:none}
+.spark{width:9px;height:9px;background:var(--accent);border-radius:50%;flex:none;box-shadow:0 0 0 4px var(--accent-soft)}
+.tbtn{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;background:var(--surface);color:var(--ink-2);border:1px solid var(--line);border-radius:999px;padding:6px 13px;cursor:pointer}
+.tbtn:hover{border-color:var(--line-strong)}
+.hero{padding:56px 0 28px}
+.hero .lede{font-size:1.2rem;line-height:1.55;color:var(--ink-2);max-width:62ch;margin-top:20px}
+.hero .lede b{color:var(--ink);font-weight:600}
+.hero-meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.tag{font-family:var(--mono);font-size:.7rem;letter-spacing:.03em;border:1px solid var(--line);border-radius:999px;padding:4px 11px;color:var(--ink-2);background:var(--surface)}
+.tag.hot{border-color:var(--accent);color:var(--accent);background:var(--accent-soft)}
+
+/* tabs */
+.tabs{position:sticky;top:0;z-index:5;background:var(--bg);padding:10px 0 0;border-bottom:1px solid var(--line)}
+.tablist{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+.tablist::-webkit-scrollbar{display:none}
+.tab{font-family:var(--display);font-size:.95rem;font-weight:620;color:var(--muted);background:none;border:none;border-bottom:2px solid transparent;padding:10px 14px 12px;cursor:pointer;white-space:nowrap;margin-bottom:-1px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.panel{display:none;padding:40px 0 80px}
+.panel.on{display:block}
+section{padding:36px 0}
+section + section{border-top:1px solid var(--line)}
+.sec-head{display:flex;flex-direction:column;gap:8px;margin-bottom:20px}
+
+/* cards */
+.grid{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:760px){.grid.two{grid-template-columns:1fr 1fr}.grid.three{grid-template-columns:repeat(3,1fr)}}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:20px 22px;box-shadow:var(--shadow)}
+.card .n{font-family:var(--mono);font-size:.7rem;color:var(--accent);letter-spacing:.1em;margin-bottom:8px}
+.card h3{margin-bottom:8px}
+.card p{color:var(--ink-2);font-size:.97rem}
+.callout{border-left:3px solid var(--accent);background:var(--accent-soft);padding:16px 20px;border-radius:0 10px 10px 0;margin:22px 0;max-width:72ch}
+.callout.good{border-left-color:var(--good);background:var(--good-soft)}
+.callout.warn{border-left-color:var(--warn);background:var(--warn-soft)}
+.callout p{color:var(--ink)}
+
+/* stat row */
+.stats{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:22px 0}
+@media(min-width:640px){.stats{grid-template-columns:repeat(3,1fr)}}
+.stat{background:var(--surface);padding:18px 20px}
+.stat .v{font-family:var(--display);font-size:2rem;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+.stat .v.good{color:var(--good)}
+.stat .v.bad{color:var(--accent)}
+.stat .l{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-top:8px}
+
+/* loop diagram */
+.loop{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:18px 20px;margin-top:22px;overflow:hidden}
+.loop svg{width:100%;height:auto;display:block}
+.loop text{font-family:var(--mono);font-size:11px;fill:var(--ink-2)}
+.loop text.big{font-family:var(--display);font-size:13px;font-weight:650;fill:var(--ink)}
+.loop .box{fill:var(--surface-2);stroke:var(--line-strong)}
+.loop .trainer{fill:var(--accent-soft);stroke:var(--accent)}
+.loop .arrow{stroke:var(--good);stroke-width:2;fill:none;marker-end:url(#ah)}
+.loop .arrow.back{stroke:var(--muted);stroke-dasharray:4 4;marker-end:url(#ah2)}
+.fig{font-family:var(--mono);font-size:.74rem;color:var(--muted);margin-top:10px;line-height:1.5}
+
+/* bar chart */
+.bars{display:flex;flex-direction:column;gap:12px;margin-top:14px}
+.bar{display:grid;grid-template-columns:150px 1fr 90px;gap:12px;align-items:center;font-size:.9rem}
+@media(max-width:560px){.bar{grid-template-columns:1fr;gap:4px}}
+.bar .lab{font-family:var(--mono);font-size:.74rem;color:var(--ink-2)}
+.bar .track{height:22px;background:var(--surface-2);border-radius:5px;overflow:hidden;border:1px solid var(--line)}
+.bar .fill{height:100%;border-radius:4px;min-width:3px;transition:width .35s cubic-bezier(.2,.7,.2,1)}
+.bar .fill.bad{background:var(--accent)}
+.bar .fill.good{background:var(--good)}
+.bar .val{font-family:var(--mono);font-size:.8rem;font-variant-numeric:tabular-nums;text-align:right;color:var(--ink)}
+
+/* math */
+.eq{font-family:var(--mono);font-size:.95rem;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin:14px 0;overflow-x:auto;line-height:1.7;color:var(--ink)}
+.eq .c{color:var(--muted)}
+.eq .g{color:var(--good)}
+.eq .b{color:var(--accent)}
+.steps{counter-reset:s;list-style:none;padding:0;margin:14px 0 0;display:flex;flex-direction:column;gap:10px;max-width:72ch}
+.steps li{position:relative;padding-left:40px;color:var(--ink-2);font-size:.97rem}
+.steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:.1em;width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:1px solid var(--line);font-family:var(--mono);font-size:.72rem;display:flex;align-items:center;justify-content:center;color:var(--ink)}
+.plain{font-family:var(--display);font-size:.95rem;color:var(--ink-2);background:var(--surface-2);border-radius:8px;padding:10px 14px;margin-top:10px;max-width:72ch}
+.plain b{color:var(--ink)}
+
+/* widgets */
+.widget{background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:20px 22px;margin-top:18px}
+.widget h4{font-family:var(--display);font-size:.95rem;font-weight:680;margin-bottom:12px}
+.ctl{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:640px){.ctl{grid-template-columns:1fr 1fr}}
+.ctl label{display:flex;flex-direction:column;gap:6px;font-family:var(--mono);font-size:.74rem;color:var(--ink-2)}
+.ctl label span.v{color:var(--ink);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--good)}
+select,input[type=number]{font-family:var(--mono);font-size:.85rem;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2);color:var(--ink)}
+.out{display:grid;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-top:14px}
+@media(min-width:640px){.out{grid-template-columns:repeat(3,1fr)}}
+.out div{background:var(--surface);padding:12px 14px}
+.out .k{font-family:var(--mono);font-size:.68rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.out .v{font-family:var(--display);font-size:1.3rem;font-weight:750;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.out .v.good{color:var(--good)}
+.out .v.bad{color:var(--accent)}
+.verdict{font-family:var(--display);font-size:.95rem;margin-top:12px;padding:10px 14px;border-radius:8px;background:var(--surface-2);color:var(--ink)}
+
+/* table */
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--surface);margin-top:16px}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:.92rem}
+th,td{padding:10px 14px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-family:var(--mono);font-size:.7rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600}
+tr:last-child td{border-bottom:none}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums;text-align:right}
+
+/* glossary */
+dl{margin:0;display:grid;gap:14px;max-width:72ch}
+dt{font-family:var(--display);font-weight:680;font-size:.98rem}
+dd{margin:4px 0 0;color:var(--ink-2);font-size:.95rem}
+footer{border-top:1px solid var(--line);padding:28px 0 60px;font-family:var(--mono);font-size:.74rem;color:var(--muted);line-height:1.7}
+footer a{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<div class="shell">
+  <div class="topbar">
+    <a class="wordmark" href="index.html"><span class="spark"></span>Explainers · RL infrastructure</a>
+    <button class="tbtn" id="theme" type="button">Theme</button>
+  </div>
+
+  <header class="hero">
+    <div class="eyebrow">Fireworks AI blog · March 2026</div>
+    <h1 style="margin-top:14px">Frontier RL is cheaper than you think</h1>
+    <p class="lede">The story everyone tells is that training a frontier model with reinforcement learning needs one giant, co-located GPU cluster. Fireworks argues the whole story rests on a single assumption: <b>that you must ship a full terabyte of weights to every rollout machine every time the model updates.</b> You don't. About 98% of the weights don't change from one step to the next, so you ship the 2% that did, hot-load it into servers that keep running, and tolerate rollouts that are a few minutes behind. Once that's true, the rollout half of RL can live on whatever GPUs are available, wherever they are.</p>
+    <div class="hero-meta">
+      <span class="tag hot">sparse checkpoint deltas</span>
+      <span class="tag">hot-load updates</span>
+      <span class="tag">bounded staleness</span>
+      <span class="tag">cross-region rollouts</span>
+    </div>
+  </header>
+
+  <nav class="tabs" aria-label="Sections">
+    <div class="tablist" role="tablist">
+      <button class="tab" role="tab" id="tab-take" aria-controls="p-take" aria-selected="true">Key takeaways</button>
+      <button class="tab" role="tab" id="tab-math" aria-controls="p-math" aria-selected="false">The math, simply</button>
+      <button class="tab" role="tab" id="tab-src" aria-controls="p-src" aria-selected="false">Glossary &amp; sources</button>
+    </div>
+  </nav>
+
+  <!-- ======================= TAKEAWAYS ======================= -->
+  <div class="panel on" id="p-take" role="tabpanel" aria-labelledby="tab-take">
+
+    <section style="padding-top:0">
+      <div class="sec-head">
+        <div class="eyebrow">01 · The claim in one breath</div>
+        <h2>RL has two halves, and only one of them needs the big cluster</h2>
+      </div>
+      <div class="prose">
+        <p>An RL training step for a language model is a loop. The model generates lots of answers (<em>rollouts</em>), those answers get scored, and a trainer nudges the weights toward the answers that scored well. Then the rollout machines need the new weights, and the loop repeats.</p>
+        <p>The trainer genuinely needs tightly connected GPUs: it moves gradients and optimizer state around constantly. But the rollout half is just inference. It is also where most of the wall-clock time and most of the GPU-hours go, because generating thousands of long answers takes far longer than one weight update. Fireworks' point is that the expensive half is the <em>easy</em> half to spread out, as long as you can get fresh weights to it cheaply.</p>
+      </div>
+
+      <div class="loop" aria-label="Cross-region RL weight update loop">
+        <svg viewBox="0 0 900 300" role="img" aria-labelledby="loopTitle">
+          <title id="loopTitle">One trainer in one region sends small weight deltas to rollout fleets in three regions; rollouts flow back.</title>
+          <defs>
+            <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--good)"/></marker>
+            <marker id="ah2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--muted)"/></marker>
+          </defs>
+          <!-- trainer -->
+          <rect class="box trainer" x="30" y="95" width="200" height="110" rx="10"/>
+          <text class="big" x="130" y="128" text-anchor="middle">Trainer cluster</text>
+          <text x="130" y="150" text-anchor="middle">tight interconnect</text>
+          <text x="130" y="168" text-anchor="middle">writes checkpoint t+1</text>
+          <text x="130" y="190" text-anchor="middle" fill="var(--accent)">1024 GiB full weights</text>
+          <!-- delta encoder -->
+          <rect class="box" x="290" y="115" width="150" height="70" rx="10"/>
+          <text class="big" x="365" y="143" text-anchor="middle">Delta encoder</text>
+          <text x="365" y="163" text-anchor="middle">ckpt(t+1) − ckpt(t)</text>
+          <text x="365" y="178" text-anchor="middle" fill="var(--good)">≈ 20 GiB (2%)</text>
+          <path class="arrow" d="M230 150 L288 150"/>
+          <!-- object storage -->
+          <rect class="box" x="500" y="115" width="130" height="70" rx="10"/>
+          <text class="big" x="565" y="143" text-anchor="middle">Object store</text>
+          <text x="565" y="163" text-anchor="middle">no RDMA needed</text>
+          <text x="565" y="178" text-anchor="middle">plain HTTPS</text>
+          <path class="arrow" d="M440 150 L498 150"/>
+          <!-- rollout fleets -->
+          <g>
+            <rect class="box" x="700" y="30" width="180" height="62" rx="10"/>
+            <text class="big" x="790" y="54" text-anchor="middle">Rollouts · US Ohio</text>
+            <text x="790" y="74" text-anchor="middle">+43 ms away · hot-load</text>
+            <path class="arrow" d="M630 140 C 660 140, 660 61, 698 61"/>
+          </g>
+          <g>
+            <rect class="box" x="700" y="119" width="180" height="62" rx="10"/>
+            <text class="big" x="790" y="143" text-anchor="middle">Rollouts · US Virginia</text>
+            <text x="790" y="163" text-anchor="middle">+58 ms away · hot-load</text>
+            <path class="arrow" d="M630 150 L698 150"/>
+          </g>
+          <g>
+            <rect class="box" x="700" y="208" width="180" height="62" rx="10"/>
+            <text class="big" x="790" y="232" text-anchor="middle">Rollouts · EU Frankfurt</text>
+            <text x="790" y="252" text-anchor="middle">+145 ms away · hot-load</text>
+            <path class="arrow" d="M630 160 C 660 160, 660 239, 698 239"/>
+          </g>
+          <!-- back arrow -->
+          <path class="arrow back" d="M790 272 L790 292 L130 292 L130 207"/>
+          <text x="460" y="286" text-anchor="middle">scored rollouts flow back to the trainer (small: text + rewards)</text>
+        </svg>
+        <div class="fig">Redrawn from the post's "Cross-Region RL Weight Update Loop" figure. The trainer stays in one place. Everything to the right of it can be anywhere. Inter-region latency numbers are the ones the post reports.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">02 · The numbers that carry the argument</div>
+        <h2>Shipping 2%, not 100%</h2>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="v bad">1024 GiB</div><div class="l">full checkpoint in the sample run</div></div>
+        <div class="stat"><div class="v good">20.3 GiB</div><div class="l">average delta between adjacent checkpoints</div></div>
+        <div class="stat"><div class="v good">1.98%</div><div class="l">of the model changes per step</div></div>
+      </div>
+      <div class="prose">
+        <p>Fireworks looked at a 50-step window of a real run on a roughly 1 TB model. Between any two consecutive checkpoints, more than 98% of the bf16 weights were <em>bit-for-bit identical</em>. Not "close". Identical. So the difference between checkpoint <em>t</em> and checkpoint <em>t+1</em> can be written as a short list of "these positions changed, to these values", and that list averaged 20.3 GiB. Over the whole window that cut cross-region transfer volume by about 94% versus copying the full model each time.</p>
+        <p>Why do so few weights change? The short version: RL learning rates are tiny, and bf16 only has 7 bits of mantissa. Most individual updates are smaller than the gap between two representable bf16 numbers, so after rounding, the stored weight is exactly what it was before. The math tab works through this.</p>
+      </div>
+      <div class="callout good">
+        <p><b>This is lossless.</b> The rollout servers reconstruct the exact same weights the trainer has. Nothing is quantized or approximated to get the 50× saving. The saving comes from precision the trainer already threw away when it cast to bf16.</p>
+      </div>
+      <div class="bars" aria-label="Transfer volume comparison over 50 steps">
+        <div class="bar"><div class="lab">Full copy every step (50 steps)</div><div class="track"><div class="fill bad" style="width:100%"></div></div><div class="val">51,200 GiB</div></div>
+        <div class="bar"><div class="lab">Deltas only (50 × 20.3 GiB)</div><div class="track"><div class="fill good" style="width:2%"></div></div><div class="val">~1,015 GiB</div></div>
+        <div class="bar"><div class="lab">Post's reported window (≈94% saved)</div><div class="track"><div class="fill good" style="width:6%"></div></div><div class="val">~3,100 GiB</div></div>
+      </div>
+      <div class="fig">The middle bar is the pure average. The post's own 94% figure is a little higher because at least one full checkpoint has to be sent to seed each fleet and some steps change more than average.</div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">03 · The three mechanisms</div>
+        <h2>What has to be true for distributed rollouts to work</h2>
+      </div>
+      <div class="grid three">
+        <div class="card">
+          <div class="n">MECHANISM 1</div>
+          <h3>Compact checkpoint deltas</h3>
+          <p>Encode only the weights that changed since the last checkpoint the fleet already has. Fireworks calls its format ARC2 (<code>arc_v2</code>) and reports 20× or better compression on typical RL steps. Deltas ride over ordinary object storage, so no special networking between trainer and inference.</p>
+        </div>
+        <div class="card">
+          <div class="n">MECHANISM 2</div>
+          <h3>Hot-load updates</h3>
+          <p>Rollout servers apply the delta to weights already resident in GPU memory instead of restarting and re-reading a terabyte from disk. The fleet keeps serving; the gap between "trainer finished a step" and "rollouts use the new policy" shrinks from a restart cycle to a load of a few GB.</p>
+        </div>
+        <div class="card">
+          <div class="n">MECHANISM 3</div>
+          <h3>Bounded staleness</h3>
+          <p>Rollouts in flight were generated by a policy a step or two old. That is fine if you cap how old, because standard off-policy corrections (the importance-sampling ratio in PPO/GRPO-style losses) already account for it. Async RL research shows matched final performance with modest staleness. The post describes the result as minutes-level staleness across clusters.</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">04 · Why this changes the economics</div>
+        <h2>Mega clusters are scarce. Medium clusters are everywhere.</h2>
+      </div>
+      <div class="prose">
+        <p>The market rarely offers a single contiguous block of thousands of the newest GPUs on short notice, and when it does, you pay a premium and wait. Smaller pools in many regions are plentiful and cheaper. If the rollout fleet can be stitched together from three or four of those, you stop waiting for the mega cluster and start training.</p>
+        <p>There is a second effect: rollout inference and production inference are the same workload. Fireworks reports that Cursor trained Composer 2 with rollouts spread across 3 to 4 clusters worldwide, with training traffic and production traffic sharing one GPU pool, fed by delta-compressed weight updates. Capacity that would otherwise sit idle at off-peak hours becomes rollout capacity.</p>
+      </div>
+      <div class="callout">
+        <p><b>Latency is not the obstacle it sounds like.</b> The extra 43 to 145 ms between regions is paid once per request, not once per token. A rollout that takes a minute to generate barely notices a tenth of a second of round-trip. What actually matters is weight-update bandwidth, and deltas fix that.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">05 · How Fireworks packages it</div>
+        <h2>Three ways to run RL on the platform</h2>
+      </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Mode</th><th>You bring</th><th>Fireworks runs</th></tr></thead>
+          <tbody>
+            <tr><td><b>Fully managed RL</b></td><td>Dataset and evaluators (reward functions)</td><td>Trainer, rollout inference, checkpointing, and the weight-update workflow</td></tr>
+            <tr><td><b>Bring your own trainer</b></td><td>Your trainer and training loop</td><td>Rollout inference fleet; incremental snapshots are pushed to deployments and hot-loaded</td></tr>
+            <tr><td><b>Cookbook / custom loop</b></td><td>The RL loop itself, written against the SDK</td><td>Serverless or dedicated infrastructure for both sides, with the delta machinery underneath</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="fig">The third row is reconstructed from Fireworks' public training docs and cookbook rather than quoted from the post. See the companion explainer on the training cookbook for the loop itself.</div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">06 · If you remember five things</div>
+        <h2>The takeaways</h2>
+      </div>
+      <ol class="steps">
+        <li><b>The mega-cluster story has one load-bearing assumption</b>: that every weight update means moving a full terabyte to every rollout machine. Remove it and the story collapses.</li>
+        <li><b>RL updates are sparse at the bit level.</b> More than 98% of bf16 weights are unchanged between consecutive checkpoints, so a lossless delta is about 2% of the model (20.3 GiB vs 1024 GiB in the sample run).</li>
+        <li><b>Hot-loading keeps the fleet warm.</b> Apply the delta in place instead of restarting servers, so the rollout policy lags the trainer by minutes, not by a redeploy.</li>
+        <li><b>A few minutes of staleness is a known, solved problem.</b> Off-policy corrections already in the loss absorb it; async RL work shows no loss in final performance at bounded lag.</li>
+        <li><b>Rollouts dominate cost, and rollouts are just inference.</b> Spread them across regions and share them with production traffic. Keep only the trainer on tightly coupled hardware.</li>
+      </ol>
+    </section>
+  </div>
+
+  <!-- ======================= MATH ======================= -->
+  <div class="panel" id="p-math" role="tabpanel" aria-labelledby="tab-math">
+
+    <section style="padding-top:0">
+      <div class="sec-head">
+        <div class="eyebrow">Math 1 · Why 98% of weights don't move</div>
+        <h2>bf16 can't see small changes</h2>
+      </div>
+      <div class="prose">
+        <p>A bf16 number has 1 sign bit, 8 exponent bits, and 7 mantissa bits. Seven mantissa bits means there are only 128 evenly spaced values between any power of two and the next one. So the gap between neighbouring bf16 numbers near a weight <em>w</em> is roughly <em>|w| / 128</em>, and to tip over to the next representable value an update has to move at least half that gap.</p>
+      </div>
+      <div class="eq">
+        bf16 spacing near w  ≈  |w| / 2<sup>7</sup>  =  |w| / 128<br>
+        update is <span class="g">absorbed</span> (weight stays bit-identical) if   |Δw|  &lt;  |w| / 256<br>
+        update is <span class="b">visible</span> otherwise
+      </div>
+      <div class="prose">
+        <p>Now compare that to how big an RL update actually is. With Adam, each step moves a weight by roughly the learning rate (the gradient is normalised away). RL post-training learning rates are tiny, on the order of 10<sup>−6</sup>. A typical weight is around 10<sup>−2</sup>. Plug in:</p>
+      </div>
+      <div class="eq">
+        threshold  =  |w| / 256  ≈  0.01 / 256  ≈  <span class="g">4 × 10<sup>−5</sup></span><br>
+        Adam step  ≈  lr  ≈  <span class="b">3 × 10<sup>−6</sup></span><br>
+        3 × 10<sup>−6</sup>  ≪  4 × 10<sup>−5</sup>   →  the bf16 weight does not change
+      </div>
+      <div class="plain"><b>Plain English:</b> the trainer is nudging each weight by about one-thirteenth of the smallest nudge bf16 can record. Most nudges round away. The trainer keeps the exact fp32 copy, so the nudges accumulate and eventually one of them tips a weight over the edge. That trickle is the ~2% that changes each step.</div>
+
+      <div class="widget">
+        <h4>Try it: will this update survive the bf16 cast?</h4>
+        <div class="ctl">
+          <label>Weight magnitude |w|<span class="v" id="wv">1.0e-2</span><input type="range" id="w" min="-4" max="0" step="0.1" value="-2"></label>
+          <label>Learning rate (≈ Adam step size)<span class="v" id="lrv">3.0e-6</span><input type="range" id="lr" min="-7" max="-3" step="0.1" value="-5.52"></label>
+        </div>
+        <div class="out">
+          <div><div class="k">bf16 half-gap |w|/256</div><div class="v" id="thr">—</div></div>
+          <div><div class="k">update size</div><div class="v" id="upd">—</div></div>
+          <div><div class="k">ratio update / threshold</div><div class="v" id="ratio">—</div></div>
+        </div>
+        <div class="verdict" id="verdict">—</div>
+        <div class="fig">Simplification: real Adam steps vary around the learning rate, and weights span many magnitudes. Small-magnitude weights (near zero) flip more easily, which is partly why the change rate is 2% rather than 0%.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">Math 2 · How big is a delta</div>
+        <h2>Delta size = changed fraction × model size, plus addresses</h2>
+      </div>
+      <div class="eq">
+        full checkpoint      =  1024 GiB<br>
+        changed fraction     =  1.98%<br>
+        changed values       =  0.0198 × 1024 GiB  ≈  20.3 GiB   <span class="c">← the post's reported average</span><br>
+        <br>
+        over 50 steps:<br>
+        &nbsp;&nbsp;full copies   =  50 × 1024  =  51,200 GiB<br>
+        &nbsp;&nbsp;deltas        ≈  50 × 20.3  ≈   1,015 GiB      <span class="c">(≈ 98% less)</span><br>
+        &nbsp;&nbsp;reported      ≈  94% less, once the seed copy and fatter-than-average steps are counted
+      </div>
+      <div class="prose">
+        <p>One subtlety: a delta has to say <em>where</em> each changed value goes, not just what it is. Naively that doubles the size (a 4-byte index per 2-byte value). The trick is to store the <em>gaps</em> between changed positions instead of absolute positions, and encode those gaps with a variable-length code. Since about one in fifty weights changes, gaps are small numbers that fit in a byte, and the addressing overhead becomes a minor fraction of the payload. That is what "delta-encoded variable-length indexing" means in the post.</p>
+      </div>
+      <div class="plain"><b>Plain English:</b> instead of writing "position 1,000,000 changed, position 1,000,047 changed", you write "changed; skip 47; changed". Small skips take fewer bits than big addresses.</div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">Math 3 · Transfer time</div>
+        <h2>Seconds, not minutes, per region</h2>
+      </div>
+      <div class="eq">
+        transfer time  =  bytes × 8  /  link speed<br>
+        full:   1024 GiB × 8  /  10 Gb/s   ≈  880 s   ≈  <span class="b">14.7 min</span><br>
+        delta:  20.3 GiB × 8  /  10 Gb/s   ≈   17 s<span class="g">  </span>
+      </div>
+      <div class="prose">
+        <p>With a full copy, each weight update costs a quarter of an hour per region on a 10 Gb/s inter-region link. Against a training step that itself takes several minutes, the fleet would be permanently behind. With a delta, the update is a coffee-break pause even on a modest link, and nearly instant on 100 Gb/s.</p>
+      </div>
+      <div class="widget">
+        <h4>Try it: how long does an update take to reach a region?</h4>
+        <div class="ctl">
+          <label>Model size<span class="v" id="szv">1024 GiB</span><input type="range" id="sz" min="32" max="2048" step="32" value="1024"></label>
+          <label>Inter-region bandwidth<span class="v" id="bwv">10 Gb/s</span><input type="range" id="bw" min="1" max="200" step="1" value="10"></label>
+          <label>Changed fraction per step<span class="v" id="frv">2.0%</span><input type="range" id="fr" min="0.2" max="20" step="0.1" value="2"></label>
+          <label>Trainer step time<span class="v" id="stv">10 min</span><input type="range" id="st" min="1" max="60" step="1" value="10"></label>
+        </div>
+        <div class="out">
+          <div><div class="k">full copy per update</div><div class="v bad" id="tfull">—</div></div>
+          <div><div class="k">delta per update</div><div class="v good" id="tdelta">—</div></div>
+          <div><div class="k">staleness in steps (delta)</div><div class="v" id="stale">—</div></div>
+        </div>
+        <div class="verdict" id="verdict2">—</div>
+        <div class="fig">Staleness in steps = ceil((transfer + load) / step time). Load time is assumed to be 30 s for a hot-load of the delta. The post reports a "minutes-level" lag in practice; the trainer step time of ~10 min is from Fireworks' public account of the Cursor run.</div>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">Math 4 · Why staleness is survivable</div>
+        <h2>The loss already corrects for an old policy</h2>
+      </div>
+      <div class="prose">
+        <p>If a rollout was sampled from the policy as it was <em>k</em> steps ago (call it π<sub>old</sub>), and you are now updating the current policy π<sub>θ</sub>, you are learning from slightly off-policy data. PPO- and GRPO-style objectives handle exactly this. Each token's contribution is reweighted by how much more or less likely the current policy would be to produce it, and that weight is clipped so a single stale sample cannot swing the update.</p>
+      </div>
+      <div class="eq">
+        ratio      r  =  π<sub>θ</sub>(token | context)  /  π<sub>old</sub>(token | context)<br>
+        objective  L  =  mean[ min( r · A ,  clip(r, 1−ε, 1+ε) · A ) ]<br>
+        <span class="c">A = advantage (how much better this answer was than the group average); ε ≈ 0.2</span>
+      </div>
+      <div class="prose">
+        <p>When the rollout policy is close to the current one, <em>r</em> is near 1 and the correction is nearly a no-op. The further behind the rollouts fall, the more the ratios spread and the more of the batch the clip quietly discards. So staleness has a cost, and it grows with <em>k</em>. The engineering job is to <em>bound</em> <em>k</em> at a small number, which is what fast deltas plus hot-loading buy you. Studies of fully asynchronous RL find that with existing off-policy corrections and a staleness cap of a few steps, final performance matches synchronous training.</p>
+      </div>
+      <div class="plain"><b>Plain English:</b> the model is allowed to learn from answers written by a slightly older version of itself, as long as "slightly" stays slight. Deltas and hot-loading are what keep it slight.</div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">Math 5 · Latency vs. throughput</div>
+        <h2>145 ms is nothing against a one-minute rollout</h2>
+      </div>
+      <div class="eq">
+        overhead  =  round-trip latency  /  rollout duration<br>
+        Frankfurt: 0.145 s / 60 s  ≈  <span class="g">0.24%</span><br>
+        Ohio:      0.043 s / 60 s  ≈  <span class="g">0.07%</span>
+      </div>
+      <div class="prose">
+        <p>The orchestrator sends a prompt to a region and gets a finished rollout back. Latency is paid at the start and end of that round trip, while the GPU time in the middle is thousands of decoded tokens. Agentic rollouts with tool calls add more round trips, but each tool call is typically served near the rollout GPUs, not back across the ocean. The quantity that scales with the number of GPUs is weight-update bandwidth, and that is the one deltas attack.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">Math 6 · The cost picture</div>
+        <h2>Where the GPU-hours go</h2>
+      </div>
+      <div class="eq">
+        cost per step  ≈  rollout GPU-hours × rollout $/hr  +  trainer GPU-hours × trainer $/hr<br>
+        rollout GPU-hours  ≫  trainer GPU-hours        <span class="c">(generation is long; the gradient step is short)</span>
+      </div>
+      <div class="prose">
+        <p>Because the first term dominates, the lever with the most weight is the price and availability of <em>rollout</em> GPUs. Those can be any inference-grade GPUs, in any region, bought at whatever rate is available, and shared with production traffic. The trainer term stays on premium interconnected hardware, but it is the small term. That asymmetry is the whole "cheaper than you think".</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ======================= GLOSSARY & SOURCES ======================= -->
+  <div class="panel" id="p-src" role="tabpanel" aria-labelledby="tab-src">
+    <section style="padding-top:0">
+      <div class="sec-head">
+        <div class="eyebrow">Glossary</div>
+        <h2>Terms used in the post</h2>
+      </div>
+      <dl>
+        <dt>Rollout</dt><dd>One generated answer (or multi-turn trajectory) sampled from the current policy, later scored to produce a reward.</dd>
+        <dt>Checkpoint</dt><dd>A full snapshot of the model's weights at a given training step. In the sample run, 1024 GiB.</dd>
+        <dt>Checkpoint delta</dt><dd>The lossless difference between two checkpoints: the list of changed positions and their new values. About 2% of a full checkpoint in RL post-training.</dd>
+        <dt>Hot-load</dt><dd>Applying new weights to a running inference server in place, without restarting it or re-reading the full model from disk.</dd>
+        <dt>Staleness</dt><dd>How many trainer steps behind the current policy the weights used for a rollout are. "Bounded" means capped at a fixed small number.</dd>
+        <dt>Asynchronous RL</dt><dd>Running rollout generation and weight updates at the same time instead of one after the other, accepting bounded staleness in exchange for keeping both kinds of GPU busy.</dd>
+        <dt>bf16</dt><dd>A 16-bit floating-point format with 8 exponent bits and 7 mantissa bits. Coarse enough that most tiny RL updates round away to nothing.</dd>
+        <dt>Off-policy correction</dt><dd>Reweighting each sample by the ratio of new-policy to old-policy probability (clipped), so learning from a slightly older policy's rollouts stays unbiased enough.</dd>
+        <dt>ARC2 / arc_v2</dt><dd>Fireworks' name for its lossless compressed incremental snapshot format, used to ship deltas over ordinary object storage.</dd>
+      </dl>
+    </section>
+
+    <section>
+      <div class="sec-head">
+        <div class="eyebrow">Sources &amp; how this page was built</div>
+        <h2>Provenance</h2>
+      </div>
+      <div class="callout warn">
+        <p><b>Read this before trusting any single number.</b> The page was written in an environment whose network policy blocks fireworks.ai, so the post itself could not be fetched directly. Its content was reconstructed from search-engine indexed excerpts of the post (title, lede, section text, the figure's latency labels, and the reported figures: 1024 GiB, 20.3 GiB, 1.98%, 50 steps, ~94%, 43/58/145 ms) plus Fireworks' public training docs and cookbook, and public accounts of the Cursor Composer 2 training run. The bf16 absorption math is from the independent literature on weight-update sparsity, not from the post. Treat prose as a faithful paraphrase and the worked examples as illustrations, and check the original.</p>
+      </div>
+      <div class="prose">
+        <p><b>Primary</b><br>
+        Fireworks AI, <a href="https://fireworks.ai/blog/frontier-rl-is-cheaper-than-you-think">Frontier RL Is Cheaper Than You Think</a> (blog, 23 March 2026).</p>
+        <p><b>Supporting Fireworks material</b><br>
+        <a href="https://docs.fireworks.ai/fine-tuning/rl-rollout-integration">RL Rollouts with Your Own Trainer</a> (docs; incremental snapshots, arc_v2, hot-load) ·
+        <a href="https://fireworks.ai/blog/train-past-the-frontier-training-api-now-generally-available">Training API GA post</a> ·
+        <a href="https://fireworks.ai/blog/scaling-optimizing-frontier-model-training">Scaling and Optimizing Frontier Model Training</a>.</p>
+        <p><b>The Cursor / Composer run</b><br>
+        <a href="https://sequoiacap.com/podcast/how-cursor-trained-composer-on-fireworks-distributed-infrastructure-for-high-performance-rl">How Cursor Trained Composer on Fireworks</a> (Sequoia podcast) and the Dealroom note "Inside the GPU Factory".</p>
+        <p><b>Why updates are sparse in bf16</b><br>
+        <a href="https://arxiv.org/abs/2602.03839">Understanding and Exploiting Weight Update Sparsity for Communication-Efficient Distributed RL</a> ·
+        <a href="https://huggingface.co/blog/delta-weight-sync">Shipping a Trillion Parameters With a Hub Bucket: Delta Weight Sync in TRL</a> ·
+        <a href="https://arxiv.org/abs/2605.07330">SparseRL-Sync</a>.</p>
+        <p><b>Staleness and async RL</b><br>
+        AReaL (asynchronous RL with rollout/training disaggregation) ·
+        <a href="https://www.appliedcompute.com/research/staleness-in-fully-async-rl">Predicting and Controlling Staleness in Fully Asynchronous RL Training</a> ·
+        Moonshot's <code>checkpoint-engine</code> (in-place update of a 1T-parameter model across thousands of GPUs in ~20 s), referenced by the post as prior engineering work alongside MiniMax.</p>
+      </div>
+    </section>
+  </div>
+
+  <footer>
+    Part of <a href="index.html">Explainers</a>, a personal library of single-file pages. Not affiliated with Fireworks AI.
+  </footer>
+</div>
+
+<script>
+(function(){
+  var root = document.documentElement;
+  // theme
+  document.getElementById("theme").addEventListener("click", function(){
+    var cur = root.getAttribute("data-theme");
+    if(!cur){
+      cur = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    root.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  });
+
+  // tabs
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+  function show(id){
+    tabs.forEach(function(t){
+      var on = t.id === id;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      document.getElementById(t.getAttribute("aria-controls")).classList.toggle("on", on);
+    });
+    try{ history.replaceState(null, "", "#" + id.replace("tab-","")); }catch(e){}
+  }
+  tabs.forEach(function(t){
+    t.addEventListener("click", function(){ show(t.id); window.scrollTo({top:0}); });
+    t.addEventListener("keydown", function(e){
+      var i = tabs.indexOf(t);
+      if(e.key === "ArrowRight"){ tabs[(i+1)%tabs.length].focus(); show(tabs[(i+1)%tabs.length].id); }
+      if(e.key === "ArrowLeft"){ tabs[(i-1+tabs.length)%tabs.length].focus(); show(tabs[(i-1+tabs.length)%tabs.length].id); }
+    });
+  });
+  var h = location.hash.replace("#","");
+  if(h && document.getElementById("tab-"+h)) show("tab-"+h);
+
+  // sci formatting
+  function sci(x){
+    if(x === 0) return "0";
+    var e = Math.floor(Math.log10(Math.abs(x)));
+    var m = x / Math.pow(10, e);
+    return m.toFixed(1) + "e" + (e<0 ? "−" : "+") + Math.abs(e);
+  }
+  function secs(s){
+    if(s < 1) return (s*1000).toFixed(0) + " ms";
+    if(s < 90) return s.toFixed(1) + " s";
+    if(s < 5400) return (s/60).toFixed(1) + " min";
+    return (s/3600).toFixed(1) + " h";
+  }
+
+  // widget 1: bf16 absorption
+  var w = document.getElementById("w"), lr = document.getElementById("lr");
+  function upd1(){
+    var W = Math.pow(10, parseFloat(w.value));
+    var LR = Math.pow(10, parseFloat(lr.value));
+    var thr = W/256;
+    document.getElementById("wv").textContent = sci(W);
+    document.getElementById("lrv").textContent = sci(LR);
+    document.getElementById("thr").textContent = sci(thr);
+    document.getElementById("upd").textContent = sci(LR);
+    var r = LR/thr;
+    document.getElementById("ratio").textContent = r.toFixed(2) + "×";
+    var v = document.getElementById("verdict");
+    if(r < 1){
+      v.textContent = "Absorbed. The update is " + (1/r).toFixed(1) + "× smaller than bf16 can record here, so the stored weight is bit-identical after the step. It would take roughly " + Math.ceil(1/r) + " same-direction steps accumulating in the fp32 master copy before this weight ticks over.";
+      v.style.color = "var(--good)";
+    } else {
+      v.textContent = "Visible. This update is big enough to change the bf16 value, so the weight lands in the delta.";
+      v.style.color = "var(--accent)";
+    }
+  }
+  w.addEventListener("input", upd1); lr.addEventListener("input", upd1); upd1();
+
+  // widget 2: transfer time
+  var sz = document.getElementById("sz"), bw = document.getElementById("bw"), fr = document.getElementById("fr"), st = document.getElementById("st");
+  function upd2(){
+    var GiB = parseFloat(sz.value), gbps = parseFloat(bw.value), frac = parseFloat(fr.value)/100, step = parseFloat(st.value)*60;
+    document.getElementById("szv").textContent = GiB + " GiB";
+    document.getElementById("bwv").textContent = gbps + " Gb/s";
+    document.getElementById("frv").textContent = (frac*100).toFixed(1) + "%";
+    document.getElementById("stv").textContent = st.value + " min";
+    var bitsFull = GiB * 1073741824 * 8;
+    var tFull = bitsFull / (gbps*1e9);
+    var tDelta = tFull * frac;
+    document.getElementById("tfull").textContent = secs(tFull);
+    document.getElementById("tdelta").textContent = secs(tDelta);
+    var load = 30;
+    var staleD = Math.ceil((tDelta + load)/step);
+    var staleF = Math.ceil((tFull + 300)/step);
+    document.getElementById("stale").textContent = staleD + (staleD===1 ? " step" : " steps");
+    var v = document.getElementById("verdict2");
+    v.textContent = "With deltas the fleet runs about " + staleD + " step" + (staleD===1?"":"s") + " behind the trainer. Copying the full model (plus a ~5 min restart) would put it about " + staleF + " step" + (staleF===1?"":"s") + " behind" + (tFull > step ? ", and the transfer alone takes longer than a training step, so it could never catch up." : ".");
+  }
+  [sz,bw,fr,st].forEach(function(el){ el.addEventListener("input", upd2); }); upd2();
+})();
+</script>
+</body>
+</html>
