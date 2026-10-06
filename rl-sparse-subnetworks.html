@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>RL only touches a sliver — update sparsity in RL finetuning</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --ground:      #F1F3F7;
+    --surface:     #FFFFFF;
+    --rule:        #DDE1EA;
+    --grid:        rgba(23, 48, 122, 0.055);
+    --text:        #171B26;
+    --muted:       #5E6779;
+    --faint:       #929BAC;
+    --ink:         #17307A;
+    --ink-soft:    rgba(23, 48, 122, 0.09);
+    --ink-2:       #176146;
+    --ink-2-soft:  rgba(23, 97, 70, 0.10);
+    --mark:        #A8281F;
+    --mark-soft:   rgba(168, 40, 31, 0.09);
+    --amber:       #B9740C;
+    --amber-soft:  rgba(185, 116, 12, 0.14);
+    --shadow:      0 1px 2px rgba(20,28,54,.05), 0 8px 24px -14px rgba(20,28,54,.22);
+    --serif: ui-serif, "New York", Palatino, "Palatino Linotype", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:#0C0F16; --surface:#141924; --rule:#262D3D; --grid:rgba(140,168,255,.05);
+      --text:#E5E8F0; --muted:#9AA4B8; --faint:#6B7488;
+      --ink:#8CA8FF; --ink-soft:rgba(140,168,255,.13);
+      --ink-2:#4FBE8E; --ink-2-soft:rgba(79,190,142,.13);
+      --mark:#FF8377; --mark-soft:rgba(255,131,119,.13);
+      --amber:#E9A93E; --amber-soft:rgba(233,169,62,.16);
+      --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0C0F16; --surface:#141924; --rule:#262D3D; --grid:rgba(140,168,255,.05);
+    --text:#E5E8F0; --muted:#9AA4B8; --faint:#6B7488;
+    --ink:#8CA8FF; --ink-soft:rgba(140,168,255,.13);
+    --ink-2:#4FBE8E; --ink-2-soft:rgba(79,190,142,.13);
+    --mark:#FF8377; --mark-soft:rgba(255,131,119,.13);
+    --amber:#E9A93E; --amber-soft:rgba(233,169,62,.16);
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 10px 30px -16px rgba(0,0,0,.8);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background-color: var(--ground);
+    background-image:
+      linear-gradient(var(--grid) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 26px 26px;
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 17px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 28px 96px; }
+  .col { max-width: 65ch; }
+  h1, h2, h3 { font-family: var(--serif); text-wrap: balance; font-weight: 600; }
+  p { margin: 0 0 1.05em; }
+  a { color: var(--ink); text-underline-offset: 3px; }
+  code { font-family: var(--mono); font-size: .88em; background: var(--ink-soft); padding: 1px 5px; border-radius: 3px; }
+
+  .eyebrow {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: .13em;
+    text-transform: uppercase; color: var(--faint); margin: 0 0 14px;
+  }
+  header { padding: 76px 0 44px; }
+  h1 { font-size: clamp(38px, 6.2vw, 62px); line-height: 1.03; letter-spacing: -.022em; margin: 0 0 22px; }
+  h1 em { font-style: italic; color: var(--ink); }
+  .standfirst { font-size: 20px; line-height: 1.55; color: var(--muted); max-width: 60ch; margin: 0; }
+  .byline {
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    margin-top: 30px; padding-top: 16px; border-top: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; gap: 8px 22px;
+  }
+  .theme-btn {
+    position: fixed; top: 18px; right: 18px; z-index: 20;
+    width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid var(--rule); background: var(--surface); color: var(--muted);
+    font-size: 15px; cursor: pointer; box-shadow: var(--shadow);
+  }
+  .theme-btn:hover { color: var(--ink); border-color: var(--ink); }
+  .theme-btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+    border-radius: 3px; overflow: hidden; margin: 40px 0 56px;
+  }
+  .stat { background: var(--surface); padding: 20px 22px; }
+  .stat .n { font-family: var(--serif); font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--ink); letter-spacing: -.02em; }
+  .stat .l { font-size: 13.5px; color: var(--muted); margin-top: 7px; line-height: 1.45; }
+
+  section { padding: 52px 0 8px; border-top: 1px solid var(--rule); }
+  h2 { font-size: clamp(25px, 3.4vw, 33px); line-height: 1.18; letter-spacing: -.015em; margin: 0 0 20px; }
+  h3 { font-size: 19px; margin: 34px 0 12px; }
+  .lede { font-size: 18.5px; color: var(--muted); }
+  .pull {
+    font-family: var(--serif); font-size: 21px; line-height: 1.45; font-style: italic;
+    color: var(--text); border-left: 2px solid var(--ink); padding: 4px 0 4px 22px;
+    margin: 30px 0; max-width: 54ch;
+  }
+
+  /* TL;DR box */
+  .tldr {
+    background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--ink-2);
+    border-radius: 3px; padding: 22px 26px; margin: 0 0 8px; box-shadow: var(--shadow); max-width: 72ch;
+  }
+  .tldr .eyebrow { color: var(--ink-2); margin-bottom: 10px; }
+  .tldr ol { margin: 0; padding-left: 22px; }
+  .tldr li { margin: 0 0 9px; }
+  .tldr li:last-child { margin-bottom: 0; }
+
+  /* module */
+  .module {
+    background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+    box-shadow: var(--shadow); margin: 34px 0 12px; overflow: hidden;
+  }
+  .module-head {
+    padding: 18px 24px; border-bottom: 1px solid var(--rule);
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px;
+  }
+  .module-head .t { font-family: var(--serif); font-size: 18px; }
+  .module-head .q { font-family: var(--mono); font-size: 12px; color: var(--muted); flex: 1 1 320px; min-width: 0; }
+  .module-body { padding: 22px 24px 26px; }
+  .caption { font-size: 13px; color: var(--faint); line-height: 1.5; padding: 0 24px 22px; max-width: 66ch; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 20px; }
+  .btn {
+    font-family: var(--sans); font-size: 14px; font-weight: 550;
+    padding: 8px 17px; border-radius: 3px; cursor: pointer;
+    border: 1px solid var(--ink); background: var(--ink); color: var(--surface);
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn.ghost { background: transparent; color: var(--ink); }
+  .btn.ghost.on { background: var(--ink); color: var(--surface); }
+  .btn:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .stepnote { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .stepnote b { color: var(--text); font-weight: 600; }
+
+  /* parameter grid */
+  .pgrid-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 26px; align-items: start; }
+  .pgrid {
+    display: grid; grid-template-columns: repeat(30, 1fr); gap: 2px;
+    aspect-ratio: 30 / 16; max-width: 640px;
+  }
+  .pgrid i {
+    display: block; border-radius: 1px; background: var(--rule);
+    transition: background .35s ease, transform .35s ease;
+  }
+  .pgrid i.sub  { background: var(--ink); }
+  .pgrid i.canc { background: var(--amber); }
+  .pgrid i.norm { background: var(--faint); opacity: .55; }
+  .legend { font-size: 14px; line-height: 1.5; }
+  .legend div { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .legend .sw { width: 14px; height: 14px; border-radius: 2px; flex: none; }
+  .legend b { font-family: var(--mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+  @media (max-width: 720px) { .pgrid-wrap { grid-template-columns: 1fr; } }
+
+  /* slider */
+  .slider-row { display: grid; grid-template-columns: 170px 1fr 70px; gap: 14px; align-items: center; margin: 10px 0 16px; }
+  .slider-row label { font-family: var(--mono); font-size: 12px; color: var(--muted); }
+  .slider-row output { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; text-align: right; }
+  input[type=range] { width: 100%; accent-color: var(--ink); }
+  .ovl { display: grid; gap: 10px; margin-top: 14px; }
+  .ovl-row { display: grid; grid-template-columns: 180px 1fr 64px; gap: 12px; align-items: center; font-size: 14px; }
+  .ovl-row .bar { height: 10px; background: var(--rule); border-radius: 3px; overflow: hidden; }
+  .ovl-row .bar i { display: block; height: 100%; transition: width .4s ease; }
+  .ovl-row .bar i.chance { background: var(--faint); }
+  .ovl-row .bar i.obs { background: var(--ink-2); }
+  .ovl-row .v { font-family: var(--mono); font-size: 12.5px; text-align: right; font-variant-numeric: tabular-nums; }
+  @media (max-width: 620px) { .slider-row, .ovl-row { grid-template-columns: 1fr; gap: 6px; } .ovl-row .v, .slider-row output { text-align: left; } }
+
+  /* bars (canvas) */
+  .chartwrap { padding: 24px; }
+  canvas { display: block; width: 100%; height: auto; }
+
+  /* findings list */
+  ol.protocol { list-style: none; counter-reset: p; padding: 0; margin: 26px 0 30px; max-width: 62ch; }
+  ol.protocol li { counter-increment: p; position: relative; padding: 0 0 18px 46px; margin: 0; border-left: 1px solid var(--rule); margin-left: 13px; }
+  ol.protocol li:last-child { border-left-color: transparent; padding-bottom: 0; }
+  ol.protocol li::before {
+    content: counter(p); position: absolute; left: -13px; top: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: var(--ink-2-soft); color: var(--ink-2); font-family: var(--mono); font-size: 12px; font-weight: 600;
+    display: grid; place-items: center;
+  }
+  ol.protocol .h { font-weight: 600; }
+  ol.protocol .d { color: var(--muted); font-size: 15.5px; }
+
+  /* comparison table */
+  .cmp { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 4px; overflow: hidden; margin: 30px 0 10px; }
+  .cmp-row { display: grid; grid-template-columns: 170px 1fr 1fr; gap: 1px; background: var(--rule); }
+  .cmp-row > * { background: var(--surface); padding: 15px 18px; }
+  .cmp-head .a, .cmp-head .b { font-family: var(--serif); font-size: 17px; }
+  .cmp-head .a { color: var(--ink); }
+  .cmp-head .b { color: var(--mark); }
+  .cmp .axis { font-family: var(--mono); font-size: 11.5px; letter-spacing: .07em; text-transform: uppercase; color: var(--faint); }
+  .cmp .a, .cmp .b { font-size: 14.5px; line-height: 1.55; }
+  .cmp .a strong { color: var(--ink); font-weight: 600; }
+  .cmp .b strong { color: var(--mark); font-weight: 600; }
+  @media (max-width: 720px) { .cmp-row { grid-template-columns: 1fr; } }
+
+  .verdict {
+    background: var(--surface); border: 1px solid var(--rule); border-left: 3px solid var(--ink);
+    border-radius: 3px; padding: 24px 26px; margin: 30px 0 0; box-shadow: var(--shadow);
+  }
+  .verdict h3 { margin-top: 0; }
+  .verdict p:last-child { margin-bottom: 0; }
+
+  footer { margin-top: 64px; padding-top: 22px; border-top: 1px solid var(--rule); font-family: var(--mono); font-size: 12px; color: var(--faint); line-height: 1.8; }
+
+  @media (max-width: 620px) {
+    body { font-size: 16px; }
+    .wrap { padding: 0 18px 72px; }
+    .module-head, .module-body, .chartwrap, .caption { padding-left: 17px; padding-right: 17px; }
+    ol.protocol li { padding-left: 38px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<button class="theme-btn" id="themeBtn" aria-label="Toggle colour theme">◐</button>
+
+<div class="wrap">
+
+  <header>
+    <p class="eyebrow">Post-training · Interpretability · NeurIPS 2025</p>
+    <h1>RL only touches <em>a sliver</em> of the model</h1>
+    <p class="standfirst">Take any RL-finetuned LLM and diff it against its starting checkpoint. Seventy to ninety-five percent of the weights are bit-for-bit identical. The gains come from a small subnetwork, and that subnetwork is sparse but full-rank, consistent across seeds and algorithms, and enough on its own to reproduce the whole run.</p>
+    <div class="byline">
+      <span>Mukherjee, Yuan, Hakkani-Tür, Peng · UIUC</span>
+      <span>arXiv:2505.11711 · NeurIPS 2025</span>
+      <span>Code: SagnikMukherjee/sparsity_in_rl</span>
+    </div>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><div class="n">68–96%</div><div class="l">Of parameters left unchanged by RL, across 7 algorithms and 10 models</div></div>
+    <div class="stat"><div class="n">6–15%</div><div class="l">Unchanged after supervised finetuning on the same kinds of models. SFT is dense.</div></div>
+    <div class="stat"><div class="n">&gt;99%</div><div class="l">Of full rank for the update to almost every weight matrix. Sparse, not low-rank.</div></div>
+    <div class="stat"><div class="n">99.9%</div><div class="l">Of weights identical when you retrain only the subnetwork versus the full model</div></div>
+  </div>
+
+  <div class="tldr">
+    <p class="eyebrow">TL;DR</p>
+    <ol>
+      <li><strong>RL finetuning is sparse by default.</strong> Without any sparsity regulariser, mask, or adapter, PPO, GRPO, DPO, PRIME, KTO, SimPO and ORPO all leave most parameters untouched. SFT does not.</li>
+      <li><strong>The updates are not low-rank.</strong> The weight deltas are sparse yet span nearly the full rank of each matrix. That is the opposite of what LoRA assumes.</li>
+      <li><strong>The subnetwork is sufficient.</strong> Freeze everything else, retrain only the subnetwork from the same start, and you get the same accuracy and essentially the same weights.</li>
+      <li><strong>The subnetwork is stable.</strong> Across seeds, datasets and even RL algorithms, the sets of updated parameters overlap far more than chance.</li>
+      <li><strong>The cause is on-policy data, not regularisation.</strong> Training on samples near the policy's own distribution yields sparse updates even for SFT. KL penalties and gradient clipping barely matter.</li>
+    </ol>
+  </div>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">The observation</p>
+      <h2>Diff the checkpoints and most of the model is untouched</h2>
+      <p class="lede">The method is almost embarrassingly simple. Take a public RL-finetuned model and the checkpoint it started from, compare them weight by weight in bf16, and count how many entries did not change.</p>
+      <p>The authors did this for ten models from several families, including DeepSeek-Math, Eurus, Tulu 3, Llama 3 and Qwen variants, covering seven RL methods: PPO, GRPO, DPO, PRIME, KTO, SimPO and ORPO. In every case the update sparsity sits between 68.5% and 96.0%. For supervised finetuning on comparable models the same measurement gives 6% to 15%. SFT rewrites nearly everything; RL rewrites a sliver.</p>
+      <p>The sparsity is not a layer effect. Nearly every weight matrix in every layer receives a similarly sparse update. The one exception is the layer-normalisation parameters, which RL almost never touches at all.</p>
+      <p class="pull">Roughly 20% of the parameters form the subnetwork. Another 8% receive gradients that cancel out. The remaining 70% never move.</p>
+      <p>That breakdown comes from tracking a PRIME run step by step rather than only diffing the endpoints. It rules out one tempting explanation: that the frozen weights simply never got a gradient. Most of them did not, but a meaningful slice did and the updates netted to zero.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">One weight matrix, 480 parameters</span>
+        <span class="q">illustrative layout of the PRIME breakdown: 20% subnetwork · 8% cancelled · 72% never updated</span>
+      </div>
+      <div class="module-body">
+        <div class="controls">
+          <button class="btn ghost on" id="viewRL">RL (PRIME)</button>
+          <button class="btn ghost" id="viewSFT">SFT, off-policy data</button>
+          <button class="btn ghost" id="viewRS">SFT, self-generated data</button>
+          <span class="stepnote" id="gridNote"></span>
+        </div>
+        <div class="pgrid-wrap">
+          <div class="pgrid" id="pgrid" aria-label="Parameter grid"></div>
+          <div class="legend">
+            <div><span class="sw" style="background:var(--ink)"></span><span>Subnetwork, consistently updated <b id="lgSub"></b></span></div>
+            <div><span class="sw" style="background:var(--amber)"></span><span>Received gradients that cancelled out <b id="lgCanc"></b></span></div>
+            <div><span class="sw" style="background:var(--rule)"></span><span>Never updated <b id="lgNone"></b></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Each cell is one parameter in a 30×16 slice of a weight matrix. The RL view uses the paper's PRIME breakdown. The SFT view uses the reported 6.8–7.7% sparsity for off-policy data, and the self-generated view uses the roughly 90% sparsity observed when SFT targets come from rejection sampling the policy itself. Cell positions are random; the paper finds the subnetwork spread across the matrix rather than clustered.</p>
+
+    <div class="col">
+      <h3>A note on precision</h3>
+      <p>"Unchanged" here means identical in bf16, the precision modern LLMs are trained in. A sceptic might argue that bf16 simply swallows small updates. The paper addresses this directly: the gradient-cancellation analysis and the training-dynamics tracking were done at the training precision, and the phenomenon persists. A concurrent independent paper, arXiv:2507.17107, reproduces the finding and reaches the same conclusion that bf16 rounding is a contributor but not the explanation.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Sparse, not low-rank</p>
+      <h2>The delta is thin but it points everywhere</h2>
+      <p>Parameter-efficient finetuning folklore says the finetuning update lives in a low-dimensional subspace. That is the premise of LoRA, which factors the delta as a product of two skinny matrices. The authors tested it by taking the actual RL weight deltas and measuring their rank. For almost every matrix the delta is above 99% of full rank.</p>
+      <p>So RL changes few entries, but those entries are scattered such that the delta spans almost the entire space the matrix can represent. This is a different kind of efficiency from LoRA's. A low-rank adapter can represent a dense, structured change; it cannot represent a sparse, full-rank one. The two are nearly orthogonal notions of "small".</p>
+    </div>
+
+    <div class="cmp">
+      <div class="cmp-row cmp-head"><div class="axis">Kind of "small"</div><div class="a">RL update (observed)</div><div class="b">LoRA assumption</div></div>
+      <div class="cmp-row"><div class="axis">Which entries move</div><div class="a"><strong>5–30%</strong> of entries, the rest exactly zero</div><div class="b">Every entry moves; the delta is dense</div></div>
+      <div class="cmp-row"><div class="axis">Rank of the delta</div><div class="a"><strong>Nearly full rank</strong>, above 99%</div><div class="b">Fixed small <em>r</em>, often 8 to 64</div></div>
+      <div class="cmp-row"><div class="axis">Where it lives</div><div class="a">All layers and matrices alike, <strong>except layer norms</strong></div><div class="b">Wherever adapters are attached, usually attention projections</div></div>
+      <div class="cmp-row"><div class="axis">Natural PEFT analogue</div><div class="a">A <strong>sparse mask</strong> over the full matrix</div><div class="b">A low-rank factorisation</div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Sufficiency</p>
+      <h2>Train only the sliver and you get the same model back</h2>
+      <p class="lede">The sharpest experiment in the paper: run RL once to find the subnetwork, then start over from the initial checkpoint, mask out everything outside it, and run RL again.</p>
+      <p>The subnetwork-only run does not merely match accuracy. It lands on the same weights. Over 99.9% of the parameters coincide with the fully finetuned model, which means the frozen 70% was not providing some diffuse support that the subnetwork quietly depended on. On benchmark averages the masked run even edged ahead, by about 2.4 points for PRIME on math reasoning and 1.6 points for DPO.</p>
+      <p>Two caveats are worth keeping in view. The mask is derived from a completed full run, so this is a sufficiency proof and not yet a cheaper training recipe. And the small positive gaps are within what seed variance might explain; the claim is equivalence, not improvement.</p>
+    </div>
+
+    <ol class="protocol">
+      <li><div class="h">Run full RL from checkpoint θ₀ to θ_RL.</div><div class="d">Standard training, nothing masked.</div></li>
+      <li><div class="h">Build the mask M = 1[θ_RL ≠ θ₀].</div><div class="d">Entry-wise comparison in training precision. M selects 5–30% of parameters.</div></li>
+      <li><div class="h">Restart from θ₀ and apply M to every gradient.</div><div class="d">Parameters outside M are frozen for the whole run; same data, same algorithm.</div></li>
+      <li><div class="h">Compare θ_sub with θ_RL.</div><div class="d">Accuracy matches; over 99.9% of weights are identical.</div></li>
+    </ol>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Stability</p>
+      <h2>The same subnetwork keeps showing up</h2>
+      <p>If the updated set were an accident of initialisation, two seeds would pick different parameters. They do not. The authors measure overlap as the fraction of one run's subnetwork that also appears in another's, and compare it with what independent random selection at the same sparsity would give.</p>
+    </div>
+
+    <div class="module">
+      <div class="module-head">
+        <span class="t">Overlap against chance</span>
+        <span class="q">chance overlap at sparsity s is roughly 1 − s: a random subnetwork of the same size hits a given parameter with that probability</span>
+      </div>
+      <div class="module-body">
+        <div class="slider-row">
+          <label for="spars">Update sparsity of each run</label>
+          <input type="range" id="spars" min="40" max="95" value="63" step="1">
+          <output id="sparsOut">63%</output>
+        </div>
+        <div class="ovl">
+          <div class="ovl-row"><span>Chance overlap at this sparsity</span><div class="bar"><i class="chance" id="chanceBar"></i></div><span class="v" id="chanceV"></span></div>
+          <div class="ovl-row"><span>Different seeds (paper)</span><div class="bar"><i class="obs" style="width:60.5%"></i></div><span class="v">60.5%</span></div>
+          <div class="ovl-row"><span>Different data (paper, best)</span><div class="bar"><i class="obs" style="width:67.1%"></i></div><span class="v">67.1%</span></div>
+          <div class="ovl-row"><span>Different algorithms (paper)</span><div class="bar"><i class="obs" style="width:59.1%"></i></div><span class="v">59.1%</span></div>
+          <div class="ovl-row"><span>Seed + data + algorithm all changed</span><div class="bar"><i class="obs" style="width:33.2%"></i></div><span class="v">33.2%</span></div>
+        </div>
+      </div>
+    </div>
+    <p class="caption">Drag the slider to see how the chance baseline moves with sparsity. The seed experiment ran at about 63% sparsity, where chance is 36.7% and the observed overlap was 60.5% and 60.6% in two comparisons. The paper's chance baselines for the other rows range from 12.9% to 36.7% depending on each pair's sparsity. Even the stress test that changes everything at once stays well above chance.</p>
+
+    <div class="col">
+      <p>The subnetwork also settles early. Tracking which weights have moved at intermediate checkpoints, only a small fraction of them lie outside the final subnetwork. Training does not wander through the parameter space and then converge; it picks a region near the start and deepens it. With much longer training the sparsity slowly decays, but it stays high over the step counts that typical RL runs use.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">Why</p>
+      <h2>It is the data, not the leash</h2>
+      <p class="lede">RL pipelines carry several mechanisms that could plausibly keep the policy near its starting point. The paper tests them one at a time.</p>
+      <p>KL regularisation toward the reference model: switch it off and the sparsity is comparable. Gradient clipping: same story. Neither is the driver. What does move the needle is where the training data comes from.</p>
+    </div>
+
+    <div class="module">
+      <div class="chartwrap"><canvas id="chart" width="900" height="300"></canvas></div>
+      <p class="caption" style="padding-top:0">Update sparsity by training regime. The decisive comparison is the middle pair: supervised finetuning on the policy's own rejection-sampled outputs is about as sparse as RL, while supervised finetuning on off-policy data is dense. Same loss, different data, opposite outcome.</p>
+    </div>
+
+    <div class="col">
+      <p>The proposed explanation is that in-distribution samples require small corrections. RL by construction trains on the policy's own rollouts, so the gradient signal says "shift the probability of things you already nearly do," and that signal lands on a narrow set of parameters. Off-policy SFT asks the model to imitate text it would not have produced, and that pulls on everything. DPO sits in between depending on whether the preference pairs were sampled from the policy, and its sparsity tracks that.</p>
+      <p>This reframes the phenomenon. It is not a property of policy-gradient algorithms specifically. It is a property of training near your own distribution, which RL happens to do by default.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="col">
+      <p class="eyebrow">So what</p>
+      <h2>What this changes about how you think about RL finetuning</h2>
+    </div>
+    <div class="verdict">
+      <h3>Three takeaways</h3>
+      <p><strong>LoRA is the wrong shape for RL.</strong> If the natural RL update is sparse and full-rank, a rank-constrained adapter is fighting the geometry. The right parameter-efficient method for RL looks like a sparse mask over full matrices. The sufficiency experiment shows such a mask exists; the open problem is finding it without a full run first. The stability across seeds and algorithms hints that it might be partly transferable.</p>
+      <p><strong>RL is mostly a reweighting, not a rewrite.</strong> Seventy percent of the model is literally the base model after RL. That is consistent with the broader line of results arguing that RL sharpens and reorganises capabilities the base already has rather than installing new ones, and it explains why RL-finetuned checkpoints merge and interpolate so gracefully.</p>
+      <p><strong>Diffing checkpoints is an underrated analysis tool.</strong> Everything in this paper falls out of comparing public checkpoints weight by weight. The released script does exactly that for any SFT and RL pair you point it at.</p>
+    </div>
+    <div class="col" style="margin-top:28px">
+      <h3>Limitations the authors flag</h3>
+      <p>The models are in the 7B to 8B range and the RL runs are the lengths typical of academic reproductions; sparsity decays with longer training, so frontier-scale runs with far more steps may be denser. The subnetwork mask is extracted after the fact, so there is no cheaper training recipe yet. And "unchanged" is measured in bf16, which flattens tiny updates; the authors argue this is not the explanation, but it bounds how literally to read "zero".</p>
+    </div>
+  </section>
+
+  <footer>
+    Source: Mukherjee, Yuan, Hakkani-Tür, Peng. <em>Reinforcement Learning Finetunes Small Subnetworks in Large Language Models.</em> arXiv:2505.11711, NeurIPS 2025. Figures in this page are reconstructed from numbers reported in the paper and its public summaries; cell layouts are illustrative.<br>
+    Related: arXiv:2507.17107, an independent replication of the sparse-subnetwork finding.
+  </footer>
+
+</div>
+
+<script>
+(function () {
+  // theme
+  var root = document.documentElement, btn = document.getElementById('themeBtn');
+  function cur() { var t = root.getAttribute('data-theme'); if (t) return t; return matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; }
+  btn.addEventListener('click', function () { root.setAttribute('data-theme', cur() === 'dark' ? 'light' : 'dark'); draw(); });
+
+  // parameter grid
+  var N = 480, grid = document.getElementById('pgrid'), cells = [];
+  for (var i = 0; i < N; i++) { var c = document.createElement('i'); grid.appendChild(c); cells.push(c); }
+  var order = cells.map(function (_, i) { return i; });
+  for (var j = order.length - 1; j > 0; j--) { var k = Math.floor(Math.random() * (j + 1)); var t = order[j]; order[j] = order[k]; order[k] = t; }
+  var views = {
+    RL:  { sub: .20, canc: .08, note: 'PRIME on Eurus-2-7B: 72% of weights never receive an update' },
+    SFT: { sub: .93, canc: .00, note: 'off-policy SFT: only 6.8–7.7% of weights left unchanged' },
+    RS:  { sub: .10, canc: .00, note: 'SFT on the policy’s own rejection-sampled outputs: about 90% sparsity' }
+  };
+  function paint(v) {
+    var nSub = Math.round(N * v.sub), nCanc = Math.round(N * v.canc);
+    order.forEach(function (idx, pos) {
+      var c = cells[idx]; c.className = pos < nSub ? 'sub' : (pos < nSub + nCanc ? 'canc' : '');
+    });
+    document.getElementById('lgSub').textContent = Math.round(v.sub * 100) + '%';
+    document.getElementById('lgCanc').textContent = Math.round(v.canc * 100) + '%';
+    document.getElementById('lgNone').textContent = Math.round((1 - v.sub - v.canc) * 100) + '%';
+    document.getElementById('gridNote').textContent = v.note;
+  }
+  var vbtns = { RL: 'viewRL', SFT: 'viewSFT', RS: 'viewRS' };
+  Object.keys(vbtns).forEach(function (key) {
+    document.getElementById(vbtns[key]).addEventListener('click', function () {
+      Object.keys(vbtns).forEach(function (k2) { document.getElementById(vbtns[k2]).classList.toggle('on', k2 === key); });
+      paint(views[key]);
+    });
+  });
+  paint(views.RL);
+
+  // overlap slider
+  var sl = document.getElementById('spars');
+  function upd() {
+    var s = +sl.value, chance = 100 - s;
+    document.getElementById('sparsOut').textContent = s + '%';
+    document.getElementById('chanceBar').style.width = chance + '%';
+    document.getElementById('chanceV').textContent = chance.toFixed(1) + '%';
+  }
+  sl.addEventListener('input', upd); upd();
+
+  // bar chart
+  var cv = document.getElementById('chart');
+  function css(n) { return getComputedStyle(root).getPropertyValue(n).trim(); }
+  var rows = [
+    { l: 'RL, all 7 algorithms × 10 models', lo: 68.5, hi: 96.0, c: '--ink' },
+    { l: 'SFT on self-generated (rejection-sampled) data', lo: 90, hi: 90, c: '--ink-2' },
+    { l: 'SFT on off-policy data', lo: 6.8, hi: 7.7, c: '--mark' },
+    { l: 'SFT, typical public checkpoints', lo: 6, hi: 15, c: '--mark' }
+  ];
+  function draw() {
+    var ctx = cv.getContext('2d'), W = cv.width, H = cv.height;
+    ctx.clearRect(0, 0, W, H);
+    var left = 330, right = W - 110, top = 28, rowH = 58;
+    var text = css('--text'), faint = css('--faint'), rule = css('--rule'), muted = css('--muted');
+    ctx.font = '12px ' + css('--mono'); ctx.textBaseline = 'middle';
+    for (var g = 0; g <= 100; g += 25) {
+      var x = left + (right - left) * g / 100;
+      ctx.strokeStyle = rule; ctx.beginPath(); ctx.moveTo(x, top - 10); ctx.lineTo(x, top + rows.length * rowH); ctx.stroke();
+      ctx.fillStyle = faint; ctx.textAlign = 'center'; ctx.fillText(g + '%', x, top + rows.length * rowH + 16);
+    }
+    rows.forEach(function (r, i) {
+      var y = top + i * rowH + rowH / 2;
+      ctx.fillStyle = text; ctx.textAlign = 'right'; ctx.font = '13px ' + css('--sans');
+      ctx.fillText(r.l, left - 16, y);
+      var x0 = left + (right - left) * r.lo / 100, x1 = left + (right - left) * r.hi / 100;
+      ctx.fillStyle = css(r.c);
+      if (x1 - x0 < 6) { x0 -= 3; x1 += 3; }
+      ctx.fillRect(x0, y - 11, x1 - x0, 22);
+      ctx.fillStyle = muted; ctx.textAlign = 'left'; ctx.font = '12px ' + css('--mono');
+      var lab = r.lo === r.hi ? '~' + r.lo + '%' : r.lo + '–' + r.hi + '%';
+      ctx.fillText(lab, x1 + 8, y);
+    });
+    ctx.fillStyle = faint; ctx.textAlign = 'left'; ctx.font = '11px ' + css('--mono');
+    ctx.fillText('UPDATE SPARSITY: SHARE OF PARAMETERS UNCHANGED', left, top - 18);
+  }
+  draw();
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+})();
+</script>
+</html>

@@ -60,6 +60,15 @@
   <div class="wrap">
     <div class="grid">
 
+      <a class="card" href="rl-sparse-subnetworks.html">
+        <div class="ctop">
+          <h2>RL only touches a sliver</h2>
+          <span class="tag">ML · post-training</span>
+        </div>
+        <p>Diff any RL-finetuned LLM against its starting checkpoint and 70–95% of the weights are bit-for-bit unchanged. The update is sparse but full-rank (the opposite of LoRA's premise), the same subnetwork shows up across seeds and algorithms, and retraining only that subnetwork reproduces the full model to 99.9% of its weights. The cause is on-policy data, not KL or clipping. Parameter-grid view, overlap-vs-chance slider, and the regime chart.</p>
+        <div class="meta"><span>2025</span><span>·</span><span>interactive</span><span style="margin-left:auto" class="arrow">read →</span></div>
+      </a>
+
       <a class="card" href="coup-cfr.html">
         <div class="ctop">
           <h2>Coup at Equilibrium</h2>
